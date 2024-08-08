@@ -1,10 +1,10 @@
 import React from "react";
 import styled from "styled-components";
 
-const BubbleWrapper = styled.div<{ backgroundColor?: string }>`
+const BubbleWrapper = styled.div<{ $backgroundColor?: string }>`
   border-radius: 15px;
   padding: 10px;
-  background-color: ${({ backgroundColor }) => backgroundColor || "#f0f0f0"};
+  background-color: ${({ $backgroundColor }) => $backgroundColor || "#0f0f0f"};
   margin: 10px;
   cursor: pointer;
 `;
@@ -21,7 +21,7 @@ const Bubble: React.FC<BubbleProps> = ({
   backgroundColor,
 }) => {
   return (
-    <BubbleWrapper onClick={onClick} backgroundColor={backgroundColor}>
+    <BubbleWrapper onClick={onClick} $backgroundColor={backgroundColor}>
       {children}
     </BubbleWrapper>
   );

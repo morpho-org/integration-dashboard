@@ -3,6 +3,8 @@ import VaultBubble from "./components/VaultBubble";
 import { VaultMissingFlowCaps } from "./utils/types";
 import { getMissingFlowCaps } from "./core/missingFlowCaps";
 import { getNetworkId } from "./utils/utils";
+import "./styles/App.css";
+import "./styles/index.css";
 
 const App: React.FC = () => {
   const [network, setNetwork] = useState<"ethereum" | "base">("ethereum");
@@ -34,7 +36,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div>
+    <div className="App">
       <button onClick={handleNetworkSwitch}>
         Switch to {network === "ethereum" ? "Base" : "Ethereum"}
       </button>

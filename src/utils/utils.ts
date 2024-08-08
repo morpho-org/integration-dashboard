@@ -5,10 +5,8 @@ export const getProvider = (chainId: number): ethers.JsonRpcProvider => {
 
   if (chainId === 1) {
     endpoint = process.env.REACT_APP_RPC_URL_MAINNET;
-    console.log("chaindId: 1 - Ethereum Mainnet");
   } else if (chainId === 8453) {
     endpoint = process.env.REACT_APP_RPC_URL_BASE;
-    console.log("chaindId: 8453 - Base");
   }
 
   if (!endpoint) {
@@ -57,6 +55,21 @@ export const getMarketName = (
 
 const formatWAD = (wad: bigint, precision = 2) => {
   return `${(Number(wad) / 1e16).toFixed(precision)}%`;
+};
+
+export const formatUsdAmount = (amount: number, precision = 2) => {
+  if (amount === 0) return "$0";
+  if (+amount.toFixed(precision) === 0) return "<$0.01";
+
+  if (amount / 1000 < 1) return `$${amount.toFixed(precision)}`;
+
+  if (amount / 1e6 < 1) return `$${(amount / 1000).toFixed(precision)}K`;
+
+  if (amount / 1e9 < 1) return `$${(amount / 1e6).toFixed(precision)}M`;
+
+  if (amount / 1e12 < 1) return `$${(amount / 1e9).toFixed(precision)}B`;
+
+  return `$${(amount / 1e12).toFixed(precision)}T`;
 };
 
 export const formatMarketLink = (id: string, networkId: number) => {

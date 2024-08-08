@@ -47,13 +47,14 @@ export type WhitelistedVault = {
 
 export type VaultMissingFlowCaps = {
   vault: VaultDisplayData;
-  marketsWithMissingFlowCaps: MarketMissingFlowCaps[];
+  markets: MarketFlowCaps[];
 };
 
-export type MarketMissingFlowCaps = {
+export type MarketFlowCaps = {
   id: string;
   name: string;
   link: string;
-  maxInUsd: number | undefined;
-  maxOutUsd: number | undefined;
+  maxInUsd: string;
+  maxOutUsd: string;
+  missing: boolean;
 };
