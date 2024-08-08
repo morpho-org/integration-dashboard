@@ -22,8 +22,8 @@ const VaultBubble: React.FC<VaultBubbleProps> = ({ vault }) => {
   const backgroundColor = noMissingFlowCaps
     ? "#2470ff"
     : allFlowCapsMissing
-    ? "orange"
-    : "yellow";
+    ? "#7D1B7E"
+    : "#4B0082";
 
   return (
     <div>

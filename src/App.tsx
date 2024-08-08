@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import NavBar from "./components/NavBar";
 import VaultBubble from "./components/VaultBubble";
 import { VaultMissingFlowCaps } from "./utils/types";
 import { getMissingFlowCaps } from "./core/missingFlowCaps";
@@ -37,16 +38,16 @@ const App: React.FC = () => {
 
   return (
     <div className="App">
-      <button onClick={handleNetworkSwitch}>
-        Switch to {network === "ethereum" ? "Base" : "Ethereum"}
-      </button>
-      {loading && <p>Loading...</p>}
-      {error && <p>{error}</p>}
-      <div>
-        {vaults.map((vault) => (
-          <VaultBubble key={vault.vault.name} vault={vault} />
-        ))}
-      </div>
+      <NavBar currentNetwork={network} onNetworkSwitch={handleNetworkSwitch} />
+      <header className="App-header">
+        {loading && <p>Loading...</p>}
+        {error && <p>{error}</p>}
+        <div>
+          {vaults.map((vault) => (
+            <VaultBubble key={vault.vault.name} vault={vault} />
+          ))}
+        </div>
+      </header>
     </div>
   );
 };

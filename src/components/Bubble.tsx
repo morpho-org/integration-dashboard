@@ -5,8 +5,18 @@ const BubbleWrapper = styled.div<{ $backgroundColor?: string }>`
   border-radius: 15px;
   padding: 10px;
   background-color: ${({ $backgroundColor }) => $backgroundColor || "#0f0f0f"};
+  color: black;
   margin: 10px;
   cursor: pointer;
+
+  a {
+    color: white;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 `;
 
 type BubbleProps = {
