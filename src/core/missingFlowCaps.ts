@@ -1,19 +1,7 @@
-import { formatUnits, id, Provider } from "ethers";
-import { fetchFlowCaps } from "../fetchers/chainFetcher";
-import {
-  MarketFlowCaps,
-  VaultDisplayData,
-  VaultMissingFlowCaps,
-} from "../utils/types";
+import { formatUnits } from "ethers";
+import { MarketFlowCaps, VaultMissingFlowCaps } from "../utils/types";
 import { USD_FLOWCAP_THRESHOLD } from "../config/constants";
-import { get } from "http";
-import {
-  formatMarketLink,
-  formatUsdAmount,
-  formatVaultLink,
-  getMarketName,
-  getProvider,
-} from "../utils/utils";
+import { formatUsdAmount, formatVaultLink, getProvider } from "../utils/utils";
 import {
   fetchVaultData,
   fetchWhitelistedMetaMorphos,
