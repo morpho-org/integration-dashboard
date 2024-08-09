@@ -101,7 +101,7 @@ export const computeUtilization = (
   totalBorrow: bigint,
   totalSupply: bigint
 ): bigint => {
-  return totalSupply == 0n ? 0n : wDivDown(totalBorrow, totalSupply);
+  return totalSupply === 0n ? 0n : wDivDown(totalBorrow, totalSupply);
 };
 
 export const accrueInterest = (

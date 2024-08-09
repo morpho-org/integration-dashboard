@@ -7,7 +7,7 @@ import {
   WhitelistedVault,
 } from "../utils/types";
 import { formatMarketLink, getMarketName } from "../utils/utils";
-import { fetchFlowCaps, fetchMarketParamsAndData } from "./chainFetcher";
+import { fetchFlowCaps } from "./chainFetcher";
 
 export const fetchStrategies = async (
   networkId: number

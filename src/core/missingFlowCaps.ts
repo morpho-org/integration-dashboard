@@ -1,4 +1,4 @@
-import { formatUnits, MaxUint256 } from "ethers";
+import { formatUnits } from "ethers";
 import { MarketFlowCaps, VaultMissingFlowCaps } from "../utils/types";
 import {
   MaxUint128,
