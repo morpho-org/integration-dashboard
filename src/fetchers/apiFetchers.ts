@@ -1,12 +1,19 @@
 import { Provider } from "ethers";
 import { BLUE_API, TARGET_API, WHITELIST_API } from "../config/constants";
-import { MetaMorphoVault, Strategy, WhitelistedVault } from "../utils/types";
+import {
+  Asset,
+  MetaMorphoVaultFlowCaps,
+  Strategy,
+  WhitelistedVault,
+} from "../utils/types";
 import { formatMarketLink, getMarketName } from "../utils/utils";
-import { fetchFlowCaps } from "./chainFetcher";
+import { fetchFlowCaps, fetchMarketParamsAndData } from "./chainFetcher";
 
-export const fetchStrategies = async (): Promise<Strategy[]> => {
+export const fetchStrategies = async (
+  networkId: number
+): Promise<Strategy[]> => {
   try {
-    const res = await fetch(TARGET_API);
+    const res = await fetch(`${TARGET_API}?chainId=${networkId}`);
     return await res.json();
   } catch (error) {
     console.log(error);
@@ -30,11 +37,11 @@ export const fetchWhitelistedMetaMorphos = async (
   }
 };
 
-export const fetchVaultData = async (
+export const fetchVaultFlowCapsData = async (
   vaultAddress: string,
   networkId: number,
   provider: Provider
-): Promise<MetaMorphoVault> => {
+): Promise<MetaMorphoVaultFlowCaps> => {
   const query = `
   query VaulData{
     vaults(where: {address_in: "${vaultAddress}"}) {
@@ -58,6 +65,8 @@ export const fetchVaultData = async (
               lltv
               uniqueKey
             }
+            supplyAssets
+            supplyCap
           }
         }
       }
@@ -84,6 +93,8 @@ export const fetchVaultData = async (
             : null,
           current.market.lltv
         ),
+        supplyAssets: current.supplyAssets,
+        supplyCap: current.supplyCap,
       });
       return acc;
     },
@@ -91,19 +102,28 @@ export const fetchVaultData = async (
   );
 
   const markets = await Promise.all(
-    enabledMarkets.map(async (market: { id: string; name: string }) => {
-      return {
-        id: market.id,
-        name: market.name,
-        link: formatMarketLink(market.id, networkId),
-        flowCaps: await fetchFlowCaps(
-          vault.address,
-          market.id,
-          networkId,
-          provider
-        ),
-      };
-    })
+    enabledMarkets.map(
+      async (market: {
+        id: string;
+        name: string;
+        supplyAssets: bigint;
+        supplyCap: bigint;
+      }) => {
+        return {
+          id: market.id,
+          name: market.name,
+          link: formatMarketLink(market.id, networkId),
+          flowCaps: await fetchFlowCaps(
+            vault.address,
+            market.id,
+            networkId,
+            provider
+          ),
+          supplyAssets: market.supplyAssets,
+          supplyCap: market.supplyCap,
+        };
+      }
+    )
   );
 
   return {
@@ -113,5 +133,43 @@ export const fetchVaultData = async (
     asset: vault.asset,
     totalAssets: vault.state.totalAssets,
     markets,
+  };
+};
+
+export const fetchMarketAssets = async (
+  marketId: string
+): Promise<{ loanAsset: Asset; collateralAsset: Asset }> => {
+  const query = `
+    query {
+    markets(where: {  uniqueKey_in: "${marketId}"} ) {
+      items {
+        collateralAsset {
+          address
+          symbol
+          decimals
+          priceUsd
+        }
+        loanAsset {
+          address
+          symbol
+          decimals
+          priceUsd
+        }
+      }
+    }
+  }
+    `;
+
+  const response = await fetch(BLUE_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  const data = await response.json();
+  const market = data.data.markets.items[0];
+
+  return {
+    loanAsset: market.loanAsset,
+    collateralAsset: market.collateralAsset,
   };
 };

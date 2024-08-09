@@ -2,11 +2,13 @@ import React from "react";
 import Bubble from "./Bubble";
 import { MarketFlowCaps } from "../utils/types";
 
-type MarketBubbleProps = {
+type MarketFlowCapsBubbleProps = {
   market: MarketFlowCaps;
 };
 
-const MarketBubble: React.FC<MarketBubbleProps> = ({ market }) => {
+const MarketFlowCapsBubble: React.FC<MarketFlowCapsBubbleProps> = ({
+  market,
+}) => {
   const backgroundColor = market.missing ? "red" : "#5782ff";
   return (
     <Bubble backgroundColor={backgroundColor}>
@@ -15,10 +17,12 @@ const MarketBubble: React.FC<MarketBubbleProps> = ({ market }) => {
           {market.name}
         </a>
       </p>
-      <p>Max In: {market.maxInUsd ?? "OK"}</p>
-      <p>Max Out: {market.maxOutUsd ?? "OK"}</p>
+      <p>Max Out: {market.maxOutUsd}</p>
+      <p>Max In: {market.maxInUsd}</p>
+      <p>Supply Assets: {market.supplyAssetsUsd}</p>
+      <p>Supply Cap: {market.supplyCapUsd}</p>
     </Bubble>
   );
 };
 
-export default MarketBubble;
+export default MarketFlowCapsBubble;

@@ -1,4 +1,27 @@
-import { ethers } from "ethers";
+import { AbiCoder, ethers, keccak256 } from "ethers";
+import { Apys, MarketParams, Range } from "./types";
+
+export const isApyOutOfRange = (apys: Apys, range: Range) => {
+  return apys.supplyApy < range.lowerBound || apys.borrowApy > range.upperBound;
+};
+
+export const isUtilizationOutOfRange = (utilization: bigint, range: Range) => {
+  return utilization < range.lowerBound || utilization > range.upperBound;
+};
+
+export const getMarketId = (market: MarketParams) => {
+  const encodedMarket = AbiCoder.defaultAbiCoder().encode(
+    ["address", "address", "address", "address", "uint256"],
+    [
+      market.loanToken,
+      market.collateralToken,
+      market.oracle,
+      market.irm,
+      market.lltv,
+    ]
+  );
+  return keccak256(encodedMarket);
+};
 
 export const getProvider = (chainId: number): ethers.JsonRpcProvider => {
   let endpoint: string | undefined;
@@ -7,6 +30,7 @@ export const getProvider = (chainId: number): ethers.JsonRpcProvider => {
     endpoint = process.env.REACT_APP_RPC_URL_MAINNET;
   } else if (chainId === 8453) {
     endpoint = process.env.REACT_APP_RPC_URL_BASE;
+    console.log("chaindId: 8453 - Base");
   }
 
   if (!endpoint) {
@@ -53,7 +77,7 @@ export const getMarketName = (
   }
 };
 
-const formatWAD = (wad: bigint, precision = 2) => {
+export const formatWAD = (wad: bigint, precision = 2) => {
   return `${(Number(wad) / 1e16).toFixed(precision)}%`;
 };
 

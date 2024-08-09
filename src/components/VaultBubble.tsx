@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import Bubble from "./Bubble";
-import MarketBubble from "./MarketBubble";
+import MarketFlowCapsBubble from "./MarketFlowCapsBubble";
 import { VaultMissingFlowCaps } from "../utils/types";
 
 const MarketContainer = styled.div`
@@ -40,7 +40,7 @@ const VaultBubble: React.FC<VaultBubbleProps> = ({ vault }) => {
         {expanded && (
           <MarketContainer>
             {vault.markets.map((market) => (
-              <MarketBubble key={market.id} market={market} />
+              <MarketFlowCapsBubble key={market.id} market={market} />
             ))}
           </MarketContainer>
         )}

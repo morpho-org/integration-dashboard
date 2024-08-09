@@ -1,9 +1,13 @@
-import { formatUnits } from "ethers";
+import { formatUnits, MaxUint256 } from "ethers";
 import { MarketFlowCaps, VaultMissingFlowCaps } from "../utils/types";
-import { USD_FLOWCAP_THRESHOLD } from "../config/constants";
+import {
+  MaxUint128,
+  MaxUint184,
+  USD_FLOWCAP_THRESHOLD,
+} from "../config/constants";
 import { formatUsdAmount, formatVaultLink, getProvider } from "../utils/utils";
 import {
-  fetchVaultData,
+  fetchVaultFlowCapsData,
   fetchWhitelistedMetaMorphos,
 } from "../fetchers/apiFetchers";
 import { MulticallWrapper } from "ethers-multicall-provider";
@@ -21,7 +25,7 @@ export const getMissingFlowCaps = async (
 
   const vaults = await Promise.all(
     whitelistedVaults.map((vault) =>
-      fetchVaultData(vault.address, networkId, provider)
+      fetchVaultFlowCapsData(vault.address, networkId, provider)
     )
   );
 
@@ -41,8 +45,25 @@ export const getMissingFlowCaps = async (
         id: market.id,
         name: market.name,
         link: market.link,
-        maxInUsd: formatUsdAmount(maxInUsd),
+        maxInUsd:
+          market.flowCaps.maxIn === MaxUint128
+            ? "MAX"
+            : formatUsdAmount(maxInUsd),
         maxOutUsd: formatUsdAmount(maxOutUsd),
+        supplyAssetsUsd:
+          market.flowCaps.maxOut === MaxUint128
+            ? "MAX"
+            : formatUsdAmount(
+                +formatUnits(market.supplyAssets, vault.asset.decimals) *
+                  vault.asset.priceUsd
+              ),
+        supplyCapUsd:
+          market.supplyCap === MaxUint184
+            ? "MAX"
+            : formatUsdAmount(
+                +formatUnits(market.supplyCap, vault.asset.decimals) *
+                  vault.asset.priceUsd
+              ),
         missing:
           maxInUsd < USD_FLOWCAP_THRESHOLD || maxOutUsd < USD_FLOWCAP_THRESHOLD,
       };
