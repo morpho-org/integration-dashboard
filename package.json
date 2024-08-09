@@ -13,9 +13,11 @@
     "ethers": "^6.13.2",
     "ethers-multicall-provider": "^6.4.1",
     "ethers-types": "^3.17.2",
+    "evm-maths": "^7.0.0",
     "http-proxy-middleware": "^3.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0",
     "react-scripts": "5.0.1",
     "styled-components": "^6.1.12",
     "web-vitals": "^2.1.0"
