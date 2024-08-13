@@ -122,7 +122,7 @@ export type OutOfBoundsMarket = {
   link: string;
   loanAsset: Asset;
   collateralAsset: Asset;
-  totalSupplyUsd: string;
+  totalSupplyUsd: number;
   utilization: bigint;
   apys: Apys;
   target: ApyTarget | UtilizationTarget;

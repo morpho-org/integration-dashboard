@@ -1,12 +1,13 @@
 import React from "react";
 import styled from "styled-components";
 import Bubble from "./Bubble";
+import { Link } from "react-router-dom";
 
 const NavBarWrapper = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: var(--ifm-color-dark-800);
+  background-color: #15181a;
   padding: 10px 20px;
   color: white;
 `;
@@ -16,7 +17,7 @@ const NavLinks = styled.div`
   gap: 15px;
 `;
 
-const NavLink = styled.a`
+const NavLink = styled(Link)`
   color: white;
   text-decoration: none;
   font-size: 1.2em;
@@ -39,10 +40,10 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
   return (
     <NavBarWrapper>
       <NavLinks>
-        <NavLink href="#">Flow Caps</NavLink>
-        {/* Add more NavLink components as needed */}
+        <NavLink to="/">Flow Caps</NavLink>
+        <NavLink to="/out-of-bounds-markets">Out of Range Markets</NavLink>
       </NavLinks>
-      <NetworkSwitchBubble onClick={onNetworkSwitch}>
+      <NetworkSwitchBubble onClick={onNetworkSwitch} backgroundColor="#878787">
         Switch to {currentNetwork === "ethereum" ? "Base" : "Ethereum"}
       </NetworkSwitchBubble>
     </NavBarWrapper>
