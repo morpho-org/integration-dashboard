@@ -16,12 +16,9 @@ type VaultBubbleProps = {
 const VaultBubble: React.FC<VaultBubbleProps> = ({ vault }) => {
   const [expanded, setExpanded] = useState(false);
 
-  const noMissingFlowCaps = vault.markets.every((market) => !market.missing);
-  const allFlowCapsMissing = vault.markets.every((market) => market.missing);
-
-  const backgroundColor = noMissingFlowCaps
+  const backgroundColor = vault.noMissingFlowCaps
     ? "#2470ff"
-    : allFlowCapsMissing
+    : vault.allFlowCapsMissing
     ? "#7D1B7E"
     : "#4B0082";
 

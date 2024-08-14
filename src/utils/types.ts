@@ -90,6 +90,8 @@ export type UtilizationTarget = {
 export type VaultMissingFlowCaps = {
   vault: VaultDisplayData;
   markets: MarketFlowCaps[];
+  noMissingFlowCaps: boolean;
+  allFlowCapsMissing: boolean;
 };
 
 export type WhitelistedMarket = {
@@ -111,7 +113,9 @@ export type MarketFlowCaps = {
   link: string;
   maxInUsd: string;
   maxOutUsd: string;
-  supplyAssetsUsd: string;
+  supplyAssetsUsd: number;
+  supplyAssetsUsdFormatted: string;
+  supplyAssetsFormatted: string;
   supplyCapUsd: string;
   missing: boolean;
 };

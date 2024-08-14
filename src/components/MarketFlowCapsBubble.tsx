@@ -19,7 +19,10 @@ const MarketFlowCapsBubble: React.FC<MarketFlowCapsBubbleProps> = ({
       </p>
       <p>Max Out: {market.maxOutUsd}</p>
       <p>Max In: {market.maxInUsd}</p>
-      <p>Supply Assets: {market.supplyAssetsUsd}</p>
+      <p>
+        Supply Assets: {market.supplyAssetsFormatted} (
+        {market.supplyAssetsUsdFormatted})
+      </p>
       <p>Supply Cap: {market.supplyCapUsd}</p>
     </Bubble>
   );

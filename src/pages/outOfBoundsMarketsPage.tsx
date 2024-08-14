@@ -3,6 +3,12 @@ import OutOfBoundsMarketBubble from "../components/OutOfBoundsMarketBubble";
 import { OutOfBoundsMarket } from "../utils/types";
 import { getOutOfBoundsMarkets } from "../core/outOfBoundsMarkets";
 import { getNetworkId } from "../utils/utils";
+import {
+  FilterInput,
+  HeaderWrapper,
+  MarketsWrapper,
+  PageWrapper,
+} from "./wrappers";
 
 type OutOfBoundsMarketsPageProps = {
   network: "ethereum" | "base";
@@ -14,6 +20,7 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
   const [markets, setMarkets] = useState<OutOfBoundsMarket[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string>("");
 
   useEffect(() => {
     const loadMarkets = async () => {
@@ -32,17 +39,31 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
     loadMarkets();
   }, [network]);
 
+  const filteredMarkets = markets.filter(
+    (market) =>
+      market.loanAsset.symbol.toLowerCase().includes(filter.toLowerCase()) ||
+      market.collateralAsset.symbol.toLowerCase().includes(filter.toLowerCase())
+  );
+
   return (
-    <div>
-      <h1>Out of Range Markets</h1>
+    <PageWrapper>
+      <HeaderWrapper>
+        <h1>Out of Range Markets</h1>
+        <FilterInput
+          type="text"
+          placeholder="Filter by asset symbol..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+      </HeaderWrapper>
       {loading && <p>Loading...</p>}
       {error && <p>{error}</p>}
-      <div>
-        {markets.map((market) => (
+      <MarketsWrapper>
+        {filteredMarkets.map((market) => (
           <OutOfBoundsMarketBubble key={market.id} market={market} />
         ))}
-      </div>
-    </div>
+      </MarketsWrapper>
+    </PageWrapper>
   );
 };
 

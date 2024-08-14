@@ -18,7 +18,6 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
   const backgroundColor = "#2470ff";
-  console.log(market.target);
   const target =
     "apyTarget" in market.target
       ? `APY target range: [${formatWAD(

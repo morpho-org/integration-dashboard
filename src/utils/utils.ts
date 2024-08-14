@@ -1,5 +1,6 @@
 import { AbiCoder, ethers, keccak256 } from "ethers";
-import { Apys, MarketParams, Range } from "./types";
+import { Apys, Asset, MarketParams, Range } from "./types";
+import { pow10 } from "./maths";
 
 export const isApyOutOfRange = (apys: Apys, range: Range) => {
   return apys.supplyApy < range.lowerBound || apys.borrowApy > range.upperBound;
@@ -30,7 +31,6 @@ export const getProvider = (chainId: number): ethers.JsonRpcProvider => {
     endpoint = process.env.REACT_APP_RPC_URL_MAINNET;
   } else if (chainId === 8453) {
     endpoint = process.env.REACT_APP_RPC_URL_BASE;
-    console.log("chaindId: 8453 - Base");
   }
 
   if (!endpoint) {
@@ -94,6 +94,22 @@ export const formatUsdAmount = (amount: number, precision = 2) => {
   if (amount / 1e12 < 1) return `$${(amount / 1e9).toFixed(precision)}B`;
 
   return `$${(amount / 1e12).toFixed(precision)}T`;
+};
+
+export const formatTokenAmount = (
+  amount: bigint,
+  asset: Asset,
+  precision = 2
+) => {
+  const assets = Number(amount) / Number(pow10(asset.decimals));
+  if (assets < 1000) return `${assets.toFixed(precision)} ${asset.symbol}`;
+  if (assets < 1e6)
+    return `${(assets / 1000).toFixed(precision)}K ${asset.symbol}`;
+  if (assets < 1e9)
+    return `${(assets / 1e6).toFixed(precision)}M ${asset.symbol}`;
+  if (assets < 1e12)
+    return `${(assets / 1e9).toFixed(precision)}B ${asset.symbol}`;
+  return `${(assets / 1e12).toFixed(precision)}T ${asset.symbol}`;
 };
 
 export const formatMarketLink = (id: string, networkId: number) => {

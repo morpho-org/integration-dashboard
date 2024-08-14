@@ -15,6 +15,11 @@ export const publicAllocatorAddress: Record<number, string> = {
   8453: "0xA090dD1a701408Df1d4d0B85b716c87565f90467",
 };
 
+export const vaultBlacklist: Record<number, string[]> = {
+  1: ["0x73e65DBD630f90604062f6E02fAb9138e713edD9"], // Spark DAI
+  8453: [],
+};
+
 // THRESHOLDS
 
 export const USD_FLOWCAP_THRESHOLD = 50000;

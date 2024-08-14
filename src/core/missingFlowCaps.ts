@@ -4,8 +4,14 @@ import {
   MaxUint128,
   MaxUint184,
   USD_FLOWCAP_THRESHOLD,
+  vaultBlacklist,
 } from "../config/constants";
-import { formatUsdAmount, formatVaultLink, getProvider } from "../utils/utils";
+import {
+  formatTokenAmount,
+  formatUsdAmount,
+  formatVaultLink,
+  getProvider,
+} from "../utils/utils";
 import {
   fetchVaultFlowCapsData,
   fetchWhitelistedMetaMorphos,
@@ -19,7 +25,9 @@ export const getMissingFlowCaps = async (
 
   console.log("fetching whitelisted vaults");
 
-  const whitelistedVaults = await fetchWhitelistedMetaMorphos(networkId);
+  const whitelistedVaults = (
+    await fetchWhitelistedMetaMorphos(networkId)
+  ).filter((vault) => !vaultBlacklist[networkId]!.includes(vault.address));
 
   console.log("fetching vaults data");
 
@@ -41,6 +49,9 @@ export const getMissingFlowCaps = async (
       const maxOutUsd =
         +formatUnits(market.flowCaps.maxOut, vault.asset.decimals) *
         vault.asset.priceUsd;
+      const supplyAssetsUsd =
+        +formatUnits(market.supplyAssets, vault.asset.decimals) *
+        vault.asset.priceUsd;
       return {
         id: market.id,
         name: market.name,
@@ -50,13 +61,15 @@ export const getMissingFlowCaps = async (
             ? "MAX"
             : formatUsdAmount(maxInUsd),
         maxOutUsd: formatUsdAmount(maxOutUsd),
-        supplyAssetsUsd:
+        supplyAssetsFormatted: formatTokenAmount(
+          market.supplyAssets,
+          vault.asset
+        ),
+        supplyAssetsUsd,
+        supplyAssetsUsdFormatted:
           market.flowCaps.maxOut === MaxUint128
             ? "MAX"
-            : formatUsdAmount(
-                +formatUnits(market.supplyAssets, vault.asset.decimals) *
-                  vault.asset.priceUsd
-              ),
+            : formatUsdAmount(supplyAssetsUsd),
         supplyCapUsd:
           market.supplyCap === MaxUint184
             ? "MAX"
@@ -76,11 +89,43 @@ export const getMissingFlowCaps = async (
         asset: vault.asset,
         totalAssetsUsd: vault.totalAssets * vault.asset.priceUsd,
       },
-      markets,
+      markets: sortMarkets(markets),
+      noMissingFlowCaps: markets.every((market) => !market.missing),
+      allFlowCapsMissing: markets.every((market) => market.missing),
     });
   }
 
   console.log("everithing fetched");
 
-  return missingFlowCaps;
+  return sortVaults(missingFlowCaps);
+};
+
+const sortVaults = (vaults: VaultMissingFlowCaps[]) => {
+  return vaults
+    .sort((a, b) => b.vault.totalAssetsUsd - a.vault.totalAssetsUsd)
+    .sort((a, b) => {
+      if (a.allFlowCapsMissing && !b.allFlowCapsMissing) {
+        return -1;
+      } else if (!a.allFlowCapsMissing && b.allFlowCapsMissing) {
+        return 1;
+      } else if (a.noMissingFlowCaps && !b.noMissingFlowCaps) {
+        return 1;
+      } else if (!a.noMissingFlowCaps && b.noMissingFlowCaps) {
+        return -1;
+      }
+      return 0;
+    });
+};
+
+const sortMarkets = (vaults: MarketFlowCaps[]) => {
+  return vaults
+    .sort((a, b) => b.supplyAssetsUsd - a.supplyAssetsUsd)
+    .sort((a, b) => {
+      if (a.missing && !b.missing) {
+        return -1;
+      } else if (!a.missing && b.missing) {
+        return 1;
+      }
+      return 0;
+    });
 };
