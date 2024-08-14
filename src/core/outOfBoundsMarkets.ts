@@ -105,5 +105,5 @@ export const getOutOfBoundsMarkets = async (
       });
     }
   }
-  return outOfBoundsMarkets;
+  return outOfBoundsMarkets.sort((a, b) => b.totalSupplyUsd - a.totalSupplyUsd);
 };
