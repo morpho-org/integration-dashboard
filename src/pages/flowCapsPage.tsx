@@ -44,7 +44,7 @@ const FlowCapsPage: React.FC<FlowCapsPageProps> = ({ network }) => {
   return (
     <PageWrapper>
       <HeaderWrapper>
-        <h1>Flow Caps</h1>
+        <h1 style={{ color: "white" }}>Flow Caps</h1>
         <FilterInput
           type="text"
           placeholder="Filter by asset symbol..."

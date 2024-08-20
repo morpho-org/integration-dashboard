@@ -1,8 +1,21 @@
 import React, { useState } from "react";
+import styled from "styled-components";
 import NavBar from "./components/NavBar";
 import { Route, Routes } from "react-router-dom";
 import FlowCapsPage from "./pages/flowCapsPage";
 import OutOfBoundsMarketsPage from "./pages/outOfBoundsMarketsPage";
+import wallpaper from "./logos/wallpaper.png";
+
+const ContentWrapper = styled.div`
+  background-image: url(${wallpaper});
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  min-height: 100vh;
+  padding: 20px;
+  overflow-y: auto;
+`;
 
 const App: React.FC = () => {
   const [network, setNetwork] = useState<"ethereum" | "base">("ethereum");
@@ -14,15 +27,17 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="App">
+    <div>
       <NavBar currentNetwork={network} onNetworkSwitch={handleNetworkSwitch} />
-      <Routes>
-        <Route path="/" element={<FlowCapsPage network={network} />} />
-        <Route
-          path="/out-of-bounds-markets"
-          element={<OutOfBoundsMarketsPage network={network} />}
-        />
-      </Routes>
+      <ContentWrapper>
+        <Routes>
+          <Route path="/" element={<FlowCapsPage network={network} />} />
+          <Route
+            path="/out-of-bounds-markets"
+            element={<OutOfBoundsMarketsPage network={network} />}
+          />
+        </Routes>
+      </ContentWrapper>
     </div>
   );
 };
