@@ -2,6 +2,7 @@ import { Provider } from "ethers";
 import { BLUE_API, TARGET_API, WHITELIST_API } from "../config/constants";
 import {
   Asset,
+  MetaMorphoAPIData,
   MetaMorphoVaultFlowCaps,
   Strategy,
   WhitelistedVault,
@@ -172,4 +173,75 @@ export const fetchMarketAssets = async (
     loanAsset: market.loanAsset,
     collateralAsset: market.collateralAsset,
   };
+};
+
+export const fetchSupplingVaultsData = async (
+  marketId: string
+): Promise<MetaMorphoAPIData[]> => {
+  const query = `
+    query {
+      markets(where: { uniqueKey_in: ["${marketId}"]} ) {
+        items {
+          supplyingVaults {
+            symbol
+          name
+          address
+          asset {
+            address
+            priceUsd
+            symbol
+            decimals
+          }
+          state {
+            totalAssets
+            apy
+            netApy
+            fee
+            allocation {
+              market {
+                uniqueKey
+              }
+              supplyAssets
+              supplyCap
+            }
+          }
+        }
+      }
+    }
+  }`;
+
+  const response = await fetch(BLUE_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  const data = await response.json();
+
+  console.log(
+    `${data.data.markets.items[0].supplyingVaults.length} supplying vaults`
+  );
+
+  return data.data.markets.items[0].supplyingVaults;
+};
+
+export const fetchAssetData = async (assetAddress: string): Promise<Asset> => {
+  const query = `
+    query{
+      assets (where: {address_in: "${assetAddress}"}) {
+        items {
+          address
+          symbol
+          priceUsd
+          decimals
+        }
+      }
+    }`;
+
+  const response = await fetch(BLUE_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  const data = await response.json();
+  return data.data.assets.items[0];
 };

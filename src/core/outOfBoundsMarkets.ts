@@ -70,11 +70,14 @@ export const getOutOfBoundsMarkets = async (
         loanAsset: market.loanAsset,
         collateralAsset: market.collateralAsset,
         utilization,
-        apys: market.marketChainData.apys,
+        marketChainData: market.marketChainData,
         target: {
           apyTarget: market.strategy.targetBorrowApy!,
           apyRange: market.strategy.apyRange!,
         },
+        aboveRange:
+          market.marketChainData.apys.borrowApy >
+          market.strategy.apyRange.upperBound,
       });
     }
     if (
@@ -97,11 +100,12 @@ export const getOutOfBoundsMarkets = async (
         loanAsset: market.loanAsset,
         collateralAsset: market.collateralAsset,
         utilization,
-        apys: market.marketChainData.apys,
+        marketChainData: market.marketChainData,
         target: {
           utilizationTarget: market.strategy.utilizationTarget!,
           utilizationRange: market.strategy.utilizationRange,
         },
+        aboveRange: utilization > market.strategy.utilizationRange.upperBound,
       });
     }
   }

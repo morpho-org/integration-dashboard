@@ -20,6 +20,26 @@ export type FlowCaps = {
   maxOut: bigint;
 };
 
+export type InteractionData = {
+  amount: bigint;
+  newUtilization: bigint;
+};
+
+export type MarketData = {
+  id: string;
+  name: string;
+  marketParams: MarketParams;
+  marketState: MarketState;
+  borrowRate: bigint;
+  rateAtTarget: bigint;
+  apys: Apys;
+  targetApy?: bigint;
+  targetUtilization?: bigint;
+  reallocationData?: ReallocationData;
+  loanAsset: Asset;
+  collateralAsset: Asset;
+};
+
 export type MarketChainData = {
   marketState: MarketState;
   borrowRate: bigint;
@@ -44,6 +64,15 @@ export type MarketParams = {
   lltv: bigint;
 };
 
+export type MetaMorphoVault = {
+  address: string;
+  name: string;
+  underlyingAsset: Asset;
+  totalAssetsUsd: number;
+  positions: { [key: string]: MetaMorphoPosition };
+  flowCaps: { [key: string]: FlowCaps };
+};
+
 export type MetaMorphoVaultFlowCaps = {
   symbol: string;
   address: string;
@@ -60,11 +89,43 @@ export type MetaMorphoVaultFlowCaps = {
   }[];
 };
 
+export type MetaMorphoAPIData = {
+  symbol: string;
+  name: string;
+  address: string;
+  asset: Asset;
+  state: {
+    totalAssets: number;
+    apy: number;
+    netApy: number;
+    fee: number;
+    allocation: {
+      market: {
+        uniqueKey: string;
+      };
+      supplyAssets: number;
+      supplyCap: number;
+    }[];
+  };
+};
+
+export type MetaMorphoPosition = {
+  marketData: MarketData;
+  supplyAssets: bigint;
+  supplyCap: bigint;
+};
+
 export type VaultDisplayData = {
   name: string;
   link: string;
   asset: Asset;
   totalAssetsUsd: number;
+};
+
+export type ReallocationData = {
+  toSupply: bigint;
+  toWithdraw: bigint;
+  toBorrow: bigint;
 };
 
 export type Strategy = {
@@ -128,6 +189,7 @@ export type OutOfBoundsMarket = {
   collateralAsset: Asset;
   totalSupplyUsd: number;
   utilization: bigint;
-  apys: Apys;
+  marketChainData: MarketChainData;
   target: ApyTarget | UtilizationTarget;
+  aboveRange: boolean;
 };

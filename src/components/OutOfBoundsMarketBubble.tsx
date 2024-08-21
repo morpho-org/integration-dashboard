@@ -47,8 +47,8 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
         {expanded && (
           <MarketContainer>
             <p>
-              Supply APY: {formatWAD(market.apys.supplyApy)}, Borrow APY:{" "}
-              {formatWAD(market.apys.borrowApy)}
+              Supply APY: {formatWAD(market.marketChainData.apys.supplyApy)},
+              Borrow APY: {formatWAD(market.marketChainData.apys.borrowApy)}
             </p>
             <p>Utilization: {formatWAD(market.utilization)}</p>
             <p>{target}</p>
