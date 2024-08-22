@@ -22,7 +22,7 @@ import {
   WEXP_UPPER_VALUE,
   YEAR,
 } from "../config/constants";
-import { MaxUint256 } from "ethers";
+import { MaxUint256, ZeroAddress } from "ethers";
 
 export const pow10 = (exponant: bigint | number) => 10n ** BigInt(exponant);
 
@@ -241,7 +241,7 @@ export const computeBorrowValue = (
 };
 
 export const getRateFromAPY = (apy: bigint): bigint => {
-  const firstTerm = apy;
+  const firstTerm = BigInt(apy);
   const secondTerm = wMulDown(firstTerm, firstTerm);
   const thirdTerm = wMulDown(secondTerm, firstTerm);
   const apr = firstTerm - secondTerm / 2n + thirdTerm / 3n;
@@ -356,4 +356,39 @@ const computeUtilizationReallocationData = (
   }
 
   return reallocationData;
+};
+
+export const computeNewBorrowAPY = (
+  irm: string,
+  newUtilization: bigint,
+  rateAtTarget: bigint
+) => {
+  if (irm !== ZeroAddress) {
+    let newRate = 0n;
+    if (newUtilization > TARGET_UTILIZATION) {
+      newRate =
+        rateAtTarget +
+        mulDivUp(
+          3n * rateAtTarget,
+          newUtilization - TARGET_UTILIZATION,
+          WAD - TARGET_UTILIZATION
+        );
+    } else {
+      newRate =
+        mulDivUp(3n * rateAtTarget, newUtilization, 4n * TARGET_UTILIZATION) +
+        rateAtTarget / 4n;
+    }
+    return wTaylorCompounded(newRate, YEAR);
+  } else return 0n;
+};
+
+export const computeNewSupplyAPY = (
+  irm: string,
+  newUtilization: bigint,
+  rateAtTarget: bigint
+) => {
+  return wMulDown(
+    computeNewBorrowAPY(irm, newUtilization, rateAtTarget),
+    newUtilization
+  );
 };

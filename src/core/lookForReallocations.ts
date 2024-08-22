@@ -1,3 +1,6 @@
+import { sortVaultReallocationData } from "./../utils/utils";
+import { Provider } from "ethers";
+import { MorphoBlue__factory } from "ethers-types";
 import { MulticallWrapper } from "ethers-multicall-provider";
 import {
   MetaMorphoAPIData,
@@ -5,20 +8,24 @@ import {
   MetaMorphoVault,
   OutOfBoundsMarket,
   Strategy,
+  VaultReallocationData,
 } from "../utils/types";
 import { getProvider } from "../utils/utils";
 import {
   fetchStrategies,
   fetchSupplingVaultsData,
 } from "../fetchers/apiFetchers";
-import { Provider } from "ethers";
-import { MorphoBlue__factory } from "ethers-types";
 import { MORPHO } from "../config/constants";
 import {
   fetchVaultMarketPositionAndCap,
   getFlowCaps,
   getVaultMarketData,
 } from "../fetchers/chainFetcher";
+import {
+  getMarketReallocationData,
+  seekForSupplyReallocation,
+  seekForWithdrawReallocation,
+} from "../utils/reallocationMaths";
 
 export const lookForReallocations = async (
   networkId: number,
@@ -42,6 +49,25 @@ export const lookForReallocations = async (
       )
     )
   );
+
+  const vaultReallocationData: VaultReallocationData[] = supplyingVaults.map(
+    (vault) => {
+      return {
+        supplyReallocation: outOfBoundsMarket.aboveRange,
+        vault,
+        marketReallocationData: getMarketReallocationData(
+          vault,
+          outOfBoundsMarket.amountToReachTarget,
+          outOfBoundsMarket.aboveRange
+        ),
+        reallocation: outOfBoundsMarket.aboveRange
+          ? seekForSupplyReallocation(outOfBoundsMarket.id, vault)
+          : seekForWithdrawReallocation(outOfBoundsMarket.id, vault),
+      };
+    }
+  );
+
+  return sortVaultReallocationData(vaultReallocationData);
 };
 
 const initializeSupplyingVault = async (

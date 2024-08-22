@@ -1,3 +1,8 @@
+import {
+  computeSupplyValue,
+  computeWithdrawValue,
+  wDivDown,
+} from "./../utils/maths";
 import { MulticallWrapper } from "ethers-multicall-provider";
 import { fetchMarketAssets, fetchStrategies } from "../fetchers/apiFetchers";
 import { fetchMarketParamsAndData } from "../fetchers/chainFetcher";
@@ -50,10 +55,23 @@ export const getOutOfBoundsMarkets = async (
       market.marketChainData.marketState.totalBorrowAssets,
       market.marketChainData.marketState.totalSupplyAssets
     );
+    if (market.strategy.blacklist || market.strategy.idleMarket) continue;
     if (
       market.strategy.apyRange &&
       isApyOutOfRange(market.marketChainData.apys, market.strategy.apyRange)
     ) {
+      const aboveRange =
+        market.marketChainData.apys.borrowApy >
+        market.strategy.apyRange.upperBound;
+      const amountToReachTarget = aboveRange
+        ? computeSupplyValue(
+            market.marketChainData,
+            BigInt(market.strategy.targetBorrowApy!)
+          ).amount
+        : computeWithdrawValue(
+            market.marketChainData,
+            market.strategy.targetBorrowApy!
+          ).amount;
       outOfBoundsMarkets.push({
         id: market.id,
         name: getMarketName(
@@ -75,15 +93,27 @@ export const getOutOfBoundsMarkets = async (
           apyTarget: market.strategy.targetBorrowApy!,
           apyRange: market.strategy.apyRange!,
         },
-        aboveRange:
-          market.marketChainData.apys.borrowApy >
-          market.strategy.apyRange.upperBound,
+        amountToReachTarget,
+        aboveRange,
       });
     }
     if (
       market.strategy.utilizationRange &&
       isUtilizationOutOfRange(utilization, market.strategy.utilizationRange)
     ) {
+      const utilizationTarget = BigInt(market.strategy.utilizationTarget!);
+      const aboveRange =
+        utilization > market.strategy.utilizationRange.upperBound;
+      const amountToReachTarget = aboveRange
+        ? wDivDown(
+            market.marketChainData.marketState.totalBorrowAssets,
+            utilizationTarget
+          ) - market.marketChainData.marketState.totalSupplyAssets
+        : market.marketChainData.marketState.totalSupplyAssets -
+          wDivDown(
+            market.marketChainData.marketState.totalBorrowAssets,
+            utilizationTarget
+          );
       outOfBoundsMarkets.push({
         id: market.id,
         name: getMarketName(
@@ -105,7 +135,8 @@ export const getOutOfBoundsMarkets = async (
           utilizationTarget: market.strategy.utilizationTarget!,
           utilizationRange: market.strategy.utilizationRange,
         },
-        aboveRange: utilization > market.strategy.utilizationRange.upperBound,
+        amountToReachTarget,
+        aboveRange,
       });
     }
   }

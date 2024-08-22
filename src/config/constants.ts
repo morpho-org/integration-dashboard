@@ -25,6 +25,7 @@ export const vaultBlacklist: Record<number, string[]> = {
 export const USD_FLOWCAP_THRESHOLD = 50000;
 export const REALLOCATION_THRESHOLD_PERCENT = 2; // 2%
 export const REALLOCATION_DIST_THRESHOLD = 5; // 5%
+export const REALLOCATION_USD_THRESHOLD = 10000;
 
 // MATHS
 
