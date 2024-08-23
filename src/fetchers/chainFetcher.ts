@@ -2,20 +2,31 @@ import { Provider, ZeroAddress } from "ethers";
 import {
   AdaptiveCurveIrm__factory,
   BlueIrm__factory,
+  MetaMorpho__factory,
   MorphoBlue,
   MorphoBlue__factory,
   PublicAllocator__factory,
 } from "ethers-types";
-import { FlowCaps, MarketChainData, MarketParams } from "../utils/types";
+import {
+  Asset,
+  FlowCaps,
+  MarketChainData,
+  MarketData,
+  MarketParams,
+  Strategy,
+} from "../utils/types";
 import { MORPHO, publicAllocatorAddress, WAD, YEAR } from "../config/constants";
-import { getMarketId } from "../utils/utils";
+import { getMarketId, getMarketName } from "../utils/utils";
 import {
   accrueInterest,
   computeRateAtTarget,
   computeUtilization,
+  getReallocationData,
+  toAssetsDown,
   wMulDown,
   wTaylorCompounded,
 } from "../utils/maths";
+import { fetchAssetData } from "./apiFetchers";
 
 export const fetchMarketParamsAndData = async (
   marketId: string,
@@ -141,4 +152,105 @@ const fetchRateAtTarget = async (
   const irm = AdaptiveCurveIrm__factory.connect(marketParams.irm, provider);
 
   return marketParams.irm !== ZeroAddress ? await irm.rateAtTarget(id) : 0n;
+};
+
+export const fetchVaultMarketPositionAndCap = async (
+  provider: Provider,
+  marketId: string,
+  vaultAdress: string
+) => {
+  const morpho = MorphoBlue__factory.connect(MORPHO, provider);
+  const vault = MetaMorpho__factory.connect(vaultAdress, provider);
+  const [market, position, config] = await Promise.all([
+    morpho.market(marketId),
+    morpho.position(marketId, vault),
+    vault.config(marketId),
+  ]);
+
+  const supplyCap = config.cap;
+  const supplyAssets = toAssetsDown(
+    position.supplyShares,
+    market.totalSupplyAssets,
+    market.totalSupplyShares
+  );
+
+  return { supplyAssets, supplyCap };
+};
+
+export const getFlowCaps = async (
+  vaultAddress: string,
+  enabledMarkets: string[],
+  networkId: number,
+  provider: Provider
+) => {
+  const flowCaps: { [key: string]: FlowCaps } = {};
+  const allFlowCaps = await Promise.all(
+    enabledMarkets.map((id) =>
+      fetchFlowCaps(vaultAddress, id, networkId, provider)
+    )
+  );
+  for (let i = 0; i < enabledMarkets.length; i++) {
+    flowCaps[enabledMarkets[i]] = allFlowCaps[i];
+  }
+  return flowCaps;
+};
+
+export const getMarketParamsAndData = async (
+  marketId: string,
+  morpho: MorphoBlue,
+  provider: Provider
+) => {
+  const marketParams = await fetchMarketParams(morpho, marketId);
+  const marketChainData = await fetchMarketChainData(
+    morpho,
+    marketParams,
+    provider
+  );
+  return { marketParams, marketChainData };
+};
+
+export const getVaultMarketData = async (
+  marketId: string,
+  loanAsset: Asset,
+  strategies: Strategy[],
+  morpho: MorphoBlue,
+  provider: Provider
+) => {
+  const { marketParams, marketChainData } = await getMarketParamsAndData(
+    marketId,
+    morpho,
+    provider
+  );
+
+  const collateralAsset =
+    marketParams.collateralToken === ZeroAddress
+      ? { address: ZeroAddress, decimals: 0n, symbol: "", priceUsd: 0 }
+      : await fetchAssetData(marketParams.collateralToken);
+
+  const name = getMarketName(
+    loanAsset.symbol,
+    collateralAsset.symbol,
+    marketParams.lltv
+  );
+
+  const strategy = strategies.find((strategy) => strategy.id === marketId);
+
+  const marketData: MarketData = {
+    id: marketId,
+    name,
+    marketParams,
+    marketState: marketChainData.marketState,
+    borrowRate: marketChainData.borrowRate,
+    rateAtTarget: marketChainData.rateAtTarget,
+    apys: {
+      borrowApy: marketChainData.apys.borrowApy,
+      supplyApy: marketChainData.apys.supplyApy,
+    },
+    targetApy: strategy?.targetBorrowApy,
+    targetUtilization: strategy?.utilizationTarget,
+    reallocationData: getReallocationData(marketChainData, strategy),
+    loanAsset,
+    collateralAsset,
+  };
+  return marketData;
 };

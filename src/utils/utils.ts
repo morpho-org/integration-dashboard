@@ -1,5 +1,12 @@
 import { AbiCoder, ethers, keccak256 } from "ethers";
-import { Apys, Asset, MarketParams, Range } from "./types";
+import {
+  Apys,
+  Asset,
+  MarketParams,
+  Range,
+  VaultReallocationData,
+  Withdrawal,
+} from "./types";
 import { pow10 } from "./maths";
 
 export const isApyOutOfRange = (apys: Apys, range: Range) => {
@@ -122,4 +129,30 @@ export const formatVaultLink = (address: string, networkId: number) => {
   return `https://app.morpho.org/vault?vault=${address}&network=${getNetworkName(
     networkId
   )}`;
+};
+
+export const sortWithdrawals = (withdrawals: Withdrawal[]) => {
+  return withdrawals.sort(
+    (a, b) =>
+      parseInt(getMarketId(a.marketParams)) -
+      parseInt(getMarketId(b.marketParams))
+  );
+};
+
+export const sortVaultReallocationData = (vaults: VaultReallocationData[]) => {
+  const vaultWithReallocation = vaults.filter(
+    (vault) => vault.reallocation !== undefined
+  );
+  const vaultWithoutReallocation = vaults.filter(
+    (vault) => vault.reallocation === undefined
+  );
+
+  return [
+    ...vaultWithReallocation.sort(
+      (a, b) => b.reallocation!.totalUsd - a.reallocation!.totalUsd
+    ),
+    ...vaultWithoutReallocation.sort(
+      (a, b) => b.vault.totalAssetsUsd - a.vault.totalAssetsUsd
+    ),
+  ];
 };
