@@ -1,4 +1,4 @@
-import { sortVaultReallocationData } from "./../utils/utils";
+import { formatVaultLink, sortVaultReallocationData } from "./../utils/utils";
 import { Provider } from "ethers";
 import { MorphoBlue__factory } from "ethers-types";
 import { MulticallWrapper } from "ethers-multicall-provider";
@@ -58,7 +58,8 @@ export const lookForReallocations = async (
         marketReallocationData: getMarketReallocationData(
           vault,
           outOfBoundsMarket.amountToReachTarget,
-          outOfBoundsMarket.aboveRange
+          outOfBoundsMarket.aboveRange,
+          networkId
         ),
         reallocation: outOfBoundsMarket.aboveRange
           ? seekForSupplyReallocation(outOfBoundsMarket.id, vault)
@@ -137,6 +138,7 @@ const initializeSupplyingVault = async (
   return {
     address: vaultData.address,
     name,
+    link: formatVaultLink(vaultData.address, networkId),
     underlyingAsset,
     totalAssetsUsd,
     positions,

@@ -60,7 +60,11 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
       {error && <p>{error}</p>}
       <MarketsWrapper>
         {filteredMarkets.map((market) => (
-          <OutOfBoundsMarketBubble key={market.id} market={market} />
+          <OutOfBoundsMarketBubble
+            key={market.id}
+            market={market}
+            networkId={getNetworkId(network)}
+          />
         ))}
       </MarketsWrapper>
     </PageWrapper>

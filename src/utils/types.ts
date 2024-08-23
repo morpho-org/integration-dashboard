@@ -65,6 +65,10 @@ export type MarketParams = {
 };
 
 export type MarketReallocationData = {
+  id: string;
+  name: string;
+  link: string;
+  supplyReallocation: boolean; // true if the out of bounds market is above the target range (we need to supply in it), but not this market.
   maxReallocationAmount: bigint;
   supplyAssets: bigint;
   amountToReachCap: bigint;
@@ -89,6 +93,7 @@ export type MarketReallocationData = {
 export type MetaMorphoVault = {
   address: string;
   name: string;
+  link: string;
   underlyingAsset: Asset;
   totalAssetsUsd: number;
   positions: { [key: string]: MetaMorphoPosition };

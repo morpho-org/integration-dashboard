@@ -6,7 +6,13 @@ import {
   ReallocationLogData,
   Withdrawal,
 } from "./types";
-import { formatTokenAmount, formatWAD, sortWithdrawals } from "./utils";
+import {
+  formatMarketLink,
+  formatTokenAmount,
+  formatWAD,
+  getMarketName,
+  sortWithdrawals,
+} from "./utils";
 import {
   computeNewBorrowAPY,
   computeNewSupplyAPY,
@@ -20,7 +26,8 @@ import { REALLOCATION_USD_THRESHOLD } from "../config/constants";
 export const getMarketReallocationData = (
   vault: MetaMorphoVault,
   toReallocate: bigint,
-  supplyReallocation: boolean
+  supplyReallocation: boolean,
+  networkId: number
 ): MarketReallocationData[] => {
   const marketReallocationData: MarketReallocationData[] = [];
 
@@ -86,6 +93,14 @@ export const getMarketReallocationData = (
           };
 
     marketReallocationData.push({
+      id: enabledMarketId,
+      name: getMarketName(
+        marketData.loanAsset.symbol,
+        marketData.collateralAsset ? marketData.collateralAsset.symbol : null,
+        marketData.marketParams.lltv
+      ),
+      link: formatMarketLink(enabledMarketId, networkId),
+      supplyReallocation,
       maxReallocationAmount,
       supplyAssets: position.supplyAssets,
       amountToReachCap: max(

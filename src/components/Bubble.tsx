@@ -20,8 +20,8 @@ const BubbleWrapper = styled.div<{ $backgroundColor?: string }>`
 `;
 
 type BubbleProps = {
+  onClick?: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => void;
   children: React.ReactNode;
-  onClick?: () => void;
   backgroundColor?: string;
 };
 
