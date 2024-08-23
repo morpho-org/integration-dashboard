@@ -259,6 +259,14 @@ export const seekForSupplyReallocation = (
       withdrawals: sortWithdrawals(withdrawals),
       supplyMarketParams: supplyMarketData.marketParams,
       logData: [...withdrawReallocationsLogData, supplyReallocationLogData],
+      amountReallocated: toReallocate,
+      newState: {
+        apys: {
+          supplyApy: supplyReallocationLogData.newSupplyAPY,
+          borrowApy: supplyReallocationLogData.newBorrowAPY,
+        },
+        utilization: supplyReallocationLogData.newUtilization,
+      },
       totalUsd,
     };
   }
@@ -380,6 +388,14 @@ export const seekForWithdrawReallocation = (
     withdrawals: withdrawal,
     supplyMarketParams: supplyMarketData.marketParams,
     logData: [...withdrawReallocationsLogData, supplyReallocationLogData],
+    amountReallocated: toReallocate,
+    newState: {
+      apys: {
+        supplyApy: withdrawReallocationsLogData[0].newSupplyAPY,
+        borrowApy: withdrawReallocationsLogData[0].newBorrowAPY,
+      },
+      utilization: withdrawReallocationsLogData[0].newUtilization,
+    },
     totalUsd,
   };
 };

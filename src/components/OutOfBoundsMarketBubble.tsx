@@ -3,7 +3,7 @@ import styled from "styled-components";
 import Bubble from "./Bubble";
 import VaultReallocationDataBubble from "./VaultReallocationDataBubble";
 import { OutOfBoundsMarket, VaultReallocationData } from "../utils/types";
-import { formatWAD } from "../utils/utils";
+import { formatTokenAmount, formatWAD } from "../utils/utils";
 import { lookForReallocations } from "../core/lookForReallocations";
 
 const MarketContainer = styled.div`
@@ -20,10 +20,10 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
   market,
   networkId,
 }) => {
-  const [expanded, setExpanded] = useState(false); // Pour savoir si la bulle est étendue
-  const [vaults, setVaults] = useState<VaultReallocationData[] | null>(null); // Stocker les VaultReallocationData
-  const [loading, setLoading] = useState(false); // Indicateur de chargement
-  const [error, setError] = useState<string | null>(null); // Gérer les erreurs
+  const [expanded, setExpanded] = useState(false);
+  const [vaults, setVaults] = useState<VaultReallocationData[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchReallocations = async () => {
@@ -79,8 +79,20 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
             </p>
             <p>Utilization: {formatWAD(market.utilization)}</p>
             <p>{target}</p>
+            <p>{`${
+              market.aboveRange ? "Supply" : "Withdraw"
+            } ${formatTokenAmount(
+              market.amountToReachTarget,
+              market.loanAsset
+            )} ${
+              market.aboveRange ? "into" : "from"
+            } the market to reach target.`}</p>
 
             {loading && <p>Loading reallocations...</p>}
+
+            {vaults && !loading && (
+              <p>{formatMainReallocationMessage(vaults, market)}</p>
+            )}
 
             {error && <p style={{ color: "red" }}>{error}</p>}
 
@@ -99,6 +111,41 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
       </Bubble>
     </div>
   );
+};
+
+const formatMainReallocationMessage = (
+  vaults: VaultReallocationData[],
+  market: OutOfBoundsMarket
+) => {
+  const numberOfReallocations = vaults.filter(
+    (item) => item.reallocation !== undefined
+  ).length;
+
+  if (numberOfReallocations === 0) return "No reallocations found";
+  else {
+    const bestReallocation = vaults.reduce((prev, current) => {
+      if (!current.reallocation || !prev.reallocation) {
+        return prev.reallocation ? prev : current;
+      }
+      return current.reallocation.amountReallocated >
+        prev.reallocation.amountReallocated
+        ? current
+        : prev;
+    });
+
+    return `${numberOfReallocations} reallocations found. Best one is with ${
+      bestReallocation.vault.name
+    }: amount reallocated: ${formatTokenAmount(
+      bestReallocation.reallocation!.amountReallocated,
+      market.loanAsset
+    )}, new borrow APY: ${formatWAD(
+      bestReallocation.reallocation!.newState.apys.borrowApy
+    )}, new supply APY: ${formatWAD(
+      bestReallocation.reallocation!.newState.apys.supplyApy
+    )}, new utilization: ${formatWAD(
+      bestReallocation.reallocation!.newState.utilization
+    )}`;
+  }
 };
 
 export default OutOfBoundsMarketBubble;

@@ -153,6 +153,11 @@ export type Reallocation = {
   withdrawals: Withdrawal[];
   supplyMarketParams: MarketParams;
   logData: ReallocationLogData[];
+  amountReallocated: bigint;
+  newState: {
+    apys: Apys;
+    utilization: bigint;
+  };
   totalUsd: number;
 };
 
