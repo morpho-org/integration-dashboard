@@ -148,7 +148,7 @@ export const seekForSupplyReallocation = (
   );
 
   const toReallocate = min(toSupply, totalToWithdraw);
-  if (toReallocate == 0n) return;
+  if (toReallocate === 0n) return;
 
   const totalUsd =
     +formatUnits(toReallocate, vault.underlyingAsset.decimals) *
@@ -222,7 +222,7 @@ export const seekForSupplyReallocation = (
     }
   }
 
-  if (withdrawals.length != 0) {
+  if (withdrawals.length !== 0) {
     const supplyMarketData = vault.positions[marketToSupplyInto.id].marketData;
     const supplyMarketPreviousUtilization = computeUtilization(
       supplyMarketData.marketState.totalBorrowAssets,
@@ -304,7 +304,7 @@ export const seekForWithdrawReallocation = (
   }
 
   const toReallocate = min(supplyMarket.amount, toWithdraw);
-  if (toReallocate == 0n) return;
+  if (toReallocate === 0n) return;
 
   const totalUsd =
     +formatUnits(toReallocate, vault.underlyingAsset.decimals) *
