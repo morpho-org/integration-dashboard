@@ -106,6 +106,8 @@ export type MetaMorphoVaultFlowCaps = {
   name: string;
   asset: Asset;
   totalAssets: number;
+  supplyQueue: Queue;
+  withdrawQueue: Queue;
   markets: {
     id: string;
     name: string;
@@ -113,7 +115,9 @@ export type MetaMorphoVaultFlowCaps = {
     flowCaps: FlowCaps;
     supplyAssets: bigint;
     supplyCap: bigint;
+    idle?: boolean;
   }[];
+  warnings?: VaultWarnings;
 };
 
 export type MetaMorphoAPIData = {
@@ -148,6 +152,11 @@ export type VaultDisplayData = {
   asset: Asset;
   totalAssetsUsd: number;
 };
+
+export type Queue = {
+  link: string;
+  name: string;
+}[];
 
 export type Reallocation = {
   withdrawals: Withdrawal[];
@@ -214,6 +223,12 @@ export type VaultReallocationData = {
   vault: MetaMorphoVault;
   marketReallocationData: MarketReallocationData[];
   reallocation?: Reallocation;
+};
+
+export type VaultWarnings = {
+  missingFlowCaps?: boolean;
+  idlePositionWithdrawQueue?: boolean;
+  idlePositionSupplyQueue?: boolean;
 };
 
 export type WhitelistedMarket = {

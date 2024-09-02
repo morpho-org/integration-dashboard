@@ -13,6 +13,7 @@ import {
   getProvider,
 } from "../utils/utils";
 import {
+  fetchStrategies,
   fetchVaultFlowCapsData,
   fetchWhitelistedMetaMorphos,
 } from "../fetchers/apiFetchers";
@@ -21,6 +22,10 @@ import { MulticallWrapper } from "ethers-multicall-provider";
 export const getMissingFlowCaps = async (
   networkId: number
 ): Promise<VaultMissingFlowCaps[]> => {
+  console.log("fetching strategies");
+
+  const strategies = await fetchStrategies(networkId);
+
   const provider = MulticallWrapper.wrap(getProvider(networkId));
 
   console.log("fetching whitelisted vaults");
@@ -33,7 +38,7 @@ export const getMissingFlowCaps = async (
 
   const vaults = await Promise.all(
     whitelistedVaults.map((vault) =>
-      fetchVaultFlowCapsData(vault.address, networkId, provider)
+      fetchVaultFlowCapsData(vault.address, networkId, strategies, provider)
     )
   );
 

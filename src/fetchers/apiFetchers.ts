@@ -1,4 +1,4 @@
-import { Provider } from "ethers";
+import { id, Provider } from "ethers";
 import { BLUE_API, TARGET_API, WHITELIST_API } from "../config/constants";
 import {
   Asset,
@@ -8,7 +8,7 @@ import {
   WhitelistedVault,
 } from "../utils/types";
 import { formatMarketLink, getMarketName } from "../utils/utils";
-import { fetchFlowCaps } from "./chainFetcher";
+import { fetchFlowCaps, getQueues } from "./chainFetcher";
 
 export const fetchStrategies = async (
   networkId: number
@@ -41,6 +41,7 @@ export const fetchWhitelistedMetaMorphos = async (
 export const fetchVaultFlowCapsData = async (
   vaultAddress: string,
   networkId: number,
+  strategies: Strategy[],
   provider: Provider
 ): Promise<MetaMorphoVaultFlowCaps> => {
   const query = `
@@ -75,11 +76,15 @@ export const fetchVaultFlowCapsData = async (
   }
   `;
 
-  const response = await fetch(BLUE_API, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, variables: { vault: vaultAddress } }),
-  });
+  const [response, { withdrawQueueOrder, supplyQueueOrder }] =
+    await Promise.all([
+      fetch(BLUE_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, variables: { vault: vaultAddress } }),
+      }),
+      getQueues(vaultAddress, provider),
+    ]);
   const data = await response.json();
   const vault = data.data.vaults.items[0];
 
@@ -110,6 +115,9 @@ export const fetchVaultFlowCapsData = async (
         supplyAssets: bigint;
         supplyCap: bigint;
       }) => {
+        const strategy = strategies.find(
+          (strategy) => strategy.id === market.id
+        );
         return {
           id: market.id,
           name: market.name,
@@ -122,10 +130,30 @@ export const fetchVaultFlowCapsData = async (
           ),
           supplyAssets: market.supplyAssets,
           supplyCap: market.supplyCap,
+          idle: strategy?.idleMarket,
         };
       }
     )
   );
+
+  const withdrawQueue = markets
+    .map((market) => {
+      return { id: market.id, link: market.link, name: market.name };
+    })
+    .sort((a, b) => {
+      return (
+        withdrawQueueOrder.indexOf(a.id) - withdrawQueueOrder.indexOf(b.id)
+      );
+    });
+
+  const supplyQueue = markets
+    .filter((market) => supplyQueueOrder.includes(market.id))
+    .map((market) => {
+      return { id: market.id, link: market.link, name: market.name };
+    })
+    .sort((a, b) => {
+      return supplyQueueOrder.indexOf(a.id) - supplyQueueOrder.indexOf(b.id);
+    });
 
   return {
     symbol: vault.symbol,
@@ -133,6 +161,8 @@ export const fetchVaultFlowCapsData = async (
     name: vault.name,
     asset: vault.asset,
     totalAssets: vault.state.totalAssets,
+    withdrawQueue,
+    supplyQueue,
     markets,
   };
 };
