@@ -1,12 +1,22 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import Bubble from "./Bubble";
-import MarketFlowCapsBubble from "./MarketFlowCapsBubble";
 import { VaultMissingFlowCaps } from "../utils/types";
+import WithdrawQueueBubble from "./WithdrawQueueBubble";
+import SupplyQueueBubble from "./SupplyQueueBubble";
+import VaultFlowCapsBubble from "./VaultFlowCapsBubble";
 
-const MarketContainer = styled.div`
-  margin-left: 20px;
+const BubbleContainer = styled.div<{ isExpanded: boolean }>`
+  display: flex;
+  justify-content: space-evenly;
+  align-items: flex-start;
   margin-top: 10px;
+  width: 100%;
+  gap: 10px;
+`;
+
+const VaultBubbleContainer = styled.div`
+  margin-bottom: 20px;
 `;
 
 type VaultBubbleProps = {
@@ -15,34 +25,61 @@ type VaultBubbleProps = {
 
 const VaultBubble: React.FC<VaultBubbleProps> = ({ vault }) => {
   const [expanded, setExpanded] = useState(false);
+  const [activeBubble, setActiveBubble] = useState<string | null>(null);
 
-  const backgroundColor = vault.noMissingFlowCaps
-    ? "#2470ff"
-    : vault.allFlowCapsMissing
-    ? "#7D1B7E"
-    : "#4B0082";
+  const warning =
+    vault.warnings &&
+    (vault.warnings.idlePositionWithdrawQueue ||
+      vault.warnings.idlePositionSupplyQueue ||
+      vault.warnings.missingFlowCaps)
+      ? "red"
+      : "white";
+
+  const handleBubbleClick = (bubbleName: string) => {
+    setActiveBubble((prev) => (prev === bubbleName ? null : bubbleName));
+  };
 
   return (
-    <div>
+    <VaultBubbleContainer>
       <Bubble
         onClick={() => setExpanded(!expanded)}
-        backgroundColor={backgroundColor}
+        backgroundColor={"#2470ff"}
       >
         <h3>
-          {" "}
-          <a href={vault.vault.link} target="_blank" rel="noopener noreferrer">
+          <a
+            style={{
+              color: warning ? "red" : "white",
+            }}
+            href={vault.vault.link}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             {vault.vault.name}
           </a>
         </h3>
         {expanded && (
-          <MarketContainer>
-            {vault.markets.map((market) => (
-              <MarketFlowCapsBubble key={market.id} market={market} />
-            ))}
-          </MarketContainer>
+          <BubbleContainer isExpanded={!!activeBubble}>
+            <WithdrawQueueBubble
+              expanded={activeBubble === "WithdrawQueue"}
+              onClick={() => handleBubbleClick("WithdrawQueue")}
+              withdrawQueue={vault.withdrawQueue}
+              warnings={vault.warnings}
+            />
+            <SupplyQueueBubble
+              expanded={activeBubble === "SupplyQueue"}
+              onClick={() => handleBubbleClick("SupplyQueue")}
+              supplyQueue={vault.supplyQueue}
+              warnings={vault.warnings}
+            />
+            <VaultFlowCapsBubble
+              expanded={activeBubble === "FlowCaps"}
+              onClick={() => handleBubbleClick("FlowCaps")}
+              vault={vault}
+            />
+          </BubbleContainer>
         )}
       </Bubble>
-    </div>
+    </VaultBubbleContainer>
   );
 };
 

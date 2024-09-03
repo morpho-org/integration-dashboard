@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import styled from "styled-components";
 import NavBar from "./components/NavBar";
 import { Route, Routes } from "react-router-dom";
-import FlowCapsPage from "./pages/flowCapsPage";
+import VaultPage from "./pages/vaultPage";
 import OutOfBoundsMarketsPage from "./pages/outOfBoundsMarketsPage";
 import wallpaper from "./logos/wallpaper.png";
 
@@ -31,7 +31,7 @@ const App: React.FC = () => {
       <NavBar currentNetwork={network} onNetworkSwitch={handleNetworkSwitch} />
       <ContentWrapper>
         <Routes>
-          <Route path="/" element={<FlowCapsPage network={network} />} />
+          <Route path="/" element={<VaultPage network={network} />} />
           <Route
             path="/out-of-bounds-markets"
             element={<OutOfBoundsMarketsPage network={network} />}

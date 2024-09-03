@@ -40,7 +40,7 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
   return (
     <NavBarWrapper>
       <NavLinks>
-        <NavLink to="/">Flow Caps</NavLink>
+        <NavLink to="/">Vaults</NavLink>
         <NavLink to="/out-of-bounds-markets">Out of Range Markets</NavLink>
       </NavLinks>
       <NetworkSwitchBubble onClick={onNetworkSwitch} backgroundColor="#878787">

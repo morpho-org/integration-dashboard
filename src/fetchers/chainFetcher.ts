@@ -195,6 +195,28 @@ export const getFlowCaps = async (
   return flowCaps;
 };
 
+export const getQueues = async (vaultAddress: string, provider: Provider) => {
+  const vault = MetaMorpho__factory.connect(vaultAddress, provider);
+
+  const [withdrawQueueLength, supplyQueueLength] = await Promise.all([
+    vault.withdrawQueueLength(),
+    vault.supplyQueueLength(),
+  ]);
+
+  const withdrawQueueOrder = await Promise.all(
+    Array.from({ length: Number(withdrawQueueLength) }, (_, i) =>
+      vault.withdrawQueue(i)
+    )
+  );
+  const supplyQueueOrder = await Promise.all(
+    Array.from({ length: Number(supplyQueueLength) }, (_, i) =>
+      vault.supplyQueue(i)
+    )
+  );
+
+  return { withdrawQueueOrder, supplyQueueOrder };
+};
+
 export const getMarketParamsAndData = async (
   marketId: string,
   morpho: MorphoBlue,

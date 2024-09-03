@@ -13,14 +13,19 @@ import {
   getProvider,
 } from "../utils/utils";
 import {
+  fetchStrategies,
   fetchVaultFlowCapsData,
   fetchWhitelistedMetaMorphos,
 } from "../fetchers/apiFetchers";
 import { MulticallWrapper } from "ethers-multicall-provider";
 
-export const getMissingFlowCaps = async (
+export const getVaultDisplayData = async (
   networkId: number
 ): Promise<VaultMissingFlowCaps[]> => {
+  console.log("fetching strategies");
+
+  const strategies = await fetchStrategies(networkId);
+
   const provider = MulticallWrapper.wrap(getProvider(networkId));
 
   console.log("fetching whitelisted vaults");
@@ -33,7 +38,7 @@ export const getMissingFlowCaps = async (
 
   const vaults = await Promise.all(
     whitelistedVaults.map((vault) =>
-      fetchVaultFlowCapsData(vault.address, networkId, provider)
+      fetchVaultFlowCapsData(vault.address, networkId, strategies, provider)
     )
   );
 
@@ -82,6 +87,14 @@ export const getMissingFlowCaps = async (
       };
     });
 
+    const warnings = {
+      missingFlowCaps: !markets.every((market) => !market.missing),
+      idlePositionWithdrawQueue: !vault.withdrawQueue[0].idle,
+      idlePositionSupplyQueue:
+        vault.supplyQueue.every((market) => !market.idle) ||
+        !vault.supplyQueue[vault.supplyQueue.length - 1].idle,
+    };
+
     missingFlowCaps.push({
       vault: {
         name: vault.name,
@@ -90,8 +103,9 @@ export const getMissingFlowCaps = async (
         totalAssetsUsd: vault.totalAssets * vault.asset.priceUsd,
       },
       markets: sortMarkets(markets),
-      noMissingFlowCaps: markets.every((market) => !market.missing),
-      allFlowCapsMissing: markets.every((market) => market.missing),
+      supplyQueue: vault.supplyQueue,
+      withdrawQueue: vault.withdrawQueue,
+      warnings,
     });
   }
 
@@ -101,20 +115,7 @@ export const getMissingFlowCaps = async (
 };
 
 const sortVaults = (vaults: VaultMissingFlowCaps[]) => {
-  return vaults
-    .sort((a, b) => b.vault.totalAssetsUsd - a.vault.totalAssetsUsd)
-    .sort((a, b) => {
-      if (a.allFlowCapsMissing && !b.allFlowCapsMissing) {
-        return -1;
-      } else if (!a.allFlowCapsMissing && b.allFlowCapsMissing) {
-        return 1;
-      } else if (a.noMissingFlowCaps && !b.noMissingFlowCaps) {
-        return 1;
-      } else if (!a.noMissingFlowCaps && b.noMissingFlowCaps) {
-        return -1;
-      }
-      return 0;
-    });
+  return vaults.sort((a, b) => b.vault.totalAssetsUsd - a.vault.totalAssetsUsd);
 };
 
 const sortMarkets = (vaults: MarketFlowCaps[]) => {

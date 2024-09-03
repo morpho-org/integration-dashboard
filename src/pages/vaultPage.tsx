@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import VaultBubble from "../components/VaultBubble";
 import { VaultMissingFlowCaps } from "../utils/types";
-import { getMissingFlowCaps } from "../core/missingFlowCaps";
+import { getVaultDisplayData } from "../core/vaultData";
 import { getNetworkId } from "../utils/utils";
 import {
   FilterInput,
@@ -10,11 +10,11 @@ import {
   VaultsWrapper,
 } from "./wrappers";
 
-type FlowCapsPageProps = {
+type VaultPageProps = {
   network: "ethereum" | "base";
 };
 
-const FlowCapsPage: React.FC<FlowCapsPageProps> = ({ network }) => {
+const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
   const [vaults, setVaults] = useState<VaultMissingFlowCaps[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +24,7 @@ const FlowCapsPage: React.FC<FlowCapsPageProps> = ({ network }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getMissingFlowCaps(getNetworkId(network));
+      const data = await getVaultDisplayData(getNetworkId(network));
       setVaults(data);
     } catch (err) {
       setError("Failed to fetch data");
@@ -44,7 +44,7 @@ const FlowCapsPage: React.FC<FlowCapsPageProps> = ({ network }) => {
   return (
     <PageWrapper>
       <HeaderWrapper>
-        <h1 style={{ color: "white" }}>Flow Caps</h1>
+        <h1 style={{ color: "white" }}>MetaMorpho Vaults</h1>
         <FilterInput
           type="text"
           placeholder="Filter by asset symbol..."
@@ -63,4 +63,4 @@ const FlowCapsPage: React.FC<FlowCapsPageProps> = ({ network }) => {
   );
 };
 
-export default FlowCapsPage;
+export default VaultPage;
