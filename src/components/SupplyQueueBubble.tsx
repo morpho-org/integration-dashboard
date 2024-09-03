@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import styled from "styled-components";
 import Bubble from "./Bubble";
 import { Queue, VaultWarnings } from "../utils/types";
@@ -6,11 +6,23 @@ import { Queue, VaultWarnings } from "../utils/types";
 type SupplyQueueBubbleProps = {
   supplyQueue: Queue;
   warnings?: VaultWarnings;
+  expanded: boolean;
+  onClick?: () => void;
 };
+
+const StyledBubble = styled(Bubble)<{ expanded: boolean }>`
+  flex: ${({ expanded }) => (expanded ? "1 1 100%" : "0 1 auto")};
+  margin: 5px;
+  width: ${({ expanded }) => (expanded ? "100%" : "auto")};
+  height: ${({ expanded }) => (expanded ? "300px" : "auto")};
+  display: flex;
+  flex-direction: column;
+`;
 
 const LinkList = styled.ol`
   margin-top: 10px;
   padding-left: 20px;
+  flex-grow: 1;
 `;
 
 const LinkItem = styled.li`
@@ -26,16 +38,31 @@ const LinkItem = styled.li`
   }
 `;
 
+const WarningMessage = styled.p`
+  color: red;
+  margin-top: 10px;
+  flex-shrink: 0;
+`;
+
 const SupplyQueueBubble: React.FC<SupplyQueueBubbleProps> = ({
   supplyQueue,
   warnings,
+  expanded,
+  onClick,
 }) => {
-  const [expanded, setExpanded] = useState(false);
-
   const wrongIdlePosition = warnings && warnings.idlePositionSupplyQueue;
 
+  const handleClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (onClick) onClick();
+  };
+
   return (
-    <Bubble onClick={() => setExpanded(!expanded)} backgroundColor={"black"}>
+    <StyledBubble
+      expanded={expanded}
+      onClick={handleClick}
+      backgroundColor={"black"}
+    >
       <h3
         style={{
           color: wrongIdlePosition ? "red" : "white",
@@ -55,13 +82,13 @@ const SupplyQueueBubble: React.FC<SupplyQueueBubbleProps> = ({
             ))}
           </LinkList>
           {wrongIdlePosition && (
-            <p style={{ color: "red" }}>
+            <WarningMessage>
               Idle market is not the last element of the list.
-            </p>
+            </WarningMessage>
           )}
         </>
       )}
-    </Bubble>
+    </StyledBubble>
   );
 };
 

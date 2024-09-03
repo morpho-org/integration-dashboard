@@ -117,7 +117,6 @@ export type MetaMorphoVaultFlowCaps = {
     supplyCap: bigint;
     idle?: boolean;
   }[];
-  warnings?: VaultWarnings;
 };
 
 export type MetaMorphoAPIData = {
@@ -156,6 +155,7 @@ export type VaultDisplayData = {
 export type Queue = {
   link: string;
   name: string;
+  idle?: boolean;
 }[];
 
 export type Reallocation = {
@@ -214,8 +214,9 @@ export type UtilizationTarget = {
 export type VaultMissingFlowCaps = {
   vault: VaultDisplayData;
   markets: MarketFlowCaps[];
-  noMissingFlowCaps: boolean;
-  allFlowCapsMissing: boolean;
+  supplyQueue: Queue;
+  withdrawQueue: Queue;
+  warnings: VaultWarnings;
 };
 
 export type VaultReallocationData = {

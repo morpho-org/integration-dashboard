@@ -138,7 +138,12 @@ export const fetchVaultFlowCapsData = async (
 
   const withdrawQueue = markets
     .map((market) => {
-      return { id: market.id, link: market.link, name: market.name };
+      return {
+        id: market.id,
+        link: market.link,
+        name: market.name,
+        idle: market.idle,
+      };
     })
     .sort((a, b) => {
       return (
@@ -149,7 +154,12 @@ export const fetchVaultFlowCapsData = async (
   const supplyQueue = markets
     .filter((market) => supplyQueueOrder.includes(market.id))
     .map((market) => {
-      return { id: market.id, link: market.link, name: market.name };
+      return {
+        id: market.id,
+        link: market.link,
+        name: market.name,
+        idle: market.idle,
+      };
     })
     .sort((a, b) => {
       return supplyQueueOrder.indexOf(a.id) - supplyQueueOrder.indexOf(b.id);
