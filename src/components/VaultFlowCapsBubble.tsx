@@ -35,14 +35,25 @@ const VaultFlowCapsBubble: React.FC<VaultFlowCapsBubbleProps> = ({
     if (onClick) onClick();
   };
 
+  const missingFlowCaps = vault.warnings.missingFlowCaps;
+
+  console.log("missingFlowCaps", missingFlowCaps);
+
   return (
     <StyledBubble
       expanded={expanded}
       onClick={handleClick}
       backgroundColor={"black"}
     >
-      <h3 style={{ color: vault.warnings.missingFlowCaps ? "red" : "white" }}>
-        <a href={vault.vault.link} target="_blank" rel="noopener noreferrer">
+      <h3>
+        <a
+          style={{
+            color: missingFlowCaps ? "red" : "white",
+          }}
+          href={vault.vault.link}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           {vault.vault.name}
         </a>
       </h3>

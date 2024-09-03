@@ -44,7 +44,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
   return (
     <PageWrapper>
       <HeaderWrapper>
-        <h1 style={{ color: "white" }}>Flow Caps</h1>
+        <h1 style={{ color: "white" }}>MetaMorpho Vaults</h1>
         <FilterInput
           type="text"
           placeholder="Filter by asset symbol..."
