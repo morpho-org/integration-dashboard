@@ -1,4 +1,4 @@
-import { id, Provider } from "ethers";
+import { Provider } from "ethers";
 import { BLUE_API, TARGET_API, WHITELIST_API } from "../config/constants";
 import {
   Asset,
@@ -137,22 +137,11 @@ export const fetchVaultFlowCapsData = async (
   );
 
   const withdrawQueue = markets
-    .map((market) => {
-      return {
-        id: market.id,
-        link: market.link,
-        name: market.name,
-        idle: market.idle,
-      };
-    })
     .sort((a, b) => {
       return (
         withdrawQueueOrder.indexOf(a.id) - withdrawQueueOrder.indexOf(b.id)
       );
-    });
-
-  const supplyQueue = markets
-    .filter((market) => supplyQueueOrder.includes(market.id))
+    })
     .map((market) => {
       return {
         id: market.id,
@@ -160,9 +149,20 @@ export const fetchVaultFlowCapsData = async (
         name: market.name,
         idle: market.idle,
       };
-    })
+    });
+
+  const supplyQueue = markets
+    .filter((market) => supplyQueueOrder.includes(market.id))
     .sort((a, b) => {
       return supplyQueueOrder.indexOf(a.id) - supplyQueueOrder.indexOf(b.id);
+    })
+    .map((market) => {
+      return {
+        id: market.id,
+        link: market.link,
+        name: market.name,
+        idle: market.idle,
+      };
     });
 
   return {
