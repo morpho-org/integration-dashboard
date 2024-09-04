@@ -5,6 +5,7 @@ import { Route, Routes } from "react-router-dom";
 import VaultPage from "./pages/vaultPage";
 import OutOfBoundsMarketsPage from "./pages/outOfBoundsMarketsPage";
 import wallpaper from "./logos/wallpaper.png";
+import MarketWarningsPage from "./pages/marketWarningsPage";
 
 const ContentWrapper = styled.div`
   background-image: url(${wallpaper});
@@ -36,6 +37,10 @@ const App: React.FC = () => {
             path="/out-of-bounds-markets"
             element={<OutOfBoundsMarketsPage network={network} />}
           />
+          <Route
+            path="/market-warnings"
+            element={<MarketWarningsPage network="ethereum" />}
+          />{" "}
         </Routes>
       </ContentWrapper>
     </div>

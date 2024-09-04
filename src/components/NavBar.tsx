@@ -42,6 +42,7 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
       <NavLinks>
         <NavLink to="/">Vaults</NavLink>
         <NavLink to="/out-of-bounds-markets">Out of Range Markets</NavLink>
+        <NavLink to="/market-warnings">Markets With Warnings</NavLink>
       </NavLinks>
       <NetworkSwitchBubble onClick={onNetworkSwitch} backgroundColor="#878787">
         Switch to {currentNetwork === "ethereum" ? "Base" : "Ethereum"}

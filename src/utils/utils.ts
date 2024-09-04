@@ -3,6 +3,8 @@ import {
   Apys,
   Asset,
   MarketParams,
+  MarketWithWarning,
+  MarketWithWarningAPIData,
   Range,
   VaultReallocationData,
   Withdrawal,
@@ -155,4 +157,27 @@ export const sortVaultReallocationData = (vaults: VaultReallocationData[]) => {
       (a, b) => b.vault.totalAssetsUsd - a.vault.totalAssetsUsd
     ),
   ];
+};
+
+export const formatMarketWithWarning = (
+  market: MarketWithWarningAPIData,
+  networkId: number
+): MarketWithWarning => {
+  const warnings = market.warnings!;
+  const red = warnings.some((warning) => warning.level === "RED");
+  const name = getMarketName(
+    market.loanAsset.symbol,
+    market.collateralAsset ? market.collateralAsset.symbol : null,
+    market.lltv
+  );
+  const link = formatMarketLink(market.uniqueKey, networkId);
+  return {
+    id: market.uniqueKey,
+    link,
+    name,
+    warnings,
+    red,
+    collateralAsset: market.collateralAsset,
+    loanAsset: market.loanAsset,
+  };
 };
