@@ -1,5 +1,5 @@
 import { formatUnits } from "ethers";
-import { MarketFlowCaps, VaultMissingFlowCaps } from "../utils/types";
+import { MarketFlowCaps, VaultData } from "../utils/types";
 import {
   MaxUint128,
   MaxUint184,
@@ -21,7 +21,7 @@ import { MulticallWrapper } from "ethers-multicall-provider";
 
 export const getVaultDisplayData = async (
   networkId: number
-): Promise<VaultMissingFlowCaps[]> => {
+): Promise<VaultData[]> => {
   console.log("fetching strategies");
 
   const strategies = await fetchStrategies(networkId);
@@ -115,7 +115,7 @@ export const getVaultDisplayData = async (
   return sortVaults(missingFlowCaps);
 };
 
-const sortVaults = (vaults: VaultMissingFlowCaps[]) => {
+const sortVaults = (vaults: VaultData[]) => {
   return vaults.sort((a, b) => b.vault.totalAssetsUsd - a.vault.totalAssetsUsd);
 };
 

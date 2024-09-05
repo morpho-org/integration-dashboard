@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import VaultBubble from "../components/VaultBubble";
-import { VaultMissingFlowCaps } from "../utils/types";
+import { VaultData } from "../utils/types";
 import { getVaultDisplayData } from "../core/vaultData";
 import { getNetworkId } from "../utils/utils";
 import {
@@ -15,10 +15,11 @@ type VaultPageProps = {
 };
 
 const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
-  const [vaults, setVaults] = useState<VaultMissingFlowCaps[]>([]);
+  const [vaults, setVaults] = useState<VaultData[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("");
+  const [warningFilter, setWarningFilter] = useState<string>("");
 
   const fetchData = async (network: "ethereum" | "base") => {
     setLoading(true);
@@ -37,11 +38,26 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
     fetchData(network);
   }, [network]);
 
-  const filteredVaults = vaults.filter(
-    (vault) =>
-      vault.vault.asset.symbol.toLowerCase().includes(filter.toLowerCase()) ||
-      vault.vault.address.toLowerCase().includes(filter.toLowerCase())
-  );
+  const filterByWarning = (vault: VaultData) => {
+    switch (warningFilter) {
+      case "WrongWithdrawQueue":
+        return vault.warnings?.idlePositionWithdrawQueue === true;
+      case "WrongSupplyQueue":
+        return vault.warnings?.idlePositionSupplyQueue === true;
+      case "MissingFlowCaps":
+        return vault.warnings?.missingFlowCaps === true;
+      default:
+        return true;
+    }
+  };
+
+  const filteredVaults = vaults
+    .filter(
+      (vault) =>
+        vault.vault.asset.symbol.toLowerCase().includes(filter.toLowerCase()) ||
+        vault.vault.address.toLowerCase().includes(filter.toLowerCase())
+    )
+    .filter(filterByWarning);
 
   return (
     <PageWrapper>
@@ -49,10 +65,20 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
         <h1 style={{ color: "white" }}>MetaMorpho Vaults</h1>
         <FilterInput
           type="text"
-          placeholder="Filter by asset symbol..."
+          placeholder="Filter by asset or address..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
+        <select
+          value={warningFilter}
+          onChange={(e) => setWarningFilter(e.target.value)}
+          style={{ marginLeft: "20px", padding: "5px" }}
+        >
+          <option value="">All Vaults</option>
+          <option value="WrongWithdrawQueue">Wrong Withdraw Queue</option>
+          <option value="WrongSupplyQueue">Wrong Supply Queue</option>
+          <option value="MissingFlowCaps">Missing Flow Caps</option>
+        </select>
       </HeaderWrapper>
       {loading && <p>Loading...</p>}
       {error && <p>{error}</p>}
