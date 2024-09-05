@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import OutOfBoundsMarketBubble from "../components/OutOfBoundsMarketBubble";
 import { MarketWithWarning } from "../utils/types";
 import { getNetworkId } from "../utils/utils";
 import {
