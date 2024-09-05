@@ -41,7 +41,10 @@ const MarketWarningsPage: React.FC<MarketWarningsPageProps> = ({ network }) => {
   const filteredMarkets = markets.filter(
     (market) =>
       market.loanAsset.symbol.toLowerCase().includes(filter.toLowerCase()) ||
-      market.collateralAsset.symbol.toLowerCase().includes(filter.toLowerCase())
+      market.collateralAsset.symbol
+        .toLowerCase()
+        .includes(filter.toLowerCase()) ||
+      market.id.toLowerCase().includes(filter.toLowerCase())
   );
 
   return (
@@ -50,7 +53,7 @@ const MarketWarningsPage: React.FC<MarketWarningsPageProps> = ({ network }) => {
         <h1 style={{ color: "white" }}>Markets With Warnings</h1>
         <FilterInput
           type="text"
-          placeholder="Filter by asset symbol..."
+          placeholder="Filter by asset symbol or market Id..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />

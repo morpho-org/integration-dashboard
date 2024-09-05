@@ -39,7 +39,7 @@ const App: React.FC = () => {
           />
           <Route
             path="/market-warnings"
-            element={<MarketWarningsPage network="ethereum" />}
+            element={<MarketWarningsPage network={network} />}
           />{" "}
         </Routes>
       </ContentWrapper>

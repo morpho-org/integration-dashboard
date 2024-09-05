@@ -179,6 +179,7 @@ export type MetaMorphoPosition = {
 export type VaultDisplayData = {
   name: string;
   link: string;
+  address: string;
   asset: Asset;
   totalAssetsUsd: number;
 };

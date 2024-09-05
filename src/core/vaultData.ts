@@ -97,6 +97,7 @@ export const getVaultDisplayData = async (
 
     missingFlowCaps.push({
       vault: {
+        address: vault.address,
         name: vault.name,
         link: formatVaultLink(vault.address, networkId),
         asset: vault.asset,
