@@ -3,16 +3,34 @@ import VaultBubble from "../components/VaultBubble";
 import { VaultData } from "../utils/types";
 import { getVaultDisplayData } from "../core/vaultData";
 import { getNetworkId } from "../utils/utils";
-import {
-  FilterInput,
-  HeaderWrapper,
-  PageWrapper,
-  VaultsWrapper,
-} from "./wrappers";
+import { FilterInput, PageWrapper, VaultsWrapper } from "./wrappers";
+import styled from "styled-components";
 
 type VaultPageProps = {
   network: "ethereum" | "base";
 };
+
+const TitleContainer = styled.div`
+  flex-grow: 1;
+  h1 {
+    white-space: nowrap;
+  }
+`;
+
+const FilterContainer = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+`;
+
+const HeaderWrapper = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+`;
 
 const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
   const [vaults, setVaults] = useState<VaultData[]>([]);
@@ -62,23 +80,27 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
   return (
     <PageWrapper>
       <HeaderWrapper>
-        <h1 style={{ color: "white" }}>MetaMorpho Vaults</h1>
-        <FilterInput
-          type="text"
-          placeholder="Filter by asset or address..."
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-        <select
-          value={warningFilter}
-          onChange={(e) => setWarningFilter(e.target.value)}
-          style={{ marginLeft: "20px", padding: "5px" }}
-        >
-          <option value="">All Vaults</option>
-          <option value="WrongWithdrawQueue">Wrong Withdraw Queue</option>
-          <option value="WrongSupplyQueue">Wrong Supply Queue</option>
-          <option value="MissingFlowCaps">Missing Flow Caps</option>
-        </select>
+        <TitleContainer>
+          <h1 style={{ color: "white" }}>Morpho Vaults</h1>
+        </TitleContainer>
+        <FilterContainer>
+          <FilterInput
+            type="text"
+            placeholder="Filter by asset or address..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+          <select
+            value={warningFilter}
+            onChange={(e) => setWarningFilter(e.target.value)}
+            style={{ marginLeft: "20px", padding: "5px" }}
+          >
+            <option value="">All Vaults</option>
+            <option value="WrongWithdrawQueue">Wrong Withdraw Queue</option>
+            <option value="WrongSupplyQueue">Wrong Supply Queue</option>
+            <option value="MissingFlowCaps">Missing Flow Caps</option>
+          </select>
+        </FilterContainer>
       </HeaderWrapper>
       {loading && <p>Loading...</p>}
       {error && <p>{error}</p>}
