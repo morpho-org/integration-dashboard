@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import Bubble from "./Bubble";
-import { VaultMissingFlowCaps } from "../utils/types";
+import { VaultData } from "../utils/types";
 import WithdrawQueueBubble from "./WithdrawQueueBubble";
 import SupplyQueueBubble from "./SupplyQueueBubble";
 import VaultFlowCapsBubble from "./VaultFlowCapsBubble";
@@ -20,7 +20,7 @@ const VaultBubbleContainer = styled.div`
 `;
 
 type VaultBubbleProps = {
-  vault: VaultMissingFlowCaps;
+  vault: VaultData;
 };
 
 const VaultBubble: React.FC<VaultBubbleProps> = ({ vault }) => {

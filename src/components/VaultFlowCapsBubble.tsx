@@ -2,10 +2,10 @@ import React from "react";
 import styled from "styled-components";
 import Bubble from "./Bubble";
 import MarketFlowCapsBubble from "./MarketFlowCapsBubble";
-import { VaultMissingFlowCaps } from "../utils/types";
+import { VaultData } from "../utils/types";
 
 type VaultFlowCapsBubbleProps = {
-  vault: VaultMissingFlowCaps;
+  vault: VaultData;
   expanded: boolean;
   onClick?: () => void;
 };
@@ -45,17 +45,12 @@ const VaultFlowCapsBubble: React.FC<VaultFlowCapsBubbleProps> = ({
       onClick={handleClick}
       backgroundColor={"black"}
     >
-      <h3>
-        <a
-          style={{
-            color: missingFlowCaps ? "red" : "white",
-          }}
-          href={vault.vault.link}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {vault.vault.name}
-        </a>
+      <h3
+        style={{
+          color: missingFlowCaps ? "red" : "white",
+        }}
+      >
+        {"Flow Caps"}
       </h3>
       {expanded && (
         <MarketContainer>

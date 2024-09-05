@@ -243,7 +243,7 @@ export type UtilizationTarget = {
   utilizationRange: Range;
 };
 
-export type VaultMissingFlowCaps = {
+export type VaultData = {
   vault: VaultDisplayData;
   markets: MarketFlowCaps[];
   supplyQueue: Queue;

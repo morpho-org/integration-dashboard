@@ -44,7 +44,7 @@ export const fetchWhitelistedMetaMorphos = async (
   }
 };
 
-export const fetchVaultFlowCapsData = async (
+export const fetchVaultData = async (
   vaultAddress: string,
   networkId: number,
   strategies: Strategy[],
