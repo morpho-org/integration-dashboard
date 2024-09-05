@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from "react";
-import OutOfBoundsMarketBubble from "../components/OutOfBoundsMarketBubble";
-import { OutOfBoundsMarket } from "../utils/types";
-import { getOutOfBoundsMarkets } from "../core/outOfBoundsMarkets";
+import { MarketWithWarning } from "../utils/types";
 import { getNetworkId } from "../utils/utils";
 import {
   FilterInput,
@@ -9,15 +7,15 @@ import {
   MarketsWrapper,
   PageWrapper,
 } from "./wrappers";
+import { fetchMarketsWithWarnings } from "../fetchers/apiFetchers";
+import MarketWithWarningBubble from "../components/MarketWithWarningsBubble";
 
-type OutOfBoundsMarketsPageProps = {
+type MarketWarningsPageProps = {
   network: "ethereum" | "base";
 };
 
-const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
-  network,
-}) => {
-  const [markets, setMarkets] = useState<OutOfBoundsMarket[]>([]);
+const MarketWarningsPage: React.FC<MarketWarningsPageProps> = ({ network }) => {
+  const [markets, setMarkets] = useState<MarketWithWarning[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("");
@@ -27,7 +25,7 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
       setLoading(true);
       setError(null);
       try {
-        const data = await getOutOfBoundsMarkets(getNetworkId(network));
+        const data = await fetchMarketsWithWarnings(getNetworkId(network));
         setMarkets(data);
       } catch (err) {
         setError("Failed to fetch markets");
@@ -51,7 +49,7 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
   return (
     <PageWrapper>
       <HeaderWrapper>
-        <h1 style={{ color: "white" }}>Out of Range Markets</h1>
+        <h1 style={{ color: "white" }}>Markets With Warnings</h1>
         <FilterInput
           type="text"
           placeholder="Filter by asset symbol or market Id..."
@@ -63,15 +61,11 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
       {error && <p>{error}</p>}
       <MarketsWrapper>
         {filteredMarkets.map((market) => (
-          <OutOfBoundsMarketBubble
-            key={market.id}
-            market={market}
-            networkId={getNetworkId(network)}
-          />
+          <MarketWithWarningBubble key={market.id} market={market} />
         ))}
       </MarketsWrapper>
     </PageWrapper>
   );
 };
 
-export default OutOfBoundsMarketsPage;
+export default MarketWarningsPage;

@@ -31,9 +31,7 @@ const VaultBubble: React.FC<VaultBubbleProps> = ({ vault }) => {
     vault.warnings &&
     (vault.warnings.idlePositionWithdrawQueue ||
       vault.warnings.idlePositionSupplyQueue ||
-      vault.warnings.missingFlowCaps)
-      ? "red"
-      : "white";
+      vault.warnings.missingFlowCaps);
 
   const handleBubbleClick = (bubbleName: string) => {
     setActiveBubble((prev) => (prev === bubbleName ? null : bubbleName));
@@ -43,12 +41,12 @@ const VaultBubble: React.FC<VaultBubbleProps> = ({ vault }) => {
     <VaultBubbleContainer>
       <Bubble
         onClick={() => setExpanded(!expanded)}
-        backgroundColor={"#2470ff"}
+        backgroundColor={warning ? "#ff6961" : "#2470ff"}
       >
         <h3>
           <a
             style={{
-              color: warning ? "red" : "white",
+              color: "black",
             }}
             href={vault.vault.link}
             target="_blank"

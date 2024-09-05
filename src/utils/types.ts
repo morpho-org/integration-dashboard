@@ -90,6 +90,37 @@ export type MarketReallocationData = {
   };
 };
 
+export type MarketWithWarning = {
+  id: string;
+  link: string;
+  name: string;
+  warnings: MarketWarning[];
+  loanAsset: {
+    symbol: string;
+  };
+  collateralAsset: {
+    symbol: string;
+  };
+  red: boolean;
+};
+
+export type MarketWithWarningAPIData = {
+  uniqueKey: string;
+  lltv: bigint;
+  loanAsset: {
+    symbol: string;
+  };
+  collateralAsset: {
+    symbol: string;
+  };
+  warnings: MarketWarning[];
+};
+
+export type MarketWarning = {
+  type: string;
+  level: string;
+};
+
 export type MetaMorphoVault = {
   address: string;
   name: string;
@@ -148,6 +179,7 @@ export type MetaMorphoPosition = {
 export type VaultDisplayData = {
   name: string;
   link: string;
+  address: string;
   asset: Asset;
   totalAssetsUsd: number;
 };

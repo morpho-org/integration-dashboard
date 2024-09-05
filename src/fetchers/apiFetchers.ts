@@ -2,12 +2,18 @@ import { Provider } from "ethers";
 import { BLUE_API, TARGET_API, WHITELIST_API } from "../config/constants";
 import {
   Asset,
+  MarketWithWarning,
+  MarketWithWarningAPIData,
   MetaMorphoAPIData,
   MetaMorphoVaultFlowCaps,
   Strategy,
   WhitelistedVault,
 } from "../utils/types";
-import { formatMarketLink, getMarketName } from "../utils/utils";
+import {
+  formatMarketLink,
+  formatMarketWithWarning,
+  getMarketName,
+} from "../utils/utils";
 import { fetchFlowCaps, getQueues } from "./chainFetcher";
 
 export const fetchStrategies = async (
@@ -284,4 +290,61 @@ export const fetchAssetData = async (assetAddress: string): Promise<Asset> => {
   });
   const data = await response.json();
   return data.data.assets.items[0];
+};
+
+export const fetchMarketsWithWarnings = async (
+  networkId: number
+): Promise<MarketWithWarning[]> => {
+  const query = `
+    query {
+    markets(where: { whitelisted: true, chainId_in: ${networkId}} ) {
+      items {
+        uniqueKey
+        collateralAsset {
+          symbol
+        }
+        loanAsset {
+          symbol
+        }
+        lltv
+        warnings {
+          type
+          level
+        }
+      }
+    }
+  }`;
+
+  const response = await fetch(BLUE_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  const data = await response.json();
+  const whitelistedMarkets: MarketWithWarningAPIData[] =
+    data.data.markets.items;
+
+  const marketsWithWarnings = whitelistedMarkets.filter(
+    (market: MarketWithWarningAPIData) => market.warnings.length > 0
+  );
+
+  console.log("markets with warnings");
+
+  const marketWithRedWarnings = marketsWithWarnings
+    .filter((market) =>
+      market.warnings!.some((warning) => warning.level === "RED")
+    )
+    .map((market) => formatMarketWithWarning(market, networkId));
+
+  console.log("markets with red warnings");
+
+  const marketWithoutRedWarnings = marketsWithWarnings
+    .filter(
+      (market) => !market.warnings!.some((warning) => warning.level === "RED")
+    )
+    .map((market) => formatMarketWithWarning(market, networkId));
+
+  console.log("markets returned");
+
+  return [...marketWithRedWarnings, ...marketWithoutRedWarnings];
 };

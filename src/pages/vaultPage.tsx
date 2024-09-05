@@ -37,8 +37,10 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
     fetchData(network);
   }, [network]);
 
-  const filteredVaults = vaults.filter((vault) =>
-    vault.vault.asset.symbol.toLowerCase().includes(filter.toLowerCase())
+  const filteredVaults = vaults.filter(
+    (vault) =>
+      vault.vault.asset.symbol.toLowerCase().includes(filter.toLowerCase()) ||
+      vault.vault.address.toLowerCase().includes(filter.toLowerCase())
   );
 
   return (
