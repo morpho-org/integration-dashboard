@@ -13,10 +13,11 @@ export const HeaderWrapper = styled.div`
 
 export const FilterInput = styled.input`
   padding: 8px;
-  font-size: 1em;
-  border-radius: 5px;
+  font-size: 0.8em;
+  border-radius: 4px;
   border: 1px solid #ccc;
   outline: none;
+  width: 280px;
 `;
 
 export const MarketsWrapper = styled.div`

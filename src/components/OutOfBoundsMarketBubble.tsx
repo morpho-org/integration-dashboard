@@ -9,7 +9,7 @@ import { lookForReallocations } from "../core/lookForReallocations";
 const MarketContainer = styled.div`
   margin-left: 20px;
   margin-top: 10px;
-  color: white;
+  color: black;
 `;
 
 type OutOfBoundsMarketBubbleProps = {
@@ -45,7 +45,7 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
     fetchReallocations();
   }, [expanded, networkId, market, vaults]);
 
-  const backgroundColor = "#0f0f0f";
+  const backgroundColor = "#f0f0f0";
   const target =
     "apyTarget" in market.target
       ? `APY target range: [${formatWAD(
@@ -67,8 +67,13 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
         onClick={() => setExpanded(!expanded)}
         backgroundColor={backgroundColor}
       >
-        <h3>
-          <a href={market.link} target="_blank" rel="noopener noreferrer">
+        <h3 style={{ color: "#0F0000" }}>
+          <a
+            style={{ color: "#0F0000" }}
+            href={market.link}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             {market.name}
           </a>
         </h3>

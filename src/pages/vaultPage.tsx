@@ -92,7 +92,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
     <PageWrapper>
       <HeaderWrapper>
         <TitleContainer>
-          <h1 style={{ color: "white" }}>Morpho Vaults</h1>
+          <h1 style={{ color: "black", fontWeight: "300" }}>Morpho Vaults</h1>
         </TitleContainer>
         <FilterContainer>
           <FilterInput
@@ -104,7 +104,13 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
           <select
             value={warningFilter}
             onChange={(e) => setWarningFilter(e.target.value)}
-            style={{ marginLeft: "20px", padding: "5px" }}
+            style={{
+              marginLeft: "20px",
+              padding: "5px",
+              borderRadius: "4px",
+              border: "1px solid #ccc",
+              outline: "none",
+            }}
           >
             <option value="">All Vaults</option>
             <option value="WrongWithdrawQueue">Wrong Withdraw Queue</option>
@@ -114,7 +120,13 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
           <select
             value={curatorFilter}
             onChange={(e) => setCuratorFilter(e.target.value)}
-            style={{ padding: "5px" }}
+            style={{
+              marginLeft: "20px",
+              padding: "5px",
+              borderRadius: "4px",
+              border: "1px solid #ccc",
+              outline: "none",
+            }}
           >
             <option value="">All Curators</option>
             {allCurators.map((curator, index) => (
