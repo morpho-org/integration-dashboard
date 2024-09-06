@@ -49,7 +49,9 @@ const MarketWarningsPage: React.FC<MarketWarningsPageProps> = ({ network }) => {
   return (
     <PageWrapper>
       <HeaderWrapper>
-        <h1 style={{ color: "white" }}>Markets With Warnings</h1>
+        <h1 style={{ color: "black", fontWeight: "300" }}>
+          Markets With Warnings
+        </h1>
         <FilterInput
           type="text"
           placeholder="Filter by asset symbol or market Id..."

@@ -51,7 +51,9 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
   return (
     <PageWrapper>
       <HeaderWrapper>
-        <h1 style={{ color: "white" }}>Out of Range Markets</h1>
+        <h1 style={{ color: "black", fontWeight: "300" }}>
+          Out of Range Markets
+        </h1>
         <FilterInput
           type="text"
           placeholder="Filter by asset symbol or market Id..."

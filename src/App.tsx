@@ -14,10 +14,17 @@ const ContentWrapper = styled.div`
   background-repeat: no-repeat;
   background-attachment: fixed;
   min-height: 100vh;
-  padding: 20px;
+  padding: 60px;
   overflow-y: auto;
 `;
 
+const SecondContentWrapper = styled.div`
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  overflow-y: auto;
+  height: 100vh;
+`;
 const App: React.FC = () => {
   const [network, setNetwork] = useState<"ethereum" | "base">("ethereum");
 
@@ -31,17 +38,19 @@ const App: React.FC = () => {
     <div>
       <NavBar currentNetwork={network} onNetworkSwitch={handleNetworkSwitch} />
       <ContentWrapper>
-        <Routes>
-          <Route path="/" element={<VaultPage network={network} />} />
-          <Route
-            path="/out-of-bounds-markets"
-            element={<OutOfBoundsMarketsPage network={network} />}
-          />
-          <Route
-            path="/market-warnings"
-            element={<MarketWarningsPage network={network} />}
-          />{" "}
-        </Routes>
+        <SecondContentWrapper>
+          <Routes>
+            <Route path="/" element={<VaultPage network={network} />} />
+            <Route
+              path="/out-of-bounds-markets"
+              element={<OutOfBoundsMarketsPage network={network} />}
+            />
+            <Route
+              path="/market-warnings"
+              element={<MarketWarningsPage network={network} />}
+            />{" "}
+          </Routes>
+        </SecondContentWrapper>
       </ContentWrapper>
     </div>
   );

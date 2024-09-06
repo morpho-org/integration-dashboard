@@ -29,15 +29,15 @@ const LinkItem = styled.li`
 const MarketWithWarningBubble: React.FC<MarketWithWarningProps> = ({
   market,
 }) => {
-  const titleCollor = market.red ? "#ff6961" : "#fdfd96";
+  const titleCollor = market.red ? "#FF0000" : "#D38F0C";
   return (
-    <Bubble backgroundColor={"#0f0f0f"}>
+    <Bubble backgroundColor={"#f0f0f0"}>
       <p>
         <a
           href={market.link}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: titleCollor }}
+          style={{ color: titleCollor, marginLeft: "10px" }}
         >
           {market.name}
         </a>
@@ -46,7 +46,7 @@ const MarketWithWarningBubble: React.FC<MarketWithWarningProps> = ({
         {market.warnings.map((warning, index) => (
           <LinkItem key={index}>
             <p
-              style={{ color: warning.level === "RED" ? "#ff6961" : "#fdfd96" }}
+              style={{ color: warning.level === "RED" ? "#FF0000" : "#D38F0C" }}
             >
               {" "}
               {warning.type}{" "}
