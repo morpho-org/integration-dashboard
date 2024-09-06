@@ -5,7 +5,7 @@ import {
   MarketWithWarning,
   MarketWithWarningAPIData,
   MetaMorphoAPIData,
-  MetaMorphoVaultFlowCaps,
+  MetaMorphoVaultData,
   Strategy,
   WhitelistedVault,
 } from "../utils/types";
@@ -49,7 +49,7 @@ export const fetchVaultData = async (
   networkId: number,
   strategies: Strategy[],
   provider: Provider
-): Promise<MetaMorphoVaultFlowCaps> => {
+): Promise<MetaMorphoVaultData> => {
   const query = `
   query VaulData{
     vaults(where: {address_in: "${vaultAddress}"}) {
@@ -58,6 +58,11 @@ export const fetchVaultData = async (
         symbol
         name
         address
+        metadata{
+          curators{
+            name
+          }
+        }
         asset {
           address
           priceUsd
@@ -93,6 +98,12 @@ export const fetchVaultData = async (
     ]);
   const data = await response.json();
   const vault = data.data.vaults.items[0];
+
+  const curators: string[] = vault.metadata.curators.map(
+    (curator: { name: string }) => {
+      return curator.name;
+    }
+  );
 
   const enabledMarkets = vault.state.allocation.reduce(
     (acc: any, current: any) => {
@@ -177,6 +188,7 @@ export const fetchVaultData = async (
     name: vault.name,
     asset: vault.asset,
     totalAssets: vault.state.totalAssets,
+    curators,
     withdrawQueue,
     supplyQueue,
     markets,

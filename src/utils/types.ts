@@ -131,7 +131,7 @@ export type MetaMorphoVault = {
   flowCaps: { [key: string]: FlowCaps };
 };
 
-export type MetaMorphoVaultFlowCaps = {
+export type MetaMorphoVaultData = {
   symbol: string;
   address: string;
   name: string;
@@ -139,6 +139,7 @@ export type MetaMorphoVaultFlowCaps = {
   totalAssets: number;
   supplyQueue: Queue;
   withdrawQueue: Queue;
+  curators: string[];
   markets: {
     id: string;
     name: string;
@@ -155,6 +156,7 @@ export type MetaMorphoAPIData = {
   name: string;
   address: string;
   asset: Asset;
+  metadata: { curators: { name: string }[] };
   state: {
     totalAssets: number;
     apy: number;
@@ -245,6 +247,7 @@ export type UtilizationTarget = {
 
 export type VaultData = {
   vault: VaultDisplayData;
+  curators: string[];
   markets: MarketFlowCaps[];
   supplyQueue: Queue;
   withdrawQueue: Queue;

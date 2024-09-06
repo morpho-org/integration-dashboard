@@ -38,6 +38,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("");
   const [warningFilter, setWarningFilter] = useState<string>("");
+  const [curatorFilter, setCuratorFilter] = useState<string>("");
 
   const fetchData = async (network: "ethereum" | "base") => {
     setLoading(true);
@@ -56,6 +57,10 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
     fetchData(network);
   }, [network]);
 
+  const allCurators = vaults
+    .flatMap((vault) => vault.curators)
+    .filter((value, index, self) => self.indexOf(value) === index);
+
   const filterByWarning = (vault: VaultData) => {
     switch (warningFilter) {
       case "WrongWithdrawQueue":
@@ -69,13 +74,19 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
     }
   };
 
+  const filterByCurator = (vault: VaultData) => {
+    if (curatorFilter === "") return true;
+    return vault.curators.includes(curatorFilter);
+  };
+
   const filteredVaults = vaults
     .filter(
       (vault) =>
         vault.vault.asset.symbol.toLowerCase().includes(filter.toLowerCase()) ||
         vault.vault.address.toLowerCase().includes(filter.toLowerCase())
     )
-    .filter(filterByWarning);
+    .filter(filterByWarning)
+    .filter(filterByCurator);
 
   return (
     <PageWrapper>
@@ -99,6 +110,18 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
             <option value="WrongWithdrawQueue">Wrong Withdraw Queue</option>
             <option value="WrongSupplyQueue">Wrong Supply Queue</option>
             <option value="MissingFlowCaps">Missing Flow Caps</option>
+          </select>
+          <select
+            value={curatorFilter}
+            onChange={(e) => setCuratorFilter(e.target.value)}
+            style={{ padding: "5px" }}
+          >
+            <option value="">All Curators</option>
+            {allCurators.map((curator, index) => (
+              <option key={index} value={curator}>
+                {curator}
+              </option>
+            ))}
           </select>
         </FilterContainer>
       </HeaderWrapper>
