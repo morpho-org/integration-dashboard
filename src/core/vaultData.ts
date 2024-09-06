@@ -103,6 +103,7 @@ export const getVaultDisplayData = async (
         asset: vault.asset,
         totalAssetsUsd: vault.totalAssets * vault.asset.priceUsd,
       },
+      curators: vault.curators,
       markets: sortMarkets(markets),
       supplyQueue: vault.supplyQueue,
       withdrawQueue: vault.withdrawQueue,
