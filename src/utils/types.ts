@@ -118,6 +118,29 @@ export type MarketWithWarningAPIData = {
   warnings: MarketWarning[];
 };
 
+export type MarketWithoutStrategy = {
+  id: string;
+  link: string;
+  name: string;
+  loanAsset: {
+    symbol: string;
+  };
+  collateralAsset: {
+    symbol: string;
+  };
+};
+
+export type MarketWithoutStrategyAPIData = {
+  uniqueKey: string;
+  loanAsset: {
+    symbol: string;
+  };
+  collateralAsset: {
+    symbol: string;
+  };
+  lltv: bigint;
+};
+
 export type MarketWarning = {
   type: string;
   level: string;
