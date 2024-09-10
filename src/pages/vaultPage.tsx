@@ -3,34 +3,18 @@ import VaultBubble from "../components/VaultBubble";
 import { VaultData } from "../utils/types";
 import { getVaultDisplayData } from "../core/vaultData";
 import { getNetworkId } from "../utils/utils";
-import { FilterInput, PageWrapper, VaultsWrapper } from "./wrappers";
-import styled from "styled-components";
+import {
+  FilterContainer,
+  FilterInput,
+  HeaderWrapper,
+  PageWrapper,
+  TitleContainer,
+  VaultsWrapper,
+} from "./wrappers";
 
 type VaultPageProps = {
   network: "ethereum" | "base";
 };
-
-const TitleContainer = styled.div`
-  flex-grow: 1;
-  h1 {
-    white-space: nowrap;
-  }
-`;
-
-const FilterContainer = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-`;
-
-const HeaderWrapper = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-`;
 
 const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
   const [vaults, setVaults] = useState<VaultData[]>([]);
