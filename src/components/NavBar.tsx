@@ -113,6 +113,12 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
         >
           Markets With Warnings
         </NavLink>
+        <NavLink
+          to="/markets-without-strategy"
+          $isActive={location.pathname === "/markets-without-strategy"}
+        >
+          Strategyless Markets
+        </NavLink>
       </NavLinks>
       <NetworkSelect
         options={networkOptions}

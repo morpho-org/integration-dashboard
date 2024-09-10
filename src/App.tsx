@@ -6,6 +6,7 @@ import VaultPage from "./pages/vaultPage";
 import OutOfBoundsMarketsPage from "./pages/outOfBoundsMarketsPage";
 import wallpaper from "./logos/wallpaper.png";
 import MarketWarningsPage from "./pages/marketWarningsPage";
+import MarketsWithoutStrategyPage from "./pages/marketWithoutStrategyPage";
 
 const ContentWrapper = styled.div`
   background-image: url(${wallpaper});
@@ -48,6 +49,10 @@ const App: React.FC = () => {
             <Route
               path="/market-warnings"
               element={<MarketWarningsPage network={network} />}
+            />{" "}
+            <Route
+              path="/markets-without-strategy"
+              element={<MarketsWithoutStrategyPage network={network} />}
             />{" "}
           </Routes>
         </SecondContentWrapper>

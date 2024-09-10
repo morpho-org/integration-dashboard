@@ -360,3 +360,31 @@ export const fetchMarketsWithWarnings = async (
 
   return [...marketWithRedWarnings, ...marketWithoutRedWarnings];
 };
+
+export const fetchMarketWithoutStrategyData = async (
+  id: string
+): Promise<MarketWithWarningAPIData> => {
+  const query = `
+    query {
+    markets(where: {  uniqueKey_in: "${id}"} ) {
+      items {
+        uniqueKey
+        collateralAsset {
+          symbol
+        }
+        loanAsset {
+          symbol
+        }
+        lltv
+      }
+    }
+  }`;
+
+  const response = await fetch(BLUE_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  const data = await response.json();
+  return data.data.markets.items[0];
+};
