@@ -9,8 +9,6 @@ import { formatMarketLink, getMarketName, getProvider } from "../utils/utils";
 export const getMarketsWithoutStrategy = async (
   networkId: number
 ): Promise<MarketWithoutStrategy[]> => {
-  const provider = MulticallWrapper.wrap(getProvider(networkId));
-
   console.log("fetching strategies");
 
   const strategies = await fetchStrategies(networkId);
