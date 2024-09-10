@@ -13,6 +13,8 @@ export type Apys = {
 export type ApyTarget = {
   apyTarget: bigint;
   apyRange: Range;
+  distanceToTarget: bigint;
+  upperBoundCrossed: boolean;
 };
 
 export type FlowCaps = {
@@ -243,6 +245,8 @@ export type Range = {
 export type UtilizationTarget = {
   utilizationTarget: bigint;
   utilizationRange: Range;
+  distanceToTarget: bigint;
+  upperBoundCrossed: boolean;
 };
 
 export type VaultData = {

@@ -2,7 +2,12 @@ import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import Bubble from "./Bubble";
 import VaultReallocationDataBubble from "./VaultReallocationDataBubble";
-import { OutOfBoundsMarket, VaultReallocationData } from "../utils/types";
+import {
+  ApyTarget,
+  OutOfBoundsMarket,
+  UtilizationTarget,
+  VaultReallocationData,
+} from "../utils/types";
 import { formatTokenAmount, formatWAD } from "../utils/utils";
 import { lookForReallocations } from "../core/lookForReallocations";
 
@@ -10,6 +15,10 @@ const MarketContainer = styled.div`
   margin-left: 20px;
   margin-top: 10px;
   color: black;
+`;
+
+const MessageContainer = styled.span`
+  margin-left: 15px;
 `;
 
 type OutOfBoundsMarketBubbleProps = {
@@ -61,6 +70,8 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
           market.target.utilizationTarget
         )})`;
 
+  const distanceToTarget = distanceToTargetMessage(market.target);
+
   return (
     <div>
       <Bubble
@@ -76,6 +87,9 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
           >
             {market.name}
           </a>
+          <MessageContainer style={{ color: distanceToTarget.color }}>
+            {distanceToTarget.distanceMessage}
+          </MessageContainer>
         </h3>
         {expanded && (
           <MarketContainer>
@@ -152,6 +166,21 @@ const formatMainReallocationMessage = (
       bestReallocation.reallocation!.newState.utilization
     )}`;
   }
+};
+
+const distanceToTargetMessage = (target: ApyTarget | UtilizationTarget) => {
+  const distanceToTarget = Number(target.distanceToTarget) / 1e16;
+  let color = "";
+  if (distanceToTarget < 10) color = "#D38F0C";
+  else if (distanceToTarget < 20) color = "#FFB15A";
+  else if (distanceToTarget < 50) color = "#F67828";
+  else if (distanceToTarget < 100) color = "#FF6961";
+  else color = "#8B0000";
+
+  const distanceMessage = `${formatWAD(target.distanceToTarget)} ${
+    target.upperBoundCrossed ? "above" : "below"
+  } target`;
+  return { color, distanceMessage };
 };
 
 export default OutOfBoundsMarketBubble;

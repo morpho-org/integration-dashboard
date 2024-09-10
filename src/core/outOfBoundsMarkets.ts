@@ -1,4 +1,5 @@
 import {
+  abs,
   computeSupplyValue,
   computeWithdrawValue,
   wDivDown,
@@ -60,6 +61,7 @@ export const getOutOfBoundsMarkets = async (
       market.strategy.apyRange &&
       isApyOutOfRange(market.marketChainData.apys, market.strategy.apyRange)
     ) {
+      if (BigInt(market.strategy.targetBorrowApy!) === 0n) continue;
       const aboveRange =
         market.marketChainData.apys.borrowApy >
         market.strategy.apyRange.upperBound;
@@ -92,6 +94,14 @@ export const getOutOfBoundsMarkets = async (
         target: {
           apyTarget: market.strategy.targetBorrowApy!,
           apyRange: market.strategy.apyRange!,
+          distanceToTarget: wDivDown(
+            abs(
+              BigInt(market.strategy.targetBorrowApy!) -
+                market.marketChainData.apys.borrowApy
+            ),
+            BigInt(market.strategy.targetBorrowApy!)
+          ),
+          upperBoundCrossed: aboveRange,
         },
         amountToReachTarget,
         aboveRange,
@@ -101,6 +111,7 @@ export const getOutOfBoundsMarkets = async (
       market.strategy.utilizationRange &&
       isUtilizationOutOfRange(utilization, market.strategy.utilizationRange)
     ) {
+      if (BigInt(market.strategy.utilizationTarget!) === 0n) continue;
       const utilizationTarget = BigInt(market.strategy.utilizationTarget!);
       const aboveRange =
         utilization > market.strategy.utilizationRange.upperBound;
@@ -134,11 +145,22 @@ export const getOutOfBoundsMarkets = async (
         target: {
           utilizationTarget: market.strategy.utilizationTarget!,
           utilizationRange: market.strategy.utilizationRange,
+          distanceToTarget: wDivDown(
+            abs(BigInt(market.strategy.utilizationTarget!) - utilization),
+            BigInt(market.strategy.utilizationTarget!)
+          ),
+          upperBoundCrossed: aboveRange,
         },
         amountToReachTarget,
         aboveRange,
       });
     }
   }
-  return outOfBoundsMarkets.sort((a, b) => b.totalSupplyUsd - a.totalSupplyUsd);
+
+  console.log("sorting markets");
+
+  return outOfBoundsMarkets.sort(
+    (a, b) =>
+      Number(b.target.distanceToTarget) - Number(a.target.distanceToTarget)
+  );
 };
