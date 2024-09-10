@@ -1,10 +1,9 @@
-import { MulticallWrapper } from "ethers-multicall-provider";
 import {
   fetchMarketWithoutStrategyData,
   fetchStrategies,
 } from "../fetchers/apiFetchers";
 import { MarketWithoutStrategy } from "../utils/types";
-import { formatMarketLink, getMarketName, getProvider } from "../utils/utils";
+import { formatMarketLink, getMarketName } from "../utils/utils";
 
 export const getMarketsWithoutStrategy = async (
   networkId: number
