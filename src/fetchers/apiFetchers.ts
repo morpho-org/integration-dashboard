@@ -368,6 +368,7 @@ export const fetchMarketWithoutStrategyData = async (
     query {
     markets(where: {  uniqueKey_in: "${id}"} ) {
       items {
+        uniqueKey
         collateralAsset {
           symbol
         }
