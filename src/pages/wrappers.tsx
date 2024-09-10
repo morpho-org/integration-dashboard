@@ -4,13 +4,6 @@ export const PageWrapper = styled.div`
   padding: 20px;
 `;
 
-export const HeaderWrapper = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-`;
-
 export const FilterInput = styled.input`
   padding: 8px;
   font-size: 0.8em;
@@ -30,4 +23,26 @@ export const VaultsWrapper = styled.div`
   display: flex;
   flex-direction: column;
   gap: 10px;
+`;
+
+export const TitleContainer = styled.div`
+  flex-grow: 1;
+  h1 {
+    white-space: nowrap;
+  }
+`;
+
+export const FilterContainer = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+`;
+
+export const HeaderWrapper = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
 `;

@@ -4,10 +4,12 @@ import { OutOfBoundsMarket } from "../utils/types";
 import { getOutOfBoundsMarkets } from "../core/outOfBoundsMarkets";
 import { getNetworkId } from "../utils/utils";
 import {
+  FilterContainer,
   FilterInput,
   HeaderWrapper,
   MarketsWrapper,
   PageWrapper,
+  TitleContainer,
 } from "./wrappers";
 
 type OutOfBoundsMarketsPageProps = {
@@ -21,6 +23,7 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("");
+  const [supplyFilter, setSupplyFilter] = useState<number>(0);
 
   useEffect(() => {
     const loadMarkets = async () => {
@@ -41,25 +44,42 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
 
   const filteredMarkets = markets.filter(
     (market) =>
-      market.loanAsset.symbol.toLowerCase().includes(filter.toLowerCase()) ||
-      market.collateralAsset.symbol
-        .toLowerCase()
-        .includes(filter.toLowerCase()) ||
-      market.id.toLowerCase().includes(filter.toLowerCase())
+      (market.loanAsset.symbol.toLowerCase().includes(filter.toLowerCase()) ||
+        market.collateralAsset.symbol
+          .toLowerCase()
+          .includes(filter.toLowerCase()) ||
+        market.id.toLowerCase().includes(filter.toLowerCase())) &&
+      market.totalSupplyUsd >= supplyFilter
   );
 
   return (
     <PageWrapper>
       <HeaderWrapper>
-        <h1 style={{ color: "black", fontWeight: "300" }}>
-          Out of Range Markets
-        </h1>
-        <FilterInput
-          type="text"
-          placeholder="Filter by asset symbol or market Id..."
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
+        <TitleContainer>
+          <h1 style={{ color: "black", fontWeight: "300" }}>
+            Out of Range Markets
+          </h1>
+        </TitleContainer>
+        <FilterContainer>
+          <FilterInput
+            type="text"
+            placeholder="Filter by asset symbol or market Id..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+          <select
+            value={supplyFilter !== null ? supplyFilter : ""}
+            onChange={(e) => setSupplyFilter(Number(e.target.value))}
+            style={{ marginLeft: "20px", padding: "5px" }}
+          >
+            <option value="0">No Total Supply Threshold</option>
+            <option value="1000">$1,000</option>
+            <option value="10000">$10K</option>
+            <option value="100000">$100K</option>
+            <option value="1000000">$1M</option>
+            <option value="10000000">$10M</option>
+          </select>
+        </FilterContainer>
       </HeaderWrapper>
       {loading && <p>Loading...</p>}
       {error && <p>{error}</p>}
