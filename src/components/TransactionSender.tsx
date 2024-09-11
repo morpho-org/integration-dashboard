@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseEther, Withdrawal } from "viem";
+import { parseEther } from "viem";
 import abi from "../abis/publicAllocatorAbi.json";
 import { publicAllocatorAddress } from "../config/constants";
-import { MarketParams } from "../utils/types";
+import { MarketParams, Withdrawal } from "../utils/types";
 
 type TransactionSenderProps = {
   networkId: number;
@@ -20,11 +20,7 @@ export default function TransactionSender({
 }: TransactionSenderProps) {
   const [isTransactionSent, setIsTransactionSent] = useState(false);
 
-  const {
-    writeContractAsync,
-    isSuccess: isWriteSuccess,
-    error: writeError,
-  } = useWriteContract();
+  const { writeContractAsync } = useWriteContract();
 
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
 
@@ -35,7 +31,9 @@ export default function TransactionSender({
     hash: txHash,
   });
 
-  const handleSendTransaction = async () => {
+  const handleSendTransaction = async (event: React.MouseEvent) => {
+    event.stopPropagation();
+
     try {
       const result = await writeContractAsync({
         address: publicAllocatorAddress[networkId] as `0x${string}`,

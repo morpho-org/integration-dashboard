@@ -122,6 +122,7 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
                   <VaultReallocationDataBubble
                     key={vault.vault.name}
                     vault={vault}
+                    networkId={networkId}
                   />
                 ))}
               </>
