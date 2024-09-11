@@ -102,12 +102,6 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
           Vaults
         </NavLink>
         <NavLink
-          to="/out-of-bounds-markets"
-          $isActive={location.pathname === "/out-of-bounds-markets"}
-        >
-          Out of Range Markets
-        </NavLink>
-        <NavLink
           to="/market-warnings"
           $isActive={location.pathname === "/market-warnings"}
         >
@@ -118,6 +112,12 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
           $isActive={location.pathname === "/markets-without-strategy"}
         >
           Strategyless Markets
+        </NavLink>
+        <NavLink
+          to="/out-of-bounds-markets"
+          $isActive={location.pathname === "/out-of-bounds-markets"}
+        >
+          Out of Range Markets
         </NavLink>
       </NavLinks>
       <NetworkSelect
