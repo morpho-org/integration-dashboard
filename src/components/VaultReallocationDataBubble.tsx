@@ -3,6 +3,7 @@ import styled from "styled-components";
 import Bubble from "./Bubble";
 import MarketReallocationDataBubble from "./MarketReallocationDataBubble";
 import { VaultReallocationData } from "../utils/types";
+import { formatAllocation } from "../utils/stringFormatter";
 
 const MarketContainer = styled.div`
   margin-left: 20px;
@@ -32,6 +33,27 @@ const VaultReallocationDataBubble: React.FC<VaultBubbleProps> = ({ vault }) => {
             {vault.vault.name}
           </a>
         </h3>
+
+        {expanded && vault.reallocation && (
+          <div style={{ color: "white" }}>
+            {[
+              "Proposed reallocation:",
+              ...vault.reallocation.logData
+                .map((logData) =>
+                  formatAllocation(logData, vault.vault.underlyingAsset)
+                )
+                .flat(),
+            ].map((line, index) => (
+              <p key={index}>{line}</p>
+            ))}
+          </div>
+        )}
+
+        {expanded && !vault.reallocation && (
+          <div style={{ color: "white" }}>
+            <p>No meaningful reallocation</p>
+          </div>
+        )}
 
         {expanded && (
           <MarketContainer>
