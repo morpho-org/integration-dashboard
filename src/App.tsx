@@ -9,7 +9,7 @@ import MarketWarningsPage from "./pages/marketWarningsPage";
 import MarketsWithoutStrategyPage from "./pages/marketWithoutStrategyPage";
 
 const ContentWrapper = styled.div`
-  // background-image: url(${wallpaper});
+  background-image: url(${wallpaper});
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
