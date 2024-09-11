@@ -46,3 +46,22 @@ export const HeaderWrapper = styled.div`
   align-items: center;
   width: 100%;
 `;
+
+export const LinkList = styled.ol`
+  margin-top: 10px;
+  padding-left: 20px;
+  flex-grow: 1;
+`;
+
+export const LinkItem = styled.li`
+  margin-bottom: 5px;
+
+  a {
+    color: white;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+`;
