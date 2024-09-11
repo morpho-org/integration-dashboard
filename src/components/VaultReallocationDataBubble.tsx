@@ -4,6 +4,7 @@ import Bubble from "./Bubble";
 import MarketReallocationDataBubble from "./MarketReallocationDataBubble";
 import { VaultReallocationData } from "../utils/types";
 import { formatAllocation } from "../utils/stringFormatter";
+import TransactionSender from "./TransactionSender";
 
 const MarketContainer = styled.div`
   margin-left: 20px;
@@ -12,9 +13,13 @@ const MarketContainer = styled.div`
 
 type VaultBubbleProps = {
   vault: VaultReallocationData;
+  networkId: number;
 };
 
-const VaultReallocationDataBubble: React.FC<VaultBubbleProps> = ({ vault }) => {
+const VaultReallocationDataBubble: React.FC<VaultBubbleProps> = ({
+  vault,
+  networkId,
+}) => {
   const [expanded, setExpanded] = useState(false);
 
   const backgroundColor = vault.reallocation ? "#2470ff" : "#4B0082";
@@ -46,6 +51,17 @@ const VaultReallocationDataBubble: React.FC<VaultBubbleProps> = ({ vault }) => {
             ].map((line, index) => (
               <p key={index}>{line}</p>
             ))}
+          </div>
+        )}
+
+        {expanded && vault.reallocation && (
+          <div style={{ color: "white" }}>
+            <TransactionSender
+              networkId={networkId}
+              vaultAddress={vault.vault.address}
+              withdrawals={vault.reallocation.withdrawals}
+              supplyMarketParams={vault.reallocation.supplyMarketParams}
+            />
           </div>
         )}
 
