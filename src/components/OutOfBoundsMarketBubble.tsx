@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import styled from "styled-components";
 import Bubble from "./Bubble";
 import VaultReallocationDataBubble from "./VaultReallocationDataBubble";
@@ -34,25 +34,25 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
   const [vaults, setVaults] = useState<VaultReallocationData[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reallocationsSearched, setReallocationsSearched] = useState(false);
+  const [buttonVisible, setButtonVisible] = useState(true);
 
-  useEffect(() => {
-    const fetchReallocations = async () => {
-      if (expanded && !vaults) {
-        setLoading(true);
-        setError(null);
-        try {
-          const fetchedVaults = await lookForReallocations(networkId, market);
-          setVaults(fetchedVaults);
-        } catch (err) {
-          setError("Failed to fetch reallocations");
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
+  const handleSearchReallocations = async (event: React.MouseEvent) => {
+    event.stopPropagation();
 
-    fetchReallocations();
-  }, [expanded, networkId, market, vaults]);
+    setLoading(true);
+    setError(null);
+    setButtonVisible(false);
+    try {
+      const fetchedVaults = await lookForReallocations(networkId, market);
+      setVaults(fetchedVaults);
+      setReallocationsSearched(true);
+    } catch (err) {
+      setError("Failed to fetch reallocations");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const backgroundColor = "#f0f0f0";
   const target =
@@ -108,15 +108,27 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
               market.aboveRange ? "into" : "from"
             } the market to reach target.`}</p>
 
+            {buttonVisible && (
+              <button onClick={handleSearchReallocations}>
+                Seek for reallocations
+              </button>
+            )}
+
             {loading && <p>Loading reallocations...</p>}
 
             {vaults && !loading && (
-              <p>{formatMainReallocationMessage(vaults, market)}</p>
+              <div style={{ color: "black" }}>
+                {formatMainReallocationMessage(vaults, market).map(
+                  (line, index) => (
+                    <p key={index}>{line}</p>
+                  )
+                )}
+              </div>
             )}
 
             {error && <p style={{ color: "red" }}>{error}</p>}
 
-            {vaults && (
+            {reallocationsSearched && vaults && (
               <>
                 {vaults.map((vault) => (
                   <VaultReallocationDataBubble
@@ -142,7 +154,7 @@ const formatMainReallocationMessage = (
     (item) => item.reallocation !== undefined
   ).length;
 
-  if (numberOfReallocations === 0) return "No reallocations found";
+  if (numberOfReallocations === 0) return ["No reallocations found"];
   else {
     const bestReallocation = vaults.reduce((prev, current) => {
       if (!current.reallocation || !prev.reallocation) {
@@ -154,18 +166,22 @@ const formatMainReallocationMessage = (
         : prev;
     });
 
-    return `${numberOfReallocations} reallocations found. Best one is with ${
-      bestReallocation.vault.name
-    }: amount reallocated: ${formatTokenAmount(
-      bestReallocation.reallocation!.amountReallocated,
-      market.loanAsset
-    )}, new borrow APY: ${formatWAD(
-      bestReallocation.reallocation!.newState.apys.borrowApy
-    )}, new supply APY: ${formatWAD(
-      bestReallocation.reallocation!.newState.apys.supplyApy
-    )}, new utilization: ${formatWAD(
-      bestReallocation.reallocation!.newState.utilization
-    )}`;
+    return [
+      `${numberOfReallocations} reallocations found. Best one is with ${bestReallocation.vault.name}`,
+      `amount reallocated: ${formatTokenAmount(
+        bestReallocation.reallocation!.amountReallocated,
+        market.loanAsset
+      )}`,
+      `new borrow APY: ${formatWAD(
+        bestReallocation.reallocation!.newState.apys.borrowApy
+      )}`,
+      `new supply APY: ${formatWAD(
+        bestReallocation.reallocation!.newState.apys.supplyApy
+      )}`,
+      `new utilization: ${formatWAD(
+        bestReallocation.reallocation!.newState.utilization
+      )}`,
+    ];
   }
 };
 
