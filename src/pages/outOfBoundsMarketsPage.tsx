@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import OutOfBoundsMarketBubble from "../components/OutOfBoundsMarketBubble";
 import { OutOfBoundsMarket } from "../utils/types";
 import { getOutOfBoundsMarkets } from "../core/outOfBoundsMarkets";
@@ -54,6 +55,7 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
 
   return (
     <PageWrapper>
+      <ConnectButton />
       <HeaderWrapper>
         <TitleContainer>
           <h1 style={{ color: "black", fontWeight: "300" }}>
