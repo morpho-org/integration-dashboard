@@ -1,30 +1,12 @@
 import React from "react";
 import Bubble from "./Bubble";
 import { MarketWithWarning } from "../utils/types";
-import styled from "styled-components";
+import { LinkItem, LinkList } from "../pages/wrappers";
+import { handleLinkClick } from "../utils/utils";
 
 type MarketWithWarningProps = {
   market: MarketWithWarning;
 };
-
-const LinkList = styled.ol`
-  margin-top: 10px;
-  padding-left: 20px;
-  flex-grow: 1;
-`;
-
-const LinkItem = styled.li`
-  margin-bottom: 5px;
-
-  a {
-    color: white;
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-`;
 
 const MarketWithWarningBubble: React.FC<MarketWithWarningProps> = ({
   market,
@@ -38,6 +20,7 @@ const MarketWithWarningBubble: React.FC<MarketWithWarningProps> = ({
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: titleCollor, marginLeft: "10px" }}
+          onClick={handleLinkClick}
         >
           {market.name}
         </a>

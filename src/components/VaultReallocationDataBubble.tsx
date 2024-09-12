@@ -5,6 +5,7 @@ import MarketReallocationDataBubble from "./MarketReallocationDataBubble";
 import { VaultReallocationData } from "../utils/types";
 import { formatAllocation } from "../utils/stringFormatter";
 import TransactionSender from "./TransactionSender";
+import { handleLinkClick } from "../utils/utils";
 
 const MarketContainer = styled.div`
   margin-left: 20px;
@@ -34,7 +35,12 @@ const VaultReallocationDataBubble: React.FC<VaultBubbleProps> = ({
       <Bubble onClick={handleClick} backgroundColor={backgroundColor}>
         <h3>
           {" "}
-          <a href={vault.vault.link} target="_blank" rel="noopener noreferrer">
+          <a
+            href={vault.vault.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleLinkClick}
+          >
             {vault.vault.name}
           </a>
         </h3>

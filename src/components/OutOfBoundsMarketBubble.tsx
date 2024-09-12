@@ -8,7 +8,7 @@ import {
   UtilizationTarget,
   VaultReallocationData,
 } from "../utils/types";
-import { formatTokenAmount, formatWAD } from "../utils/utils";
+import { formatTokenAmount, formatWAD, handleLinkClick } from "../utils/utils";
 import { lookForReallocations } from "../core/lookForReallocations";
 
 const MarketContainer = styled.div`
@@ -84,6 +84,7 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
             href={market.link}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={handleLinkClick}
           >
             {market.name}
           </a>
