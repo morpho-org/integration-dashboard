@@ -5,6 +5,7 @@ import { VaultData } from "../utils/types";
 import WithdrawQueueBubble from "./WithdrawQueueBubble";
 import SupplyQueueBubble from "./SupplyQueueBubble";
 import VaultFlowCapsBubble from "./VaultFlowCapsBubble";
+import { handleLinkClick } from "../utils/utils";
 
 const BubbleContainer = styled.div<{ isExpanded: boolean }>`
   display: flex;
@@ -51,6 +52,7 @@ const VaultBubble: React.FC<VaultBubbleProps> = ({ vault }) => {
             href={vault.vault.link}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={handleLinkClick}
           >
             {vault.vault.name}
           </a>

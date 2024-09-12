@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Bubble from "./Bubble";
 import { MarketReallocationData, MetaMorphoVault } from "../utils/types";
-import { formatTokenAmount, formatWAD } from "../utils/utils";
+import { formatTokenAmount, formatWAD, handleLinkClick } from "../utils/utils";
 
 type MarketReallocationDataBubbleProps = {
   market: MarketReallocationData;
@@ -22,7 +22,12 @@ const MarketReallocationDataBubble: React.FC<
   return (
     <Bubble backgroundColor={backgroundColor} onClick={handleClick}>
       <p>
-        <a href={market.link} target="_blank" rel="noopener noreferrer">
+        <a
+          href={market.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={handleLinkClick}
+        >
           {market.name}
         </a>
       </p>

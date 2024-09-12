@@ -2,6 +2,7 @@ import React from "react";
 import styled from "styled-components";
 import Bubble from "./Bubble";
 import { Queue, VaultWarnings } from "../utils/types";
+import { handleLinkClick } from "../utils/utils";
 
 type SupplyQueueBubbleProps = {
   supplyQueue: Queue;
@@ -75,7 +76,12 @@ const SupplyQueueBubble: React.FC<SupplyQueueBubbleProps> = ({
           <LinkList>
             {supplyQueue.map((market, index) => (
               <LinkItem key={index}>
-                <a href={market.link} target="_blank" rel="noopener noreferrer">
+                <a
+                  href={market.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleLinkClick}
+                >
                   {index + 1}. {market.name}
                 </a>
               </LinkItem>

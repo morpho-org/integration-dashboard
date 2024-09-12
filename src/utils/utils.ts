@@ -181,3 +181,7 @@ export const formatMarketWithWarning = (
     loanAsset: market.loanAsset,
   };
 };
+
+export const handleLinkClick = (event: React.MouseEvent) => {
+  event.stopPropagation();
+};

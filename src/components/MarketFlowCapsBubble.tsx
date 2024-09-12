@@ -1,6 +1,7 @@
 import React from "react";
 import Bubble from "./Bubble";
 import { MarketFlowCaps } from "../utils/types";
+import { handleLinkClick } from "../utils/utils";
 
 type MarketFlowCapsBubbleProps = {
   market: MarketFlowCaps;
@@ -13,7 +14,12 @@ const MarketFlowCapsBubble: React.FC<MarketFlowCapsBubbleProps> = ({
   return (
     <Bubble backgroundColor={backgroundColor}>
       <p>
-        <a href={market.link} target="_blank" rel="noopener noreferrer">
+        <a
+          href={market.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={handleLinkClick}
+        >
           {market.name}
         </a>
       </p>
