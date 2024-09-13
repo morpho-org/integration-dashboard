@@ -179,6 +179,9 @@ export const formatMarketWithWarning = (
     red,
     collateralAsset: market.collateralAsset,
     loanAsset: market.loanAsset,
+    supplyAmount: Number(market.state.supplyAssetsUsd).toString(),
+    borrowAmount: Number(market.state.borrowAssetsUsd).toString(),
+    collateralAmount: Number(market.state.collateralAssetsUsd).toString(),
   };
 };
 
