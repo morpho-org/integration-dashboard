@@ -65,3 +65,21 @@ export const LinkItem = styled.li`
     }
   }
 `;
+
+export const Select = styled.select`
+  padding: 8px;
+  font-size: 0.8em;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  outline: none;
+  background-color: white;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #aaa;
+  }
+
+  &:focus {
+    border-color: #666;
+  }
+`;

@@ -104,6 +104,9 @@ export type MarketWithWarning = {
     symbol: string;
   };
   red: boolean;
+  supplyAmount: string;
+  borrowAmount: string;
+  collateralAmount: string;
 };
 
 export type MarketWithWarningAPIData = {
@@ -116,6 +119,11 @@ export type MarketWithWarningAPIData = {
     symbol: string;
   };
   warnings: MarketWarning[];
+  state: {
+    supplyAssetsUsd: bigint;
+    borrowAssetsUsd: bigint;
+    collateralAssetsUsd: bigint;
+  };
 };
 
 export type MarketWithoutStrategy = {

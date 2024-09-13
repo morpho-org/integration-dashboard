@@ -323,6 +323,11 @@ export const fetchMarketsWithWarnings = async (
           type
           level
         }
+        state {
+          supplyAssetsUsd
+          borrowAssetsUsd
+          collateralAssetsUsd
+      }
       }
     }
   }`;

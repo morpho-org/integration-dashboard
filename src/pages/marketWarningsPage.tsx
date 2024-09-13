@@ -6,9 +6,11 @@ import {
   HeaderWrapper,
   MarketsWrapper,
   PageWrapper,
+  Select,
 } from "./wrappers";
 import { fetchMarketsWithWarnings } from "../fetchers/apiFetchers";
 import MarketWithWarningBubble from "../components/MarketWithWarningsBubble";
+import { formatUsdAmount } from "../utils/utils";
 
 type MarketWarningsPageProps = {
   network: "ethereum" | "base";
@@ -19,6 +21,7 @@ const MarketWarningsPage: React.FC<MarketWarningsPageProps> = ({ network }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("");
+  const [colorFilter, setColorFilter] = useState<string>("all");
 
   useEffect(() => {
     const loadMarkets = async () => {
@@ -29,6 +32,7 @@ const MarketWarningsPage: React.FC<MarketWarningsPageProps> = ({ network }) => {
         setMarkets(data);
       } catch (err) {
         setError("Failed to fetch markets");
+        console.log(err);
       } finally {
         setLoading(false);
       }
@@ -39,12 +43,40 @@ const MarketWarningsPage: React.FC<MarketWarningsPageProps> = ({ network }) => {
 
   const filteredMarkets = markets.filter(
     (market) =>
-      market.loanAsset.symbol.toLowerCase().includes(filter.toLowerCase()) ||
-      market.collateralAsset.symbol
-        .toLowerCase()
-        .includes(filter.toLowerCase()) ||
-      market.id.toLowerCase().includes(filter.toLowerCase())
+      (market.loanAsset.symbol.toLowerCase().includes(filter.toLowerCase()) ||
+        market.collateralAsset.symbol
+          .toLowerCase()
+          .includes(filter.toLowerCase()) ||
+        market.id.toLowerCase().includes(filter.toLowerCase())) &&
+      (colorFilter === "all" ||
+        (colorFilter === "red" &&
+          market.warnings.some((w) => w.level === "RED")) ||
+        (colorFilter === "yellow" &&
+          market.warnings.some((w) => w.level === "YELLOW") &&
+          !market.warnings.some((w) => w.level === "RED")))
   );
+
+  const sortedMarkets = filteredMarkets.sort((a, b) => {
+    const aHasRedWarning = a.warnings.some(
+      (warning) => warning.level === "RED"
+    );
+    const bHasRedWarning = b.warnings.some(
+      (warning) => warning.level === "RED"
+    );
+    const aHasYellowWarning = a.warnings.some(
+      (warning) => warning.level === "YELLOW"
+    );
+    const bHasYellowWarning = b.warnings.some(
+      (warning) => warning.level === "YELLOW"
+    );
+
+    if (aHasRedWarning && !bHasRedWarning) return -1;
+    if (!aHasRedWarning && bHasRedWarning) return 1;
+    if (aHasYellowWarning && !bHasYellowWarning) return -1;
+    if (!aHasYellowWarning && bHasYellowWarning) return 1;
+
+    return Number(b.supplyAmount) - Number(a.supplyAmount);
+  });
 
   return (
     <PageWrapper>
@@ -52,18 +84,39 @@ const MarketWarningsPage: React.FC<MarketWarningsPageProps> = ({ network }) => {
         <h1 style={{ color: "black", fontWeight: "300" }}>
           Markets With Warnings
         </h1>
-        <FilterInput
-          type="text"
-          placeholder="Filter by asset symbol or market Id..."
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
+        <div style={{ display: "flex", gap: "10px" }}>
+          <FilterInput
+            type="text"
+            placeholder="Filter by asset symbol or market Id..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+          <Select
+            value={colorFilter}
+            onChange={(e) => setColorFilter(e.target.value)}
+          >
+            <option value="all">All Colors</option>
+            <option value="red">Red Warnings</option>
+            <option value="yellow">Yellow Warnings</option>
+          </Select>
+        </div>
       </HeaderWrapper>
       {loading && <p>Loading...</p>}
       {error && <p>{error}</p>}
       <MarketsWrapper>
-        {filteredMarkets.map((market) => (
-          <MarketWithWarningBubble key={market.id} market={market} />
+        {sortedMarkets.map((market) => (
+          <MarketWithWarningBubble
+            key={market.id}
+            market={{
+              ...market,
+              name: `${market.name}`,
+              supplyAmount: formatUsdAmount(Number(market.supplyAmount)),
+              borrowAmount: formatUsdAmount(Number(market.borrowAmount)),
+              collateralAmount: formatUsdAmount(
+                Number(market.collateralAmount)
+              ),
+            }}
+          />
         ))}
       </MarketsWrapper>
     </PageWrapper>
