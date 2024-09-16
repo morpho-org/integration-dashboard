@@ -51,40 +51,48 @@ export const fetchVaultData = async (
   provider: Provider
 ): Promise<MetaMorphoVaultData> => {
   const query = `
-  query VaulData{
-    vaults(where: {address_in: "${vaultAddress}"}) {
-      items
-      {
-        symbol
-        name
+  query VaulData {
+  vaults(
+    where: {
+      address_in: "${vaultAddress}"
+      chainId_in: [${networkId}]
+    }
+  ) {
+    items {
+      symbol
+      name
+      address
+      metadata {
+        curators {
+          name
+        }
+      }
+      asset {
         address
-        metadata{
-          curators{
-            name
-          }
-        }
-        asset {
-          address
-          priceUsd
-          symbol
-          decimals
-        }
-        state {
-          totalAssets
-          allocation {
-            market {
-              loanAsset {symbol}
-              collateralAsset {symbol}
-              lltv
-              uniqueKey
+        priceUsd
+        symbol
+        decimals
+      }
+      state {
+        totalAssets
+        allocation {
+          market {
+            loanAsset {
+              symbol
             }
-            supplyAssets
-            supplyCap
+            collateralAsset {
+              symbol
+            }
+            lltv
+            uniqueKey
           }
+          supplyAssets
+          supplyCap
         }
       }
     }
   }
+}
   `;
 
   const [response, { withdrawQueueOrder, supplyQueueOrder }] =
