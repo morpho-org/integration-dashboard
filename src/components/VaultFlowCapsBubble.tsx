@@ -19,6 +19,12 @@ const StyledBubble = styled(Bubble)<{ expanded: boolean }>`
   flex-direction: column;
 `;
 
+const MarketContainer = styled.div`
+  margin-left: 20px;
+  margin-top: 10px;
+  flex-grow: 1;
+`;
+
 const VaultFlowCapsBubble: React.FC<VaultFlowCapsBubbleProps> = ({
   vault,
   expanded,
