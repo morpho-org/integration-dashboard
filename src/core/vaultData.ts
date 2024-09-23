@@ -59,8 +59,10 @@ export const getVaultDisplayData = async (
         vault.asset.priceUsd;
       return {
         id: market.id,
-        name: market.name,
-        link: market.link,
+        link: {
+          name: market.link.name,
+          url: market.link.url,
+        },
         maxInUsd:
           market.flowCaps.maxIn === MaxUint128
             ? "MAX"
@@ -98,8 +100,10 @@ export const getVaultDisplayData = async (
     missingFlowCaps.push({
       vault: {
         address: vault.address,
-        name: vault.name,
-        link: formatVaultLink(vault.address, networkId),
+        link: {
+          url: formatVaultLink(vault.address, networkId),
+          name: vault.name,
+        },
         asset: vault.asset,
         totalAssetsUsd: vault.totalAssets * vault.asset.priceUsd,
       },

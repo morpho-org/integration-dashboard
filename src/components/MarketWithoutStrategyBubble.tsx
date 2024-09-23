@@ -37,12 +37,12 @@ const MarketWithoutStrategyBubble: React.FC<MarketWithoutStrategyProps> = ({
     <Bubble>
       <p>
         <StyledLink
-          href={market.link}
+          href={market.link.url}
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: "black" }}
         >
-          {market.name}
+          {market.link.name}
         </StyledLink>
       </p>
     </Bubble>

@@ -81,12 +81,12 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
         <h3 style={{ color: "#0F0000" }}>
           <a
             style={{ color: "#0F0000" }}
-            href={market.link}
+            href={market.link.url}
             target="_blank"
             rel="noopener noreferrer"
             onClick={handleLinkClick}
           >
-            {market.name}
+            {market.link.name}
           </a>
           <MessageContainer style={{ color: distanceToTarget.color }}>
             {distanceToTarget.distanceMessage}
@@ -133,7 +133,7 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
               <>
                 {vaults.map((vault) => (
                   <VaultReallocationDataBubble
-                    key={vault.vault.name}
+                    key={vault.vault.link.name}
                     vault={vault}
                     networkId={networkId}
                   />
@@ -168,7 +168,7 @@ const formatMainReallocationMessage = (
     });
 
     return [
-      `${numberOfReallocations} reallocations found. Best one is with ${bestReallocation.vault.name}`,
+      `${numberOfReallocations} reallocations found. Best one is with ${bestReallocation.vault.link.name}`,
       `amount reallocated: ${formatTokenAmount(
         bestReallocation.reallocation!.amountReallocated,
         market.loanAsset

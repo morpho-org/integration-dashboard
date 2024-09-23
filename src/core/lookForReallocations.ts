@@ -137,8 +137,7 @@ const initializeSupplyingVault = async (
 
   return {
     address: vaultData.address,
-    name,
-    link: formatVaultLink(vaultData.address, networkId),
+    link: { url: formatVaultLink(vaultData.address, networkId), name },
     underlyingAsset,
     totalAssetsUsd,
     positions,

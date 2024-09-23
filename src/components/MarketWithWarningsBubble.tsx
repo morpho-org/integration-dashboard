@@ -20,13 +20,13 @@ const MarketWithWarningBubble: React.FC<MarketWithWarningProps> = ({
         <div>
           <p>
             <a
-              href={market.link}
+              href={market.link.url}
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: titleColor, marginLeft: "10px" }}
               onClick={handleLinkClick}
             >
-              {market.name}
+              {market.link.name}
             </a>
           </p>
           <LinkList>

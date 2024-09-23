@@ -109,7 +109,7 @@ const MarketWarningsPage: React.FC<MarketWarningsPageProps> = ({ network }) => {
             key={market.id}
             market={{
               ...market,
-              name: `${market.name}`,
+              link: { url: market.link.url, name: market.link.name },
               supplyAmount: formatUsdAmount(Number(market.supplyAmount)),
               borrowAmount: formatUsdAmount(Number(market.borrowAmount)),
               collateralAmount: formatUsdAmount(

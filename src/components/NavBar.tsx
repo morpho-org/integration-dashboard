@@ -119,6 +119,12 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
         >
           Out of Range Markets
         </NavLink>
+        <NavLink
+          to="/blocking-flow-caps"
+          $isActive={location.pathname === "/blocking-flow-caps"}
+        >
+          Blocking Flow Caps
+        </NavLink>
       </NavLinks>
       <NetworkSelect
         options={networkOptions}

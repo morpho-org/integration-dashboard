@@ -77,12 +77,12 @@ const WithdrawQueueBubble: React.FC<WithdrawQueueBubbleProps> = ({
             {withdrawQueue.map((market, index) => (
               <LinkItem key={index}>
                 <a
-                  href={market.link}
+                  href={market.link.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={handleLinkClick}
                 >
-                  {index + 1}. {market.name}
+                  {index + 1}. {market.link.name}
                 </a>
               </LinkItem>
             ))}

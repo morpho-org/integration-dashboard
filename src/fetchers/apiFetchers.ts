@@ -145,8 +145,10 @@ export const fetchVaultData = async (
         );
         return {
           id: market.id,
-          name: market.name,
-          link: formatMarketLink(market.id, networkId),
+          link: {
+            name: market.name,
+            url: formatMarketLink(market.id, networkId),
+          },
           flowCaps: await fetchFlowCaps(
             vault.address,
             market.id,
@@ -171,8 +173,6 @@ export const fetchVaultData = async (
       return {
         id: market.id,
         link: market.link,
-        name: market.name,
-        idle: market.idle,
       };
     });
 
@@ -185,8 +185,6 @@ export const fetchVaultData = async (
       return {
         id: market.id,
         link: market.link,
-        name: market.name,
-        idle: market.idle,
       };
     });
 

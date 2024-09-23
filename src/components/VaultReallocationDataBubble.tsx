@@ -36,12 +36,12 @@ const VaultReallocationDataBubble: React.FC<VaultBubbleProps> = ({
         <h3>
           {" "}
           <a
-            href={vault.vault.link}
+            href={vault.vault.link.url}
             target="_blank"
             rel="noopener noreferrer"
             onClick={handleLinkClick}
           >
-            {vault.vault.name}
+            {vault.vault.link.name}
           </a>
         </h3>
 

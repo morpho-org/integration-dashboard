@@ -49,12 +49,12 @@ const VaultBubble: React.FC<VaultBubbleProps> = ({ vault }) => {
             style={{
               color: "black",
             }}
-            href={vault.vault.link}
+            href={vault.vault.link.url}
             target="_blank"
             rel="noopener noreferrer"
             onClick={handleLinkClick}
           >
-            {vault.vault.name}
+            {vault.vault.link.name}
           </a>
         </h3>
         {expanded && (

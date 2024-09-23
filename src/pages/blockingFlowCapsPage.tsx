@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react";
-import VaultBubble from "../components/VaultBubble";
-import { VaultData } from "../utils/types";
-import { getVaultDisplayData } from "../core/vaultData";
-import { getNetworkId } from "../utils/utils";
+import { getNetworkDBBlockingFlowCapsKey } from "../utils/utils";
+import { BlockingFlowCaps, VaultWithBlockingFlowCaps } from "../utils/types";
 import {
   FilterContainer,
   FilterInput,
@@ -11,25 +9,37 @@ import {
   TitleContainer,
   VaultsWrapper,
 } from "./wrappers";
+import { Redis } from "@upstash/redis";
+import VaultWithBlockingFlowCapsBubble from "../components/VaultWithBlockingFlowCaps";
 
-type VaultPageProps = {
+type BlockingFlowCapsPageProps = {
   network: "ethereum" | "base";
 };
 
-const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
-  const [vaults, setVaults] = useState<VaultData[]>([]);
+const BlockingFlowCapsPage: React.FC<BlockingFlowCapsPageProps> = ({
+  network,
+}) => {
+  const [vaults, setVaults] = useState<VaultWithBlockingFlowCaps[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("");
-  const [warningFilter, setWarningFilter] = useState<string>("");
   const [curatorFilter, setCuratorFilter] = useState<string>("");
 
   const fetchData = async (network: "ethereum" | "base") => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getVaultDisplayData(getNetworkId(network));
-      setVaults(data);
+      const dbKey = getNetworkDBBlockingFlowCapsKey(network);
+
+      const redis = new Redis({
+        url: process.env.REDIS_URL!,
+        token: process.env.REDIS_TOKEN!,
+      });
+      const jsonString: string | null = await redis.get(dbKey);
+      const blockingFlowCaps: BlockingFlowCaps[] = jsonString
+        ? JSON.parse(jsonString)
+        : [];
+      setVaults(groupByVault(blockingFlowCaps));
     } catch (err) {
       setError("Failed to fetch data");
     } finally {
@@ -42,41 +52,31 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
   }, [network]);
 
   const allCurators = vaults
-    .flatMap((vault) => vault.curators)
+    .flatMap((vault) => vault.vault.curators)
     .filter((value, index, self) => self.indexOf(value) === index);
 
-  const filterByWarning = (vault: VaultData) => {
-    switch (warningFilter) {
-      case "WrongWithdrawQueue":
-        return vault.warnings?.idlePositionWithdrawQueue === true;
-      case "WrongSupplyQueue":
-        return vault.warnings?.idlePositionSupplyQueue === true;
-      case "MissingFlowCaps":
-        return vault.warnings?.missingFlowCaps === true;
-      default:
-        return true;
-    }
-  };
-
-  const filterByCurator = (vault: VaultData) => {
+  const filterByCurator = (vault: VaultWithBlockingFlowCaps) => {
     if (curatorFilter === "") return true;
-    return vault.curators.includes(curatorFilter);
+    return vault.vault.curators.includes(curatorFilter);
   };
 
   const filteredVaults = vaults
     .filter(
       (vault) =>
-        vault.vault.asset.symbol.toLowerCase().includes(filter.toLowerCase()) ||
+        vault.vault.underlyingAsset.symbol
+          .toLowerCase()
+          .includes(filter.toLowerCase()) ||
         vault.vault.address.toLowerCase().includes(filter.toLowerCase())
     )
-    .filter(filterByWarning)
     .filter(filterByCurator);
 
   return (
     <PageWrapper>
       <HeaderWrapper>
         <TitleContainer>
-          <h1 style={{ color: "black", fontWeight: "300" }}>Morpho Vaults</h1>
+          <h1 style={{ color: "black", fontWeight: "300" }}>
+            Vaults With Blocking Flow Caps
+          </h1>
         </TitleContainer>
         <FilterContainer>
           <FilterInput
@@ -85,22 +85,6 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
-          <select
-            value={warningFilter}
-            onChange={(e) => setWarningFilter(e.target.value)}
-            style={{
-              marginLeft: "20px",
-              padding: "5px",
-              borderRadius: "4px",
-              border: "1px solid #ccc",
-              outline: "none",
-            }}
-          >
-            <option value="">All Vaults</option>
-            <option value="WrongWithdrawQueue">Wrong Withdraw Queue</option>
-            <option value="WrongSupplyQueue">Wrong Supply Queue</option>
-            <option value="MissingFlowCaps">Missing Flow Caps</option>
-          </select>
           <select
             value={curatorFilter}
             onChange={(e) => setCuratorFilter(e.target.value)}
@@ -125,11 +109,29 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
       {error && <p>{error}</p>}
       <VaultsWrapper>
         {filteredVaults.map((vault) => (
-          <VaultBubble key={vault.vault.link.name} vault={vault} />
+          <VaultWithBlockingFlowCapsBubble
+            key={vault.vault.link.name}
+            vaultWithBlockingFlowCaps={vault}
+          />
         ))}
       </VaultsWrapper>
     </PageWrapper>
   );
 };
 
-export default VaultPage;
+const groupByVault = (
+  blockingFlowCaps: BlockingFlowCaps[]
+): VaultWithBlockingFlowCaps[] => {
+  const acc: Record<string, VaultWithBlockingFlowCaps> = {};
+
+  for (const item of blockingFlowCaps) {
+    if (!acc[item.vault.link.url]) {
+      acc[item.vault.link.url] = { vault: item.vault, blockingFlowCaps: [] };
+    }
+    acc[item.vault.link.url].blockingFlowCaps.push(item);
+  }
+
+  return Object.values(acc);
+};
+
+export default BlockingFlowCapsPage;

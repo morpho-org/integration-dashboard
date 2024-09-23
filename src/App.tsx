@@ -7,6 +7,7 @@ import OutOfBoundsMarketsPage from "./pages/outOfBoundsMarketsPage";
 import wallpaper from "./logos/wallpaper.png";
 import MarketWarningsPage from "./pages/marketWarningsPage";
 import MarketsWithoutStrategyPage from "./pages/marketWithoutStrategyPage";
+import BlockingFlowCapsPage from "./pages/blockingFlowCapsPage";
 
 const ContentWrapper = styled.div`
   background-image: url(${wallpaper});
@@ -53,6 +54,10 @@ const App: React.FC = () => {
             <Route
               path="/markets-without-strategy"
               element={<MarketsWithoutStrategyPage network={network} />}
+            />{" "}
+            <Route
+              path="/blocking-flow-caps"
+              element={<BlockingFlowCapsPage network={network} />}
             />{" "}
           </Routes>
         </SecondContentWrapper>

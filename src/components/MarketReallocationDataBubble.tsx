@@ -23,12 +23,12 @@ const MarketReallocationDataBubble: React.FC<
     <Bubble backgroundColor={backgroundColor} onClick={handleClick}>
       <p>
         <a
-          href={market.link}
+          href={market.link.url}
           target="_blank"
           rel="noopener noreferrer"
           onClick={handleLinkClick}
         >
-          {market.name}
+          {market.link.name}
         </a>
       </p>
 

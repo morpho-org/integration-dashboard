@@ -76,12 +76,14 @@ export const getOutOfBoundsMarkets = async (
           ).amount;
       outOfBoundsMarkets.push({
         id: market.id,
-        name: getMarketName(
-          market.loanAsset.symbol,
-          market.collateralAsset.symbol,
-          market.marketParams.lltv
-        ),
-        link: formatMarketLink(market.id, networkId),
+        link: {
+          url: formatMarketLink(market.id, networkId),
+          name: getMarketName(
+            market.loanAsset.symbol,
+            market.collateralAsset.symbol,
+            market.marketParams.lltv
+          ),
+        },
         totalSupplyUsd:
           +formatUnits(
             market.marketChainData.marketState.totalBorrowAssets,
@@ -127,12 +129,15 @@ export const getOutOfBoundsMarkets = async (
           );
       outOfBoundsMarkets.push({
         id: market.id,
-        name: getMarketName(
-          market.loanAsset.symbol,
-          market.collateralAsset.symbol,
-          market.marketParams.lltv
-        ),
-        link: formatMarketLink(market.id, networkId),
+
+        link: {
+          url: formatMarketLink(market.id, networkId),
+          name: getMarketName(
+            market.loanAsset.symbol,
+            market.collateralAsset.symbol,
+            market.marketParams.lltv
+          ),
+        },
         totalSupplyUsd:
           +formatUnits(
             market.marketChainData.marketState.totalBorrowAssets,

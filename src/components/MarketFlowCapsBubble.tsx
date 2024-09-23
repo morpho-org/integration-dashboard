@@ -15,12 +15,12 @@ const MarketFlowCapsBubble: React.FC<MarketFlowCapsBubbleProps> = ({
     <Bubble backgroundColor={backgroundColor}>
       <p>
         <a
-          href={market.link}
+          href={market.link.url}
           target="_blank"
           rel="noopener noreferrer"
           onClick={handleLinkClick}
         >
-          {market.name}
+          {market.link.name}
         </a>
       </p>
       <p>Max Out: {market.maxOutUsd}</p>
