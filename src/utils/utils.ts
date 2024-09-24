@@ -56,7 +56,7 @@ export const getProvider = (chainId: number): ethers.JsonRpcProvider => {
 
 export const getNetworkDBBlockingFlowCapsKey = (network: string): string => {
   switch (network) {
-    case "mainnet":
+    case "ethereum":
       return "mainnetBlockingFlowCaps";
     case "base":
       return "baseBlockingFlowCaps";

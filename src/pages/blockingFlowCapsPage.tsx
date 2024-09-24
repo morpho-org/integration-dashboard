@@ -30,10 +30,21 @@ const BlockingFlowCapsPage: React.FC<BlockingFlowCapsPageProps> = ({
     setError(null);
     try {
       const dbKey = getNetworkDBBlockingFlowCapsKey(network);
+      const redisUrl = process.env.REDIS_URL;
+      const redisToken = process.env.REDIS_TOKEN;
+
+      if (!redisUrl) {
+        console.log("REDIS_URL not set. Exiting…");
+        process.exit(1);
+      }
+      if (!redisToken) {
+        console.log("REDIS_TOKEN not set. Exiting…");
+        process.exit(1);
+      }
 
       const redis = new Redis({
-        url: process.env.REDIS_URL!,
-        token: process.env.REDIS_TOKEN!,
+        url: redisUrl,
+        token: redisToken,
       });
       const jsonString: string | null = await redis.get(dbKey);
       const blockingFlowCaps: BlockingFlowCaps[] = jsonString
