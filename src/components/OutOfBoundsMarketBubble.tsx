@@ -14,7 +14,7 @@ import { lookForReallocations } from "../core/lookForReallocations";
 const MarketContainer = styled.div`
   margin-left: 20px;
   margin-top: 10px;
-  color: black;
+  color: white;
 `;
 
 const MessageContainer = styled.span`
@@ -54,7 +54,6 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
     }
   };
 
-  const backgroundColor = "#f0f0f0";
   const target =
     "apyTarget" in market.target
       ? `APY target range: [${formatWAD(
@@ -76,19 +75,19 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
     <div>
       <Bubble
         onClick={() => setExpanded(!expanded)}
-        backgroundColor={backgroundColor}
+        backgroundColor={distanceToTarget.color}
       >
-        <h3 style={{ color: "#0F0000" }}>
+        <h3 style={{ color: "white" }}>
           <a
-            style={{ color: "#0F0000" }}
-            href={market.link}
+            style={{ color: "white" }}
+            href={market.link.url}
             target="_blank"
             rel="noopener noreferrer"
             onClick={handleLinkClick}
           >
-            {market.name}
+            {market.link.name}
           </a>
-          <MessageContainer style={{ color: distanceToTarget.color }}>
+          <MessageContainer>
             {distanceToTarget.distanceMessage}
           </MessageContainer>
         </h3>
@@ -118,7 +117,7 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
             {loading && <p>Loading reallocations...</p>}
 
             {vaults && !loading && (
-              <div style={{ color: "black" }}>
+              <div>
                 {formatMainReallocationMessage(vaults, market).map(
                   (line, index) => (
                     <p key={index}>{line}</p>
@@ -133,7 +132,7 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
               <>
                 {vaults.map((vault) => (
                   <VaultReallocationDataBubble
-                    key={vault.vault.name}
+                    key={vault.vault.link.name}
                     vault={vault}
                     networkId={networkId}
                   />
@@ -168,7 +167,7 @@ const formatMainReallocationMessage = (
     });
 
     return [
-      `${numberOfReallocations} reallocations found. Best one is with ${bestReallocation.vault.name}`,
+      `${numberOfReallocations} reallocations found. Best one is with ${bestReallocation.vault.link.name}`,
       `amount reallocated: ${formatTokenAmount(
         bestReallocation.reallocation!.amountReallocated,
         market.loanAsset

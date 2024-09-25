@@ -94,12 +94,14 @@ export const getMarketReallocationData = (
 
     marketReallocationData.push({
       id: enabledMarketId,
-      name: getMarketName(
-        marketData.loanAsset.symbol,
-        marketData.collateralAsset ? marketData.collateralAsset.symbol : null,
-        marketData.marketParams.lltv
-      ),
-      link: formatMarketLink(enabledMarketId, networkId),
+      link: {
+        url: formatMarketLink(enabledMarketId, networkId),
+        name: getMarketName(
+          marketData.loanAsset.symbol,
+          marketData.collateralAsset ? marketData.collateralAsset.symbol : null,
+          marketData.marketParams.lltv
+        ),
+      },
       supplyReallocation,
       maxReallocationAmount,
       supplyAssets: position.supplyAssets,
@@ -122,7 +124,7 @@ export const seekForSupplyReallocation = (
   marketToSupplyIntoId: string,
   vault: MetaMorphoVault
 ): Reallocation | undefined => {
-  console.log("seeking for supply reallocation for vault:", vault.name);
+  console.log("seeking for supply reallocation for vault:", vault.link.name);
 
   const marketToSupplyInto = vault.positions[marketToSupplyIntoId].marketData;
 
@@ -276,7 +278,7 @@ export const seekForWithdrawReallocation = (
   marketToWithdrawFromId: string,
   vault: MetaMorphoVault
 ): Reallocation | undefined => {
-  console.log("seeking for withdraw reallocation for vault:", vault.name);
+  console.log("seeking for withdraw reallocation for vault:", vault.link.name);
 
   const marketToWithdrawFrom =
     vault.positions[marketToWithdrawFromId].marketData;

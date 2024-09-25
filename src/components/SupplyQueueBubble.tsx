@@ -39,10 +39,20 @@ const LinkItem = styled.li`
   }
 `;
 
-const WarningMessage = styled.p`
-  color: red;
-  margin-top: 10px;
-  flex-shrink: 0;
+const WarningMessage = styled.div`
+  display: inline-block;
+  padding: 2px 6px;
+  background-color: "#7f1d1d";
+  border-radius: 4px;
+`;
+
+const TitleWrapper = styled.div<{ isWarning: boolean }>`
+  display: inline-block;
+  padding: 2px 6px;
+  background-color: ${({ isWarning }) =>
+    isWarning ? "#7f1d1d" : "transparent"};
+  border-radius: 4px;
+  width: 100%;
 `;
 
 const SupplyQueueBubble: React.FC<SupplyQueueBubbleProps> = ({
@@ -51,7 +61,7 @@ const SupplyQueueBubble: React.FC<SupplyQueueBubbleProps> = ({
   expanded,
   onClick,
 }) => {
-  const wrongIdlePosition = warnings && warnings.idlePositionSupplyQueue;
+  const wrongIdlePosition = warnings?.idlePositionSupplyQueue ?? false;
 
   const handleClick = (event: React.MouseEvent) => {
     event.stopPropagation();
@@ -62,34 +72,39 @@ const SupplyQueueBubble: React.FC<SupplyQueueBubbleProps> = ({
     <StyledBubble
       expanded={expanded}
       onClick={handleClick}
-      backgroundColor={"black"}
+      backgroundColor={"#6B7280"}
     >
-      <h3
-        style={{
-          color: wrongIdlePosition ? "red" : "white",
-        }}
-      >
-        {"Supply Queue"}
-      </h3>
+      <TitleWrapper isWarning={wrongIdlePosition}>
+        <h3 style={{ color: "white", margin: 0 }}>{"Supply Queue"}</h3>
+      </TitleWrapper>
       {expanded && (
         <>
           <LinkList>
             {supplyQueue.map((market, index) => (
               <LinkItem key={index}>
                 <a
-                  href={market.link}
+                  href={market.link.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={handleLinkClick}
                 >
-                  {index + 1}. {market.name}
+                  {index + 1}. {market.link.name}
                 </a>
               </LinkItem>
             ))}
           </LinkList>
           {wrongIdlePosition && (
             <WarningMessage>
-              Idle market is not the last element of the list.
+              <div
+                style={{
+                  color: "white",
+                  backgroundColor: "#7f1d1d",
+                  padding: "2px 6px",
+                  borderRadius: "4px",
+                }}
+              >
+                Idle market is not the last element of the list.
+              </div>
             </WarningMessage>
           )}
         </>

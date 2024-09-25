@@ -13,11 +13,6 @@ const BubbleContainer = styled.div<{ isExpanded: boolean }>`
   align-items: flex-start;
   margin-top: 10px;
   width: 100%;
-  gap: 10px;
-`;
-
-const VaultBubbleContainer = styled.div`
-  margin-bottom: 20px;
 `;
 
 type VaultBubbleProps = {
@@ -39,47 +34,45 @@ const VaultBubble: React.FC<VaultBubbleProps> = ({ vault }) => {
   };
 
   return (
-    <VaultBubbleContainer>
-      <Bubble
-        onClick={() => setExpanded(!expanded)}
-        backgroundColor={warning ? "#ff6961" : "#2470ff"}
-      >
-        <h3>
-          <a
-            style={{
-              color: "black",
-            }}
-            href={vault.vault.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={handleLinkClick}
-          >
-            {vault.vault.name}
-          </a>
-        </h3>
-        {expanded && (
-          <BubbleContainer isExpanded={!!activeBubble}>
-            <WithdrawQueueBubble
-              expanded={activeBubble === "WithdrawQueue"}
-              onClick={() => handleBubbleClick("WithdrawQueue")}
-              withdrawQueue={vault.withdrawQueue}
-              warnings={vault.warnings}
-            />
-            <SupplyQueueBubble
-              expanded={activeBubble === "SupplyQueue"}
-              onClick={() => handleBubbleClick("SupplyQueue")}
-              supplyQueue={vault.supplyQueue}
-              warnings={vault.warnings}
-            />
-            <VaultFlowCapsBubble
-              expanded={activeBubble === "FlowCaps"}
-              onClick={() => handleBubbleClick("FlowCaps")}
-              vault={vault}
-            />
-          </BubbleContainer>
-        )}
-      </Bubble>
-    </VaultBubbleContainer>
+    <Bubble
+      onClick={() => setExpanded(!expanded)}
+      backgroundColor={warning ? "#ff6961" : "#2C2F33"}
+    >
+      <h3>
+        <a
+          style={{
+            color: "white",
+          }}
+          href={vault.vault.link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={handleLinkClick}
+        >
+          {vault.vault.link.name}
+        </a>
+      </h3>
+      {expanded && (
+        <BubbleContainer isExpanded={!!activeBubble}>
+          <WithdrawQueueBubble
+            expanded={activeBubble === "WithdrawQueue"}
+            onClick={() => handleBubbleClick("WithdrawQueue")}
+            withdrawQueue={vault.withdrawQueue}
+            warnings={vault.warnings}
+          />
+          <SupplyQueueBubble
+            expanded={activeBubble === "SupplyQueue"}
+            onClick={() => handleBubbleClick("SupplyQueue")}
+            supplyQueue={vault.supplyQueue}
+            warnings={vault.warnings}
+          />
+          <VaultFlowCapsBubble
+            expanded={activeBubble === "FlowCaps"}
+            onClick={() => handleBubbleClick("FlowCaps")}
+            vault={vault}
+          />
+        </BubbleContainer>
+      )}
+    </Bubble>
   );
 };
 

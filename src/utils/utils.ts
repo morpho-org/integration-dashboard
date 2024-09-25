@@ -54,6 +54,17 @@ export const getProvider = (chainId: number): ethers.JsonRpcProvider => {
   return new ethers.JsonRpcProvider(endpoint);
 };
 
+export const getNetworkDBBlockingFlowCapsKey = (network: string): string => {
+  switch (network) {
+    case "ethereum":
+      return "mainnetBlockingFlowCaps";
+    case "base":
+      return "baseBlockingFlowCaps";
+    default:
+      throw new Error("Invalid network");
+  }
+};
+
 export const getNetworkId = (network: string): number => {
   switch (network) {
     case "ethereum":
@@ -173,8 +184,7 @@ export const formatMarketWithWarning = (
   const link = formatMarketLink(market.uniqueKey, networkId);
   return {
     id: market.uniqueKey,
-    link,
-    name,
+    link: { url: link, name },
     warnings,
     red,
     collateralAsset: market.collateralAsset,

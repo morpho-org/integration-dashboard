@@ -1,19 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
-import OutOfBoundsMarketBubble from "../components/OutOfBoundsMarketBubble";
-import { OutOfBoundsMarket } from "../utils/types";
-import { getOutOfBoundsMarkets } from "../core/outOfBoundsMarkets";
-import { getNetworkId } from "../utils/utils";
+import { BlockingFlowCaps, VaultWithBlockingFlowCaps } from "../utils/types";
 import {
   HeaderWrapper,
-  MarketsWrapper,
   PageWrapper,
   TitleContainer,
+  VaultsWrapper,
 } from "./wrappers";
+import VaultWithBlockingFlowCapsBubble from "../components/VaultWithBlockingFlowCaps";
+import { fetchBlockingFlowCaps } from "../fetchers/apiFetchers";
+import { getNetworkId } from "../utils/utils";
+
 import styled from "styled-components";
 
-// Updated styled components to mimic MarketsWithoutStrategyPage
-
+// Add these styled components
 const SearchWrapper = styled.div`
   position: relative;
   width: 400px;
@@ -46,7 +45,7 @@ const SearchIcon = styled.svg`
   pointer-events: none;
 `;
 
-const SupplyFilterSelect = styled.select`
+const CuratorFilterSelect = styled.select`
   width: 100%;
   max-width: 200px;
   height: 40px;
@@ -62,7 +61,6 @@ const SupplyFilterSelect = styled.select`
     box-shadow: 0 0 0 2px #2973ff;
   }
 
-  /* Optional: Remove default arrow for better consistency */
   appearance: none;
   background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="%23FFFFFF"><path d="M7 10l5 5 5-5H7z"/></svg>');
   background-repeat: no-repeat;
@@ -70,53 +68,63 @@ const SupplyFilterSelect = styled.select`
   background-size: 16px;
 `;
 
-type OutOfBoundsMarketsPageProps = {
+type BlockingFlowCapsPageProps = {
   network: "ethereum" | "base";
 };
 
-const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
+const BlockingFlowCapsPage: React.FC<BlockingFlowCapsPageProps> = ({
   network,
 }) => {
-  const [markets, setMarkets] = useState<OutOfBoundsMarket[]>([]);
+  const [vaults, setVaults] = useState<VaultWithBlockingFlowCaps[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("");
-  const [supplyFilter, setSupplyFilter] = useState<number>(0);
+  const [curatorFilter, setCuratorFilter] = useState<string>("");
+
+  const fetchData = async (network: "ethereum" | "base") => {
+    setLoading(true);
+    setError(null);
+    try {
+      const blockingFlowCaps = await fetchBlockingFlowCaps(
+        getNetworkId(network)
+      );
+      setVaults(groupByVault(blockingFlowCaps));
+    } catch (err) {
+      setError("Failed to fetch data");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadMarkets = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await getOutOfBoundsMarkets(getNetworkId(network));
-        setMarkets(data);
-      } catch (err) {
-        setError("Failed to fetch markets");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadMarkets();
+    fetchData(network);
   }, [network]);
 
-  const filteredMarkets = markets.filter(
-    (market) =>
-      (market.loanAsset.symbol.toLowerCase().includes(filter.toLowerCase()) ||
-        market.collateralAsset.symbol
+  const allCurators = vaults
+    .flatMap((vault) => vault.vault.curators)
+    .filter((value, index, self) => self.indexOf(value) === index);
+
+  const filterByCurator = (vault: VaultWithBlockingFlowCaps) => {
+    if (curatorFilter === "") return true;
+    return vault.vault.curators.includes(curatorFilter);
+  };
+
+  const filteredVaults = vaults
+    .filter(
+      (vault) =>
+        vault.vault.underlyingAsset.symbol
           .toLowerCase()
           .includes(filter.toLowerCase()) ||
-        market.id.toLowerCase().includes(filter.toLowerCase())) &&
-      market.totalSupplyUsd >= supplyFilter
-  );
+        vault.vault.address.toLowerCase().includes(filter.toLowerCase())
+    )
+    .filter(filterByCurator);
 
   return (
     <PageWrapper>
-      <ConnectButton />
       <HeaderWrapper>
         <TitleContainer>
           <h1 style={{ color: "white", fontWeight: "300" }}>
-            Out of Range Markets
+            Vaults With Blocking Flow Caps
           </h1>
         </TitleContainer>
         <div
@@ -125,7 +133,7 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
           <SearchWrapper>
             <SearchInput
               type="text"
-              placeholder="Search by Market ID"
+              placeholder="Search by asset or address..."
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
             />
@@ -173,32 +181,46 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
               </defs>
             </SearchIcon>
           </SearchWrapper>
-          <SupplyFilterSelect
-            value={supplyFilter !== null ? supplyFilter : ""}
-            onChange={(e) => setSupplyFilter(Number(e.target.value))}
+          <CuratorFilterSelect
+            value={curatorFilter}
+            onChange={(e) => setCuratorFilter(e.target.value)}
           >
-            <option value="0">No Threshold</option>
-            <option value="1000">$1,000</option>
-            <option value="10000">$10K</option>
-            <option value="100000">$100K</option>
-            <option value="1000000">$1M</option>
-            <option value="10000000">$10M</option>
-          </SupplyFilterSelect>
+            <option value="">All Curators</option>
+            {allCurators.map((curator, index) => (
+              <option key={index} value={curator}>
+                {curator}
+              </option>
+            ))}
+          </CuratorFilterSelect>
         </div>
       </HeaderWrapper>
       {loading && <p style={{ color: "white" }}>Loading...</p>}
       {error && <p style={{ color: "white" }}>{error}</p>}
-      <MarketsWrapper style={{ marginTop: "20px" }}>
-        {filteredMarkets.map((market) => (
-          <OutOfBoundsMarketBubble
-            key={market.id}
-            market={market}
-            networkId={getNetworkId(network)}
+      <VaultsWrapper>
+        {filteredVaults.map((vault) => (
+          <VaultWithBlockingFlowCapsBubble
+            key={vault.vault.link.name}
+            vaultWithBlockingFlowCaps={vault}
           />
         ))}
-      </MarketsWrapper>
+      </VaultsWrapper>
     </PageWrapper>
   );
 };
 
-export default OutOfBoundsMarketsPage;
+const groupByVault = (
+  blockingFlowCaps: BlockingFlowCaps[]
+): VaultWithBlockingFlowCaps[] => {
+  const acc: Record<string, VaultWithBlockingFlowCaps> = {};
+
+  for (const item of blockingFlowCaps) {
+    if (!acc[item.vault.address]) {
+      acc[item.vault.address] = { vault: item.vault, blockingFlowCaps: [] };
+    }
+    acc[item.vault.address].blockingFlowCaps.push(item);
+  }
+
+  return Object.values(acc);
+};
+
+export default BlockingFlowCapsPage;

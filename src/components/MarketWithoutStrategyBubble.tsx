@@ -1,50 +1,70 @@
 import React from "react";
 import { MarketWithoutStrategy } from "../utils/types";
 import styled from "styled-components";
+import { Copy } from "lucide-react";
 
 type MarketWithoutStrategyProps = {
   market: MarketWithoutStrategy;
 };
 
 const Bubble = styled.div`
-  background-color: #f0f0f0;
+  background-color: #2c2f33;
   border-radius: 10px;
   padding: 10px;
   width: 100%;
   height: auto;
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   box-sizing: border-box;
 `;
 
+const MarketName = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+`;
+
+const CopyIcon = styled(Copy)`
+  color: #ffffff; // Change color to white for visibility
+  cursor: pointer;
+  transition: color 0.3s ease;
+  margin-left: 10px; // Add some space between the text and icon
+
+  &:hover {
+    color: #cccccc; // Change color on hover for better UX
+  }
+`;
+
 const StyledLink = styled.a`
-  display: block;
-  text-align: center;
+  text-align: right;
   overflow: hidden;
   word-wrap: break-word;
   white-space: normal;
-  width: 100%;
-  padding: 10px;
-  color: black;
+  color: white;
   text-decoration: none;
 `;
 
 const MarketWithoutStrategyBubble: React.FC<MarketWithoutStrategyProps> = ({
   market,
 }) => {
+  const handleCopy = () => {
+    navigator.clipboard.writeText(market.id);
+  };
+
   return (
     <Bubble>
-      <p>
+      <MarketName>
         <StyledLink
-          href={market.link}
+          href={market.link.url}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: "black" }}
         >
-          {market.name}
+          {market.link.name}
         </StyledLink>
-      </p>
+        <CopyIcon size={16} onClick={handleCopy} />
+      </MarketName>
     </Bubble>
   );
 };

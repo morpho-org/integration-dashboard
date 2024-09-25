@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { MarketWithoutStrategy } from "../utils/types";
 import { getNetworkId } from "../utils/utils";
-import { FilterInput, HeaderWrapper, PageWrapper } from "./wrappers";
+import { HeaderWrapper, PageWrapper } from "./wrappers";
 import { getMarketsWithoutStrategy } from "../core/marketsWithoutStrategy";
 import MarketWithoutStrategyBubble from "../components/MarketWithoutStrategyBubble";
 import styled from "styled-components";
@@ -10,11 +10,37 @@ type MarketsWithoutStrategyPageProps = {
   network: "ethereum" | "base";
 };
 
-const MarketsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
-  padding: 16px;
+const SearchWrapper = styled.div`
+  position: relative;
+  width: 400px;
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  height: 40px;
+  padding: 8px 16px 8px 48px;
+  border-radius: 9999px;
+  background: rgba(250, 250, 250, 0.1);
+  color: white;
+  font-size: 0.875rem;
+  outline: none;
+
+  &::placeholder {
+    color: #a0a0a0;
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px #2973ff;
+  }
+`;
+
+const SearchIcon = styled.svg`
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
 `;
 
 const MarketsWithoutStrategyPage: React.FC<MarketsWithoutStrategyPageProps> = ({
@@ -54,23 +80,75 @@ const MarketsWithoutStrategyPage: React.FC<MarketsWithoutStrategyPageProps> = ({
   return (
     <PageWrapper>
       <HeaderWrapper>
-        <h1 style={{ color: "black", fontWeight: "300" }}>
+        <h1 style={{ color: "white", fontWeight: "300", marginBottom: "10px" }}>
           Markets Without Strategy
         </h1>
-        <FilterInput
-          type="text"
-          placeholder="Filter by asset symbol or market Id..."
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
+        <SearchWrapper>
+          <SearchInput
+            type="text"
+            placeholder="Search by Market ID"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+          <SearchIcon
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <path
+              d="M17.3813 19.6187C17.723 19.9604 18.277 19.9604 18.6187 19.6187C18.9604 19.277 18.9604 18.723 18.6187 18.3813L17.3813 19.6187ZM13.3813 15.6187L17.3813 19.6187L18.6187 18.3813L14.6187 14.3813L13.3813 15.6187Z"
+              fill="url(#paint0_linear_32_2985)"
+            />
+            <circle
+              cx="10"
+              cy="11"
+              r="6"
+              stroke="url(#paint1_linear_32_2985)"
+              strokeWidth="1.75"
+            />
+            <defs>
+              <linearGradient
+                id="paint0_linear_32_2985"
+                x1="15.9998"
+                y1="15"
+                x2="15.9998"
+                y2="19"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop stopColor="#2470FF" />
+                <stop offset="1" stopColor="#5792FF" />
+              </linearGradient>
+              <linearGradient
+                id="paint1_linear_32_2985"
+                x1="9.99927"
+                y1="5"
+                x2="9.9993"
+                y2="17"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop stopColor="#2470FF" />
+                <stop offset="1" stopColor="#5792FF" />
+              </linearGradient>
+            </defs>
+          </SearchIcon>
+        </SearchWrapper>
       </HeaderWrapper>
-      {loading && <p>Loading...</p>}
-      {error && <p>{error}</p>}
-      <MarketsGrid>
+      {loading && <p style={{ color: "white" }}>Loading...</p>}
+      {error && <p style={{ color: "white" }}>{error}</p>}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "10px",
+          marginTop: "10px",
+        }}
+      >
         {filteredMarkets.map((market) => (
           <MarketWithoutStrategyBubble key={market.id} market={market} />
         ))}
-      </MarketsGrid>
+      </div>
     </PageWrapper>
   );
 };

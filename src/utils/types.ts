@@ -17,6 +17,20 @@ export type ApyTarget = {
   upperBoundCrossed: boolean;
 };
 
+export type BlockingFlowCaps = {
+  vault: {
+    address: string;
+    link: Link;
+    underlyingAsset: Asset;
+    curators: string[];
+  };
+  market: Link;
+  maxIn?: boolean;
+  maxOut?: boolean;
+  timestamp: number;
+  blockedMarkets: Link[];
+};
+
 export type FlowCaps = {
   maxIn: bigint;
   maxOut: bigint;
@@ -25,6 +39,11 @@ export type FlowCaps = {
 export type InteractionData = {
   amount: bigint;
   newUtilization: bigint;
+};
+
+export type Link = {
+  name: string;
+  url: string;
 };
 
 export type MarketData = {
@@ -68,8 +87,7 @@ export type MarketParams = {
 
 export type MarketReallocationData = {
   id: string;
-  name: string;
-  link: string;
+  link: Link;
   supplyReallocation: boolean; // true if the out of bounds market is above the target range (we need to supply in it), but not this market.
   maxReallocationAmount: bigint;
   supplyAssets: bigint;
@@ -94,8 +112,7 @@ export type MarketReallocationData = {
 
 export type MarketWithWarning = {
   id: string;
-  link: string;
-  name: string;
+  link: Link;
   warnings: MarketWarning[];
   loanAsset: {
     symbol: string;
@@ -128,8 +145,7 @@ export type MarketWithWarningAPIData = {
 
 export type MarketWithoutStrategy = {
   id: string;
-  link: string;
-  name: string;
+  link: Link;
   loanAsset: {
     symbol: string;
   };
@@ -156,8 +172,7 @@ export type MarketWarning = {
 
 export type MetaMorphoVault = {
   address: string;
-  name: string;
-  link: string;
+  link: Link;
   underlyingAsset: Asset;
   totalAssetsUsd: number;
   positions: { [key: string]: MetaMorphoPosition };
@@ -175,8 +190,7 @@ export type MetaMorphoVaultData = {
   curators: string[];
   markets: {
     id: string;
-    name: string;
-    link: string;
+    link: Link;
     flowCaps: FlowCaps;
     supplyAssets: bigint;
     supplyCap: bigint;
@@ -212,16 +226,14 @@ export type MetaMorphoPosition = {
 };
 
 export type VaultDisplayData = {
-  name: string;
-  link: string;
+  link: Link;
   address: string;
   asset: Asset;
   totalAssetsUsd: number;
 };
 
 export type Queue = {
-  link: string;
-  name: string;
+  link: Link;
   idle?: boolean;
 }[];
 
@@ -302,6 +314,16 @@ export type VaultWarnings = {
   idlePositionSupplyQueue?: boolean;
 };
 
+export type VaultWithBlockingFlowCaps = {
+  vault: {
+    address: string;
+    link: Link;
+    underlyingAsset: Asset;
+    curators: string[];
+  };
+  blockingFlowCaps: BlockingFlowCaps[];
+};
+
 export type WhitelistedMarket = {
   id: string;
   loanAsset: Asset;
@@ -322,8 +344,7 @@ export type Withdrawal = {
 
 export type MarketFlowCaps = {
   id: string;
-  name: string;
-  link: string;
+  link: Link;
   maxInUsd: string;
   maxOutUsd: string;
   supplyAssetsUsd: number;
@@ -335,8 +356,7 @@ export type MarketFlowCaps = {
 
 export type OutOfBoundsMarket = {
   id: string;
-  name: string;
-  link: string;
+  link: Link;
   loanAsset: Asset;
   collateralAsset: Asset;
   totalSupplyUsd: number;

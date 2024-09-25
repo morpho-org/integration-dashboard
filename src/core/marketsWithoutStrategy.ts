@@ -33,12 +33,14 @@ export const getMarketsWithoutStrategy = async (
   return marketData.map((market) => {
     return {
       id: market.uniqueKey,
-      name: getMarketName(
-        market.loanAsset.symbol,
-        market.collateralAsset ? market.collateralAsset.symbol : null,
-        market.lltv
-      ),
-      link: formatMarketLink(market.uniqueKey, networkId),
+      link: {
+        url: formatMarketLink(market.uniqueKey, networkId),
+        name: getMarketName(
+          market.loanAsset.symbol,
+          market.collateralAsset ? market.collateralAsset.symbol : null,
+          market.lltv
+        ),
+      },
       loanAsset: market.loanAsset,
       collateralAsset: market.collateralAsset,
     };

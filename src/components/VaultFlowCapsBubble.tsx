@@ -25,6 +25,15 @@ const MarketContainer = styled.div`
   flex-grow: 1;
 `;
 
+const TitleWrapper = styled.div<{ isWarning: boolean }>`
+  display: inline-block;
+  padding: 2px 6px;
+  background-color: ${({ isWarning }) =>
+    isWarning ? "#7f1d1d" : "transparent"};
+  border-radius: 4px;
+  width: 100%;
+`;
+
 const VaultFlowCapsBubble: React.FC<VaultFlowCapsBubbleProps> = ({
   vault,
   expanded,
@@ -35,7 +44,7 @@ const VaultFlowCapsBubble: React.FC<VaultFlowCapsBubbleProps> = ({
     if (onClick) onClick();
   };
 
-  const missingFlowCaps = vault.warnings.missingFlowCaps;
+  const missingFlowCaps = vault.warnings.missingFlowCaps ?? false;
 
   console.log("missingFlowCaps", missingFlowCaps);
 
@@ -43,15 +52,11 @@ const VaultFlowCapsBubble: React.FC<VaultFlowCapsBubbleProps> = ({
     <StyledBubble
       expanded={expanded}
       onClick={handleClick}
-      backgroundColor={"black"}
+      backgroundColor={"#6B7280"}
     >
-      <h3
-        style={{
-          color: missingFlowCaps ? "red" : "white",
-        }}
-      >
-        {"Flow Caps"}
-      </h3>
+      <TitleWrapper isWarning={missingFlowCaps}>
+        <h3 style={{ color: "white", margin: 0 }}>{"Flow Caps"}</h3>
+      </TitleWrapper>
       {expanded && (
         <MarketContainer>
           {vault.markets.map((market) => (

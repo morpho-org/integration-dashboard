@@ -6,7 +6,7 @@ const BubbleWrapper = styled.div<{ $backgroundColor?: string }>`
   padding: 10px;
   background-color: ${({ $backgroundColor }) => $backgroundColor || "#0f0f0f"};
   color: black;
-  margin: 10px;
+  margin: 5px;
   cursor: pointer;
 
   a {
