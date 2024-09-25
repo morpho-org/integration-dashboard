@@ -1,4 +1,4 @@
-import { Provider } from "ethers";
+import { id, Provider } from "ethers";
 import {
   BLOCKING_FLOW_CAPS_API,
   BLUE_API,
@@ -191,6 +191,7 @@ export const fetchVaultData = async (
       return {
         id: market.id,
         link: market.link,
+        idle: market.idle,
       };
     });
 
@@ -203,6 +204,7 @@ export const fetchVaultData = async (
       return {
         id: market.id,
         link: market.link,
+        idle: market.idle,
       };
     });
 
