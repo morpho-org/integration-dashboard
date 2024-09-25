@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { getNetworkDBBlockingFlowCapsKey } from "../utils/utils";
 import { BlockingFlowCaps, VaultWithBlockingFlowCaps } from "../utils/types";
 import {
   FilterContainer,
@@ -9,8 +8,9 @@ import {
   TitleContainer,
   VaultsWrapper,
 } from "./wrappers";
-import { Redis } from "@upstash/redis";
 import VaultWithBlockingFlowCapsBubble from "../components/VaultWithBlockingFlowCaps";
+import { fetchBlockingFlowCaps } from "../fetchers/apiFetchers";
+import { getNetworkId } from "../utils/utils";
 
 type BlockingFlowCapsPageProps = {
   network: "ethereum" | "base";
@@ -29,27 +29,9 @@ const BlockingFlowCapsPage: React.FC<BlockingFlowCapsPageProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const dbKey = getNetworkDBBlockingFlowCapsKey(network);
-      const redisUrl = process.env.REDIS_URL;
-      const redisToken = process.env.REDIS_TOKEN;
-
-      if (!redisUrl) {
-        console.log("REDIS_URL not set. Exiting…");
-        process.exit(1);
-      }
-      if (!redisToken) {
-        console.log("REDIS_TOKEN not set. Exiting…");
-        process.exit(1);
-      }
-
-      const redis = new Redis({
-        url: redisUrl,
-        token: redisToken,
-      });
-      const jsonString: string | null = await redis.get(dbKey);
-      const blockingFlowCaps: BlockingFlowCaps[] = jsonString
-        ? JSON.parse(jsonString)
-        : [];
+      const blockingFlowCaps = await fetchBlockingFlowCaps(
+        getNetworkId(network)
+      );
       setVaults(groupByVault(blockingFlowCaps));
     } catch (err) {
       setError("Failed to fetch data");
@@ -136,10 +118,10 @@ const groupByVault = (
   const acc: Record<string, VaultWithBlockingFlowCaps> = {};
 
   for (const item of blockingFlowCaps) {
-    if (!acc[item.vault.link.url]) {
-      acc[item.vault.link.url] = { vault: item.vault, blockingFlowCaps: [] };
+    if (!acc[item.vault.address]) {
+      acc[item.vault.address] = { vault: item.vault, blockingFlowCaps: [] };
     }
-    acc[item.vault.link.url].blockingFlowCaps.push(item);
+    acc[item.vault.address].blockingFlowCaps.push(item);
   }
 
   return Object.values(acc);

@@ -1,7 +1,13 @@
 import { Provider } from "ethers";
-import { BLUE_API, TARGET_API, WHITELIST_API } from "../config/constants";
+import {
+  BLOCKING_FLOW_CAPS_API,
+  BLUE_API,
+  TARGET_API,
+  WHITELIST_API,
+} from "../config/constants";
 import {
   Asset,
+  BlockingFlowCaps,
   MarketWithWarning,
   MarketWithWarningAPIData,
   MetaMorphoAPIData,
@@ -21,6 +27,18 @@ export const fetchStrategies = async (
 ): Promise<Strategy[]> => {
   try {
     const res = await fetch(`${TARGET_API}?chainId=${networkId}`);
+    return await res.json();
+  } catch (error) {
+    console.log(error);
+    return [];
+  }
+};
+
+export const fetchBlockingFlowCaps = async (
+  networkId: number
+): Promise<BlockingFlowCaps[]> => {
+  try {
+    const res = await fetch(`${BLOCKING_FLOW_CAPS_API}?chainId=${networkId}`);
     return await res.json();
   } catch (error) {
     console.log(error);

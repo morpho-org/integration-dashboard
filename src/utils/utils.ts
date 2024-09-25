@@ -36,6 +36,8 @@ export const getMarketId = (market: MarketParams) => {
 export const getProvider = (chainId: number): ethers.JsonRpcProvider => {
   let endpoint: string | undefined;
 
+  console.log(process.env);
+
   if (chainId === 1) {
     endpoint = process.env.REACT_APP_RPC_URL_MAINNET;
   } else if (chainId === 8453) {
@@ -52,17 +54,6 @@ export const getProvider = (chainId: number): ethers.JsonRpcProvider => {
   }
 
   return new ethers.JsonRpcProvider(endpoint);
-};
-
-export const getNetworkDBBlockingFlowCapsKey = (network: string): string => {
-  switch (network) {
-    case "ethereum":
-      return "mainnetBlockingFlowCaps";
-    case "base":
-      return "baseBlockingFlowCaps";
-    default:
-      throw new Error("Invalid network");
-  }
 };
 
 export const getNetworkId = (network: string): number => {

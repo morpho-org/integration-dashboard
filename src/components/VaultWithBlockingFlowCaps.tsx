@@ -27,7 +27,7 @@ const VaultWithBlockingFlowCapsBubble: React.FC<
 
   return (
     <VaultWithBlockingFlowCapsBubbleContainer>
-      <Bubble onClick={() => setExpanded(!expanded)} backgroundColor={"#black"}>
+      <Bubble onClick={() => setExpanded(!expanded)} backgroundColor={"black"}>
         <h3>
           <a
             style={{
@@ -44,10 +44,7 @@ const VaultWithBlockingFlowCapsBubble: React.FC<
         {expanded && (
           <MarketContainer>
             {vaultWithBlockingFlowCaps.blockingFlowCaps.map((item) => (
-              <BlockingFlowCapsBubble
-                key={item.market.url}
-                blockingFlowCaps={item}
-              />
+              <BlockingFlowCapsBubble blockingFlowCaps={item} />
             ))}
           </MarketContainer>
         )}

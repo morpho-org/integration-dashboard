@@ -12,7 +12,6 @@
     "@types/node": "^16.7.13",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
-    "@upstash/redis": "^1.34.0",
     "ethers": "^6.13.2",
     "ethers-multicall-provider": "^6.4.1",
     "ethers-types": "^3.17.2",

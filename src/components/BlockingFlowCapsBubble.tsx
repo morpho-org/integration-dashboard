@@ -20,14 +20,16 @@ const BlockingFlowCapsBubble: React.FC<BlockingFlowCapsBubbleProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
 
+  const handleClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setExpanded(!expanded);
+  };
+
   const backgroundColor = "#f0f0f0";
 
   return (
     <div>
-      <Bubble
-        onClick={() => setExpanded(!expanded)}
-        backgroundColor={backgroundColor}
-      >
+      <Bubble onClick={handleClick} backgroundColor={backgroundColor}>
         <h3 style={{ color: "#0F0000" }}>
           <a
             style={{ color: "#0F0000" }}
@@ -42,7 +44,7 @@ const BlockingFlowCapsBubble: React.FC<BlockingFlowCapsBubbleProps> = ({
         {expanded && (
           <MarketContainer>
             <p>
-              Blocking Flow Caps: {formatBlockingFlowCaps(blockingFlowCaps)}.
+              Blocking Flow Caps: {formatBlockingFlowCaps(blockingFlowCaps)}
             </p>
             <LinkList>
               {blockingFlowCaps.blockedMarkets.map((blockedMarket, index) => (
