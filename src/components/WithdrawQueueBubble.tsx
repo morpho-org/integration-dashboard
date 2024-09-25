@@ -61,7 +61,6 @@ const WithdrawQueueBubble: React.FC<WithdrawQueueBubbleProps> = ({
   expanded,
   onClick,
 }) => {
-  console.log("Vault's warnings are: ", warnings);
   const wrongIdlePosition = warnings && warnings.idlePositionWithdrawQueue;
 
   const handleClick = (event: React.MouseEvent) => {

@@ -191,6 +191,7 @@ export const fetchVaultData = async (
       return {
         id: market.id,
         link: market.link,
+        idle: market.idle,
       };
     });
 
@@ -203,6 +204,7 @@ export const fetchVaultData = async (
       return {
         id: market.id,
         link: market.link,
+        idle: market.idle,
       };
     });
 
