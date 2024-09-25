@@ -16,7 +16,7 @@ export const FilterInput = styled.input`
 export const MarketsWrapper = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 5px;
 `;
 
 export const VaultsWrapper = styled.div`

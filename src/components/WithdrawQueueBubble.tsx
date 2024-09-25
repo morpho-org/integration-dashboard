@@ -39,10 +39,20 @@ const LinkItem = styled.li`
   }
 `;
 
-const WarningMessage = styled.p`
-  color: red;
-  margin-top: 10px;
-  flex-shrink: 0;
+const WarningMessage = styled.div`
+  display: inline-block;
+  padding: 2px 6px;
+  background-color: "#7f1d1d";
+  border-radius: 4px;
+`;
+
+const TitleWrapper = styled.div<{ isWarning: boolean }>`
+  display: inline-block;
+  padding: 2px 6px;
+  background-color: ${({ isWarning }) =>
+    isWarning ? "#7f1d1d" : "transparent"};
+  border-radius: 4px;
+  width: 100%;
 `;
 
 const WithdrawQueueBubble: React.FC<WithdrawQueueBubbleProps> = ({
@@ -51,6 +61,7 @@ const WithdrawQueueBubble: React.FC<WithdrawQueueBubbleProps> = ({
   expanded,
   onClick,
 }) => {
+  console.log("Vault's warnings are: ", warnings);
   const wrongIdlePosition = warnings && warnings.idlePositionWithdrawQueue;
 
   const handleClick = (event: React.MouseEvent) => {
@@ -62,15 +73,11 @@ const WithdrawQueueBubble: React.FC<WithdrawQueueBubbleProps> = ({
     <StyledBubble
       expanded={expanded}
       onClick={handleClick}
-      backgroundColor={"black"}
+      backgroundColor={"#6B7280"}
     >
-      <h3
-        style={{
-          color: wrongIdlePosition ? "red" : "white",
-        }}
-      >
-        {"Withdraw Queue"}
-      </h3>
+      <TitleWrapper isWarning={wrongIdlePosition ?? false}>
+        <h3 style={{ color: "white", margin: 0 }}>{"Withdraw Queue"}</h3>
+      </TitleWrapper>
       {expanded && (
         <>
           <LinkList>
@@ -89,7 +96,16 @@ const WithdrawQueueBubble: React.FC<WithdrawQueueBubbleProps> = ({
           </LinkList>
           {wrongIdlePosition && (
             <WarningMessage>
-              Idle market is not the first element of the list.
+              <div
+                style={{
+                  color: "white",
+                  backgroundColor: "#7f1d1d",
+                  padding: "2px 6px",
+                  borderRadius: "4px",
+                }}
+              >
+                Idle market is not the first element of the list.
+              </div>
             </WarningMessage>
           )}
         </>

@@ -15,7 +15,7 @@ const MarketWithWarningBubble: React.FC<MarketWithWarningProps> = ({
     ? "#FF0000"
     : "#D38F0C";
   return (
-    <Bubble backgroundColor={"#f0f0f0"}>
+    <Bubble backgroundColor={"#2C2F33"}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <div>
           <p>
@@ -43,7 +43,7 @@ const MarketWithWarningBubble: React.FC<MarketWithWarningProps> = ({
             ))}
           </LinkList>
         </div>
-        <div style={{ textAlign: "right" }}>
+        <div style={{ textAlign: "right", color: "white" }}>
           <p>Supply: {market.supplyAmount}</p>
           <p>Borrow: {market.borrowAmount}</p>
           <p>Collateral: {market.collateralAmount}</p>

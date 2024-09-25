@@ -51,7 +51,7 @@ const BlockingFlowCapsBubble: React.FC<BlockingFlowCapsBubbleProps> = ({
                 <LinkItem key={index}>
                   <a
                     style={{
-                      color: "black",
+                      color: "whitek",
                     }}
                     href={blockedMarket.url}
                     target="_blank"

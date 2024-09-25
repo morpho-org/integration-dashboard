@@ -11,6 +11,8 @@
 }
 
 :root {
+  --background: #222529;
+  --foreground: #ededed;
   --ifm-color-dark-base: #0f0f0f;
   --ifm-color-dark-800: #15181a;
   --ifm-color-dark-700: #24272b;

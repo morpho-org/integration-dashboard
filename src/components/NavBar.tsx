@@ -14,26 +14,59 @@ const NavBarWrapper = styled.div`
 
 const NavLinks = styled.div`
   display: flex;
-  gap: 15px;
+  align-items: center;
+  background-color: #2c2f33;
+  border-radius: 9999px;
+  height: 45px;
 `;
 
 const NavLink = styled(Link)<{ $isActive: boolean }>`
-  color: ${(props) => (props.$isActive ? "#ffffff" : "#191b20")};
-  border-radius: 6px;
-  background-color: ${(props) => (props.$isActive ? "#2470ff" : "#191d200f")};
-  padding: 10px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${(props) => (props.$isActive ? "#ffffff" : "#a0a0a0")};
+  background-color: ${(props) => (props.$isActive ? "#2973FF" : "transparent")};
+  border-radius: 9999px;
+  padding: 8px 16px;
   text-decoration: none;
-  font-size: 1.1em;
-  margin-left: 40px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  height: 100%;
+  transition: all 0.3s;
 
   &:hover {
-    text-decoration: ${(props) => (props.$isActive ? "none" : "underline")};
+    background-color: ${(props) => (props.$isActive ? "#2973FF" : "#3a3f45")};
   }
 `;
 
-const NetworkSelect = styled(Select)`
-  width: 200px;
+const NetworkSelector = styled.div`
+  display: flex;
+  align-items: center;
+  background-color: #2c2f33;
+  border-radius: 9999px;
+  height: 45px;
   margin-left: auto;
+`;
+
+const NetworkButton = styled.button<{ $isActive: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${(props) => (props.$isActive ? "#ffffff" : "#a0a0a0")};
+  background-color: ${(props) => (props.$isActive ? "#2973FF" : "transparent")};
+  border-radius: 9999px;
+  padding: 8px 16px;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  height: 100%;
+  transition: all 0.3s;
+  border: none;
+  cursor: pointer;
+
+  &:hover {
+    background-color: ${(props) => (props.$isActive ? "#2973FF" : "#3a3f45")};
+  }
 `;
 
 const ethLogo = "https://cdn.morpho.org/assets/chains/eth.svg";
@@ -85,59 +118,46 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
       networkOptions[0]
   );
 
-  const handleNetworkChange = (
-    option: NetworkOption | null,
-    actionMeta: ActionMeta<NetworkOption>
-  ) => {
+  const handleNetworkChange = (network: "ethereum" | "base") => {
+    const option = networkOptions.find((opt) => opt.value === network);
     if (option) {
       setSelectedNetwork(option);
-      onNetworkSwitch(option.value);
+      onNetworkSwitch(network);
     }
   };
+
+  const navItems = [
+    { path: "/", label: "Vaults" },
+    { path: "/market-warnings", label: "Markets With Warnings" },
+    { path: "/markets-without-strategy", label: "Strategyless Markets" },
+    { path: "/out-of-bounds-markets", label: "Out of Range Markets" },
+    { path: "/blocking-flow-caps", label: "Blocking Flow Caps" },
+  ];
 
   return (
     <NavBarWrapper>
       <NavLinks>
-        <NavLink to="/" $isActive={location.pathname === "/"}>
-          Vaults
-        </NavLink>
-        <NavLink
-          to="/market-warnings"
-          $isActive={location.pathname === "/market-warnings"}
-        >
-          Markets With Warnings
-        </NavLink>
-        <NavLink
-          to="/markets-without-strategy"
-          $isActive={location.pathname === "/markets-without-strategy"}
-        >
-          Strategyless Markets
-        </NavLink>
-        <NavLink
-          to="/out-of-bounds-markets"
-          $isActive={location.pathname === "/out-of-bounds-markets"}
-        >
-          Out of Range Markets
-        </NavLink>
-        <NavLink
-          to="/blocking-flow-caps"
-          $isActive={location.pathname === "/blocking-flow-caps"}
-        >
-          Blocking Flow Caps
-        </NavLink>
+        {navItems.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            $isActive={location.pathname === item.path}
+          >
+            {item.label}
+          </NavLink>
+        ))}
       </NavLinks>
-      <NetworkSelect
-        options={networkOptions}
-        value={selectedNetwork}
-        onChange={handleNetworkChange as any}
-        styles={{
-          control: (base) => ({
-            ...base,
-            fontSize: "0.8rem",
-          }),
-        }}
-        placeholder="Select a network"
-      />
+      <NetworkSelector>
+        {networkOptions.map((option) => (
+          <NetworkButton
+            key={option.value}
+            $isActive={selectedNetwork.value === option.value}
+            onClick={() => handleNetworkChange(option.value)}
+          >
+            {option.label}
+          </NetworkButton>
+        ))}
+      </NetworkSelector>
     </NavBarWrapper>
   );
 };

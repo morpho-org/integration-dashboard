@@ -10,7 +10,7 @@ type MarketFlowCapsBubbleProps = {
 const MarketFlowCapsBubble: React.FC<MarketFlowCapsBubbleProps> = ({
   market,
 }) => {
-  const backgroundColor = market.missing ? "red" : "#5782ff";
+  const backgroundColor = market.missing ? "#7f1d1d" : "#5782ff";
   return (
     <Bubble backgroundColor={backgroundColor}>
       <p>
