@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import { Link, useLocation } from "react-router-dom";
-import Select, { ActionMeta } from "react-select";
 
 const NavBarWrapper = styled.div`
   display: flex;
