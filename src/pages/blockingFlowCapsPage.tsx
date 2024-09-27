@@ -8,9 +8,13 @@ import {
 } from "./wrappers";
 import VaultWithBlockingFlowCapsBubble from "../components/VaultWithBlockingFlowCaps";
 import { fetchBlockingFlowCaps } from "../fetchers/apiFetchers";
-import { getNetworkId } from "../utils/utils";
+import { extractIdFromUrl, getNetworkId, getProvider } from "../utils/utils";
 
 import styled from "styled-components";
+import { Provider } from "ethers";
+import { PublicAllocator__factory } from "ethers-types";
+import { publicAllocatorAddress } from "../config/constants";
+import { MulticallWrapper } from "ethers-multicall-provider";
 
 // Add these styled components
 const SearchWrapper = styled.div`
@@ -88,7 +92,11 @@ const BlockingFlowCapsPage: React.FC<BlockingFlowCapsPageProps> = ({
       const blockingFlowCaps = await fetchBlockingFlowCaps(
         getNetworkId(network)
       );
-      setVaults(groupByVault(blockingFlowCaps));
+      setVaults(
+        groupByVault(
+          await removeOpenFlowCaps(blockingFlowCaps, getNetworkId(network))
+        )
+      );
     } catch (err) {
       setError("Failed to fetch data");
     } finally {
@@ -221,6 +229,46 @@ const groupByVault = (
   }
 
   return Object.values(acc);
+};
+
+const removeOpenFlowCaps = async (
+  blockingFlowCaps: BlockingFlowCaps[],
+  networkId: number
+) => {
+  const provider = MulticallWrapper.wrap(getProvider(networkId));
+
+  return await Promise.all(
+    blockingFlowCaps.filter(
+      async (blockingFlowCap) =>
+        await isOpen(blockingFlowCap, networkId, provider)
+    )
+  );
+};
+
+const isOpen = async (
+  blockingFlowCap: BlockingFlowCaps,
+  networkId: number,
+  provider: Provider
+) => {
+  const publicAllocator = PublicAllocator__factory.connect(
+    publicAllocatorAddress[networkId]!,
+    provider
+  );
+
+  const flowCaps = await publicAllocator.flowCaps(
+    blockingFlowCap.vault.address,
+    extractIdFromUrl(blockingFlowCap.market.url)
+  );
+
+  const maxInOpen = blockingFlowCap.maxIn
+    ? flowCaps.maxIn >= blockingFlowCap.maxIn
+    : true;
+
+  const maxOutOpen = blockingFlowCap.maxOut
+    ? flowCaps.maxOut >= blockingFlowCap.maxOut
+    : true;
+
+  return maxInOpen && maxOutOpen;
 };
 
 export default BlockingFlowCapsPage;

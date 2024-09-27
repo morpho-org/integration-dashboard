@@ -25,8 +25,8 @@ export type BlockingFlowCaps = {
     curators: string[];
   };
   market: Link;
-  maxIn?: boolean;
-  maxOut?: boolean;
+  maxIn?: bigint;
+  maxOut?: bigint;
   timestamp: number;
   blockedMarkets: Link[];
 };
