@@ -195,6 +195,10 @@ export const formatMarketWithWarning = (
   };
 };
 
+export const extractIdFromUrl = (url: string) => {
+  return url.split("id=")[1].split("&")[0];
+};
+
 export const handleLinkClick = (event: React.MouseEvent) => {
   event.stopPropagation();
 };
