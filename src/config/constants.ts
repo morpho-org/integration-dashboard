@@ -6,7 +6,7 @@ export const WHITELIST_API =
 export const TARGET_API =
   "https://chl9tekt72.execute-api.us-east-1.amazonaws.com/dev/targets";
 export const BLOCKING_FLOW_CAPS_API =
-  "https://18icnent5b.execute-api.us-east-1.amazonaws.com/dev/blockingFlowCaps";
+  "https://5glmns08q3.execute-api.us-east-1.amazonaws.com/dev/blockingFlowCaps";
 
 // ADDRESSES
 
