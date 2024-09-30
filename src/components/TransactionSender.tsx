@@ -52,6 +52,13 @@ export default function TransactionSender({
   return (
     <div>
       <button
+        style={{
+          backgroundColor: "white",
+          color: "black",
+          padding: "10px 5px",
+          borderRadius: "20px",
+          border: "2px solid #ccc",
+        }}
         onClick={handleSendTransaction}
         className="submit-button"
         disabled={isTransactionPending || isTransactionSent}
