@@ -83,3 +83,27 @@ export const Select = styled.select`
     border-color: #666;
   }
 `;
+
+export const SortButton = styled.button`
+  margin-left: 10px;
+  padding: 8px 16px;
+  height: 40px;
+  border-radius: 9999px;
+  background: rgba(250, 250, 250, 0.1);
+  color: white;
+  font-size: 0.875rem;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  width: auto;
+  white-space: nowrap;
+  &:hover {
+    background: rgba(250, 250, 250, 0.2);
+  }
+
+  &:focus {
+    box-shadow: 0 0 0 2px #2973ff;
+  }
+`;
