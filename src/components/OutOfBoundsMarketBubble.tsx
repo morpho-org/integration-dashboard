@@ -8,8 +8,24 @@ import {
   UtilizationTarget,
   VaultReallocationData,
 } from "../utils/types";
-import { formatTokenAmount, formatWAD, handleLinkClick } from "../utils/utils";
+import {
+  formatTokenAmount,
+  formatUsdAmount,
+  formatWAD,
+  handleLinkClick,
+} from "../utils/utils";
 import { lookForReallocations } from "../core/lookForReallocations";
+
+const StyledButton = styled.button`
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  border-radius: 5px;
+  display: block;
+  margin: 0 auto;
+`;
 
 const MarketContainer = styled.div`
   margin-left: 20px;
@@ -17,8 +33,45 @@ const MarketContainer = styled.div`
   color: white;
 `;
 
-const MessageContainer = styled.span`
-  margin-left: 15px;
+const BubbleContent = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  height: 60px;
+`;
+
+const LeftColumn = styled.div`
+  flex: 1;
+  text-align: left;
+  color: white;
+  width: 200px;
+`;
+
+const MiddleColumn = styled.div`
+  flex: 1;
+  text-align: left;
+  color: white;
+`;
+
+const Middle2Column = styled.div`
+  flex: 1;
+  text-align: left;
+  color: white;
+  font-weight: bold;
+`;
+
+const RightColumn = styled.div`
+  flex: 1;
+  text-align: right;
+  color: white;
+  font-weight: bold;
+`;
+
+const MarketLink = styled.a`
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
 `;
 
 type OutOfBoundsMarketBubbleProps = {
@@ -77,20 +130,25 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
         onClick={() => setExpanded(!expanded)}
         backgroundColor={distanceToTarget.color}
       >
-        <h3 style={{ color: "white" }}>
-          <a
-            style={{ color: "white" }}
-            href={market.link.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={handleLinkClick}
-          >
-            {market.link.name}
-          </a>
-          <MessageContainer>
-            {distanceToTarget.distanceMessage}
-          </MessageContainer>
-        </h3>
+        <BubbleContent>
+          <LeftColumn>
+            <h3>
+              <MarketLink
+                href={market.link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleLinkClick}
+              >
+                {market.link.name}
+              </MarketLink>
+            </h3>
+          </LeftColumn>
+          <MiddleColumn>{distanceToTarget.distanceMessage}</MiddleColumn>
+          <Middle2Column>
+            {formatUsdAmount(market.totalSupplyUsd)}
+          </Middle2Column>
+          <RightColumn> </RightColumn>
+        </BubbleContent>
         {expanded && (
           <MarketContainer>
             <p>
@@ -109,9 +167,9 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
             } the market to reach target.`}</p>
 
             {buttonVisible && (
-              <button onClick={handleSearchReallocations}>
+              <StyledButton onClick={handleSearchReallocations}>
                 Seek for reallocations
-              </button>
+              </StyledButton>
             )}
 
             {loading && <p>Loading reallocations...</p>}

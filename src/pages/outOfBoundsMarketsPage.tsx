@@ -9,6 +9,7 @@ import {
   MarketsWrapper,
   PageWrapper,
   TitleContainer,
+  SortButton,
 } from "./wrappers";
 import styled from "styled-components";
 
@@ -82,6 +83,7 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("");
   const [supplyFilter, setSupplyFilter] = useState<number>(0);
+  const [isSorted, setIsSorted] = useState<boolean>(false); // Updated sorting state
 
   useEffect(() => {
     const loadMarkets = async () => {
@@ -100,7 +102,15 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
     loadMarkets();
   }, [network]);
 
-  const filteredMarkets = markets.filter(
+  const handleSortToggle = () => {
+    setIsSorted(!isSorted);
+  };
+
+  const sortedMarkets = isSorted
+    ? [...markets].sort((a, b) => b.totalSupplyUsd - a.totalSupplyUsd)
+    : markets;
+
+  const filteredMarkets = sortedMarkets.filter(
     (market) =>
       (market.loanAsset.symbol.toLowerCase().includes(filter.toLowerCase()) ||
         market.collateralAsset.symbol
@@ -184,6 +194,10 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
             <option value="1000000">$1M</option>
             <option value="10000000">$10M</option>
           </SupplyFilterSelect>
+          {/* Updated Sort Button */}
+          <SortButton onClick={handleSortToggle}>
+            {isSorted ? "Unsort" : "Sort by Total"}
+          </SortButton>
         </div>
       </HeaderWrapper>
       {loading && <p style={{ color: "white" }}>Loading...</p>}
