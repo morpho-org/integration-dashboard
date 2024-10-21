@@ -18,8 +18,11 @@ export const publicAllocatorAddress: Record<number, string> = {
 };
 
 export const vaultBlacklist: Record<number, string[]> = {
-  1: ["0x73e65DBD630f90604062f6E02fAb9138e713edD9"], // Spark DAI
-  8453: [],
+  1: [
+    "0x73e65DBD630f90604062f6E02fAb9138e713edD9", // Spark DAI
+    "0xfbDEE8670b273E12b019210426E70091464b02Ab", // MEV Capital M^0 Vault
+  ],
+  8453: ["0xfbDEE8670b273E12b019210426E70091464b02Ab"],
 };
 
 // THRESHOLDS
