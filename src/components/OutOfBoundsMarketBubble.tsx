@@ -98,7 +98,12 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
     setButtonVisible(false);
     try {
       const fetchedVaults = await lookForReallocations(networkId, market);
-      setVaults(fetchedVaults);
+      const filteredVaults = fetchedVaults.filter(
+        (vault) =>
+          !vault.reallocation ||
+          vault.reallocation.supplyMarketParams.collateralToken
+      );
+      setVaults(filteredVaults);
       setReallocationsSearched(true);
     } catch (err) {
       setError("Failed to fetch reallocations");
