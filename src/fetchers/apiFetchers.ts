@@ -144,6 +144,7 @@ export const fetchVaultData = async (
         ),
         supplyAssets: current.supplyAssets,
         supplyCap: current.supplyCap,
+        idle: !current.market.collateralAsset,
       });
       return acc;
     },
@@ -157,10 +158,8 @@ export const fetchVaultData = async (
         name: string;
         supplyAssets: bigint;
         supplyCap: bigint;
+        idle: boolean;
       }) => {
-        const strategy = strategies.find(
-          (strategy) => strategy.id === market.id
-        );
         return {
           id: market.id,
           link: {
@@ -175,7 +174,7 @@ export const fetchVaultData = async (
           ),
           supplyAssets: market.supplyAssets,
           supplyCap: market.supplyCap,
-          idle: strategy?.idleMarket,
+          idle: market.idle,
         };
       }
     )
