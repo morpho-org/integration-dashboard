@@ -145,7 +145,7 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
           </LeftColumn>
           <MiddleColumn>{distanceToTarget.distanceMessage}</MiddleColumn>
           <Middle2Column>
-            {formatUsdAmount(market.totalSupplyUsd)}
+            (total supply: {formatUsdAmount(market.totalSupplyUsd)})
           </Middle2Column>
           <RightColumn> </RightColumn>
         </BubbleContent>
