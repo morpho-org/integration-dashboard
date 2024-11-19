@@ -2,7 +2,7 @@ import {
   fetchMarketWithoutStrategyData,
   fetchStrategies,
 } from "../fetchers/apiFetchers";
-import { MarketWithoutStrategy } from "../utils/types";
+import { MarketWithoutStrategy, Strategy } from "../utils/types";
 import { formatMarketLink, getMarketName } from "../utils/utils";
 
 export const getMarketsWithoutStrategy = async (
@@ -12,16 +12,11 @@ export const getMarketsWithoutStrategy = async (
 
   const strategies = await fetchStrategies(networkId);
 
-  const marketWithoutStrategies = strategies.filter(
-    (strategy) =>
-      (!strategy.blacklist &&
-        !strategy.idleMarket &&
-        strategy.targetBorrowApy !== undefined &&
-        BigInt(strategy.targetBorrowApy) === 0n) ||
-      (strategy.utilizationTarget !== undefined &&
-        BigInt(strategy.utilizationTarget) === 0n)
-  );
+  console.log("strategies fetched");
 
+  const marketWithoutStrategies = strategies.filter((strategy) =>
+    isMarketStrategyless(strategy)
+  );
   console.log("fetching market data");
 
   const marketData = await Promise.all(
@@ -29,6 +24,8 @@ export const getMarketsWithoutStrategy = async (
       fetchMarketWithoutStrategyData(strategy.id)
     )
   );
+
+  console.log("market data fetched");
 
   return marketData.map((market) => {
     return {
@@ -45,4 +42,26 @@ export const getMarketsWithoutStrategy = async (
       collateralAsset: market.collateralAsset,
     };
   });
+};
+
+const isMarketStrategyless = (strategy: Strategy) => {
+  const idle = strategy.idleMarket;
+  const blacklist = strategy.blacklist;
+  const withoutTarget =
+    (strategy.targetBorrowApy === undefined ||
+      strategy.targetBorrowApy === null) &&
+    strategy.utilizationTarget === undefined;
+  const zeroApyTarget =
+    strategy.targetBorrowApy !== undefined &&
+    strategy.targetBorrowApy !== null &&
+    BigInt(strategy.targetBorrowApy) === 0n;
+  const zeroUtilizationTarget =
+    strategy.utilizationTarget !== undefined &&
+    BigInt(strategy.utilizationTarget) === 0n;
+
+  return (
+    !idle &&
+    !blacklist &&
+    (withoutTarget || zeroApyTarget || zeroUtilizationTarget)
+  );
 };
