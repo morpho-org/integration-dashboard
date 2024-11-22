@@ -20,7 +20,7 @@ import {
   formatMarketWithWarning,
   getMarketName,
 } from "../utils/utils";
-import { fetchFlowCaps, getQueues } from "./chainFetcher";
+import { checkIfSafe, fetchFlowCaps, getQueues } from "./chainFetcher";
 
 export const fetchStrategies = async (
   networkId: number
@@ -92,6 +92,8 @@ export const fetchVaultData = async (
         decimals
       }
       state {
+        owner
+        curator
         totalAssets
         allocation {
           market {
@@ -207,6 +209,13 @@ export const fetchVaultData = async (
       };
     });
 
+  const [ownerSafeDetails, curatorSafeDetails] = await Promise.all([
+    checkIfSafe(provider, vault.state.owner),
+    vault.state.curator
+      ? checkIfSafe(provider, vault.state.curator)
+      : Promise.resolve({ isSafe: false }),
+  ]);
+
   return {
     symbol: vault.symbol,
     address: vault.address,
@@ -214,6 +223,10 @@ export const fetchVaultData = async (
     asset: vault.asset,
     totalAssets: vault.state.totalAssets,
     curators,
+    owner: vault.state.owner,
+    ownerSafeDetails,
+    curator: vault.state.curator,
+    curatorSafeDetails,
     withdrawQueue,
     supplyQueue,
     markets,
