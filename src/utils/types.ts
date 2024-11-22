@@ -196,6 +196,22 @@ export type MetaMorphoVaultData = {
     supplyCap: bigint;
     idle?: boolean;
   }[];
+  owner: string;
+  ownerSafeDetails: {
+    isSafe: boolean;
+    owners?: string[];
+    threshold?: string;
+    version?: string;
+    multisigConfig?: string;
+  };
+  curator: string;
+  curatorSafeDetails: {
+    isSafe: boolean;
+    owners?: string[];
+    threshold?: string;
+    version?: string;
+    multisigConfig?: string;
+  };
 };
 
 export type MetaMorphoAPIData = {
@@ -299,6 +315,22 @@ export type VaultData = {
   supplyQueue: Queue;
   withdrawQueue: Queue;
   warnings: VaultWarnings;
+  owner: string;
+  ownerSafeDetails: {
+    isSafe: boolean;
+    owners?: string[];
+    threshold?: string;
+    version?: string;
+    multisigConfig?: string;
+  };
+  curator: string;
+  curatorSafeDetails: {
+    isSafe: boolean;
+    owners?: string[];
+    threshold?: string;
+    version?: string;
+    multisigConfig?: string;
+  };
 };
 
 export type VaultReallocationData = {

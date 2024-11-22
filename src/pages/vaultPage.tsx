@@ -12,7 +12,7 @@ import {
   TitleContainer,
   VaultsWrapper,
 } from "./wrappers";
-
+import { Copy, CopyCheck, ChevronDown, ChevronUp } from "lucide-react";
 // Add these styled components
 const SearchWrapper = styled.div`
   position: relative;
@@ -71,7 +71,7 @@ const FilterSelect = styled.select`
 
 const TableHeader = styled.div`
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
   gap: 10px;
   padding: 10px;
   background-color: #1e2124;
@@ -83,7 +83,7 @@ const TableHeader = styled.div`
 
 const VaultRow = styled.div`
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
   gap: 10px;
   padding: 10px;
   background-color: #2c2f33;
@@ -95,6 +95,8 @@ const VaultRow = styled.div`
   &:hover {
     background-color: #34383c;
   }
+
+  align-items: center;
 `;
 
 const WarningText = styled.span`
@@ -117,6 +119,19 @@ const BubbleContainer = styled.div`
   width: 100%;
 `;
 
+const AddressText = styled.span`
+  font-family: monospace;
+  font-size: 0.85em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  &:hover {
+    color: #2973ff;
+  }
+`;
+
 type VaultPageProps = {
   network: "ethereum" | "base";
 };
@@ -131,6 +146,14 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
 
   const [expandedVault, setExpandedVault] = useState<string | null>(null);
 
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+
+  const handleCopy = async (address: string) => {
+    await navigator.clipboard.writeText(address);
+    setCopiedAddress(address);
+    setTimeout(() => setCopiedAddress(null), 2000);
+  };
+
   const fetchData = async (network: "ethereum" | "base") => {
     setLoading(true);
     setError(null);
@@ -144,6 +167,9 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
     }
   };
 
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
   useEffect(() => {
     fetchData(network);
   }, [network]);
@@ -278,6 +304,8 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
         <div>Withdraw Queue</div>
         <div>Supply Queue</div>
         <div>Flow Caps</div>
+        <div>Owner</div>
+        <div>Curator</div>
       </TableHeader>
       <VaultsWrapper style={{ marginTop: "10px" }}>
         {filteredVaults.map((vault) => (
@@ -298,11 +326,97 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                   "OK"
                 )}
               </div>
-              <div>
-                {vault.warnings?.missingFlowCaps ? (
-                  <WarningText>Warning</WarningText>
+              <div>{vault.warnings?.missingFlowCaps ? "Warning" : "OK"}</div>
+              <div style={{ whiteSpace: "nowrap" }}>
+                <AddressText
+                  title={vault.owner}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCopy(vault.owner);
+                  }}
+                >
+                  {formatAddress(vault.owner)}
+
+                  {copiedAddress === vault.owner ? (
+                    <CopyCheck size={12} style={{ color: "#2973FF" }} />
+                  ) : (
+                    <Copy size={12} />
+                  )}
+
+                  {vault.ownerSafeDetails.isSafe ? (
+                    <img
+                      src="https://app.safe.global/favicon.ico"
+                      alt="Safe Icon"
+                      width={12}
+                      height={12}
+                      style={{ marginLeft: "4px", verticalAlign: "middle" }}
+                    />
+                  ) : (
+                    <WarningText> ❌</WarningText>
+                  )}
+                  {vault.ownerSafeDetails.isSafe ? (
+                    <AddressText>
+                      {vault.ownerSafeDetails.threshold}/
+                      {vault.ownerSafeDetails.owners?.length}
+                    </AddressText>
+                  ) : null}
+                </AddressText>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                {vault.curator ===
+                "0x0000000000000000000000000000000000000000" ? (
+                  <AddressText>-</AddressText>
                 ) : (
-                  "OK"
+                  <AddressText
+                    title={vault.curator}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopy(vault.curator);
+                    }}
+                  >
+                    {formatAddress(vault.curator)}
+                    {copiedAddress === vault.curator ? (
+                      <CopyCheck size={16} style={{ color: "#2973FF" }} />
+                    ) : (
+                      <Copy size={16} />
+                    )}
+                    {vault.curatorSafeDetails?.isSafe ? (
+                      <img
+                        src="https://app.safe.global/favicon.ico"
+                        alt="Safe Icon"
+                        width={12}
+                        height={12}
+                        style={{ marginLeft: "4px", verticalAlign: "middle" }}
+                      />
+                    ) : (
+                      <WarningText>❌</WarningText>
+                    )}
+                    {vault.curatorSafeDetails?.isSafe ? (
+                      <AddressText>
+                        {vault.curatorSafeDetails.threshold}/
+                        {vault.curatorSafeDetails.owners?.length}
+                      </AddressText>
+                    ) : (
+                      <WarningText>-</WarningText>
+                    )}
+                  </AddressText>
+                )}
+                {expandedVault === vault.vault.link.name ? (
+                  <ChevronUp
+                    size={20}
+                    style={{ color: "#2973FF", marginLeft: "10px" }}
+                  />
+                ) : (
+                  <ChevronDown
+                    size={20}
+                    style={{ color: "#2973FF", marginLeft: "10px" }}
+                  />
                 )}
               </div>
 
