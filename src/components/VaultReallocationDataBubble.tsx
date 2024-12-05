@@ -15,13 +15,19 @@ const MarketContainer = styled.div`
 type VaultBubbleProps = {
   vault: VaultReallocationData;
   networkId: number;
+  filterIdleMarkets: boolean;
 };
 
 const VaultReallocationDataBubble: React.FC<VaultBubbleProps> = ({
   vault,
   networkId,
+  filterIdleMarkets,
 }) => {
   const [expanded, setExpanded] = useState(false);
+
+  const shouldDisplayReallocation =
+    !filterIdleMarkets ||
+    vault.reallocation?.supplyMarketParams.collateralToken !== undefined;
 
   const backgroundColor = vault.reallocation ? "#2470ff" : "#4B0082";
 
@@ -29,6 +35,10 @@ const VaultReallocationDataBubble: React.FC<VaultBubbleProps> = ({
     event.stopPropagation();
     setExpanded(!expanded);
   };
+
+  if (filterIdleMarkets && !shouldDisplayReallocation) {
+    return null;
+  }
 
   return (
     <div>

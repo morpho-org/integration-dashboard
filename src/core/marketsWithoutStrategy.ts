@@ -8,8 +8,6 @@ import { formatMarketLink, getMarketName } from "../utils/utils";
 export const getMarketsWithoutStrategy = async (
   networkId: number
 ): Promise<MarketWithoutStrategy[]> => {
-  console.log("fetching strategies");
-
   const strategies = await fetchStrategies(networkId);
 
   console.log("strategies fetched");

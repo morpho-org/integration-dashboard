@@ -23,11 +23,7 @@ export const getOutOfBoundsMarkets = async (
 ): Promise<OutOfBoundsMarket[]> => {
   const provider = MulticallWrapper.wrap(getProvider(networkId));
 
-  console.log("fetching strategies");
-
   const strategies = await fetchStrategies(networkId);
-
-  console.log("fetching market data");
 
   const whitelistedMarkets = await Promise.all(
     strategies.map(async (strategy) => {
@@ -189,8 +185,6 @@ export const getOutOfBoundsMarkets = async (
     }
     console.log("in range");
   }
-
-  console.log("sorting markets");
 
   return outOfBoundsMarkets.sort(
     (a, b) =>
