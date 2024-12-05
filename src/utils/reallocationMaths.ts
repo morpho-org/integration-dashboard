@@ -119,17 +119,6 @@ export const seekForSupplyReallocation = (
   vault: MetaMorphoVault,
   filterIdleMarkets: boolean
 ): Reallocation | undefined => {
-  if (
-    filterIdleMarkets &&
-    vault.positions[marketToSupplyIntoId].marketData.collateralAsset.address ===
-      "0x0000000000000000000000000000000000000000"
-  ) {
-    console.log(
-      "collateral asset is undefined, this corresponds to an idle market we don't want to reallocate in it"
-    );
-    return undefined;
-  }
-
   const marketToSupplyInto = vault.positions[marketToSupplyIntoId].marketData;
 
   const toSupply = computeToSupplyReallocate(
@@ -138,7 +127,13 @@ export const seekForSupplyReallocation = (
     MaxUint256
   ).toSupply;
 
-  const enabledMarketIds = Object.keys(vault.positions);
+  const enabledMarketIds = Object.keys(vault.positions).filter(
+    (marketId) =>
+      !filterIdleMarkets ||
+      vault.positions[marketId].marketData.collateralAsset.address !==
+        "0x0000000000000000000000000000000000000000"
+  );
+
   const totalToWithdraw = enabledMarketIds.reduce(
     (total, enabledMarketId) =>
       total +
