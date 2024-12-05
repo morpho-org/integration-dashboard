@@ -20,7 +20,7 @@ import {
   formatMarketWithWarning,
   getMarketName,
 } from "../utils/utils";
-import { fetchFlowCaps, getQueues } from "./chainFetcher";
+import { checkIfSafe, fetchFlowCaps, getQueues } from "./chainFetcher";
 
 export const fetchStrategies = async (
   networkId: number
@@ -92,6 +92,8 @@ export const fetchVaultData = async (
         decimals
       }
       state {
+        owner
+        curator
         totalAssets
         allocation {
           market {
@@ -144,6 +146,7 @@ export const fetchVaultData = async (
         ),
         supplyAssets: current.supplyAssets,
         supplyCap: current.supplyCap,
+        idle: !current.market.collateralAsset,
       });
       return acc;
     },
@@ -157,10 +160,8 @@ export const fetchVaultData = async (
         name: string;
         supplyAssets: bigint;
         supplyCap: bigint;
+        idle: boolean;
       }) => {
-        const strategy = strategies.find(
-          (strategy) => strategy.id === market.id
-        );
         return {
           id: market.id,
           link: {
@@ -175,7 +176,7 @@ export const fetchVaultData = async (
           ),
           supplyAssets: market.supplyAssets,
           supplyCap: market.supplyCap,
-          idle: strategy?.idleMarket,
+          idle: market.idle,
         };
       }
     )
@@ -208,6 +209,13 @@ export const fetchVaultData = async (
       };
     });
 
+  const [ownerSafeDetails, curatorSafeDetails] = await Promise.all([
+    checkIfSafe(provider, vault.state.owner),
+    vault.state.curator
+      ? checkIfSafe(provider, vault.state.curator)
+      : Promise.resolve({ isSafe: false }),
+  ]);
+
   return {
     symbol: vault.symbol,
     address: vault.address,
@@ -215,6 +223,10 @@ export const fetchVaultData = async (
     asset: vault.asset,
     totalAssets: vault.state.totalAssets,
     curators,
+    owner: vault.state.owner,
+    ownerSafeDetails,
+    curator: vault.state.curator,
+    curatorSafeDetails,
     withdrawQueue,
     supplyQueue,
     markets,

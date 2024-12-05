@@ -45,22 +45,44 @@ export const getOutOfBoundsMarkets = async (
     })
   );
 
+  console.log("whitelisted markets fetched");
+
   const outOfBoundsMarkets: OutOfBoundsMarket[] = [];
 
   for (const market of whitelistedMarkets) {
+    console.log(market.id);
+
     const utilization = computeUtilization(
       market.marketChainData.marketState.totalBorrowAssets,
       market.marketChainData.marketState.totalSupplyAssets
     );
+
+    console.log("utilization:", utilization);
+
     if (market.strategy.blacklist || market.strategy.idleMarket) continue;
+
+    console.log("checking market");
+
     if (
       market.strategy.apyRange &&
       isApyOutOfRange(market.marketChainData.apys, market.strategy.apyRange)
     ) {
-      if (BigInt(market.strategy.targetBorrowApy!) === 0n) continue;
+      console.log("apy out of range");
+
+      if (
+        !market.strategy.targetBorrowApy ||
+        BigInt(market.strategy.targetBorrowApy) === 0n
+      )
+        continue;
+
+      console.log("target apy not 0");
+
       const aboveRange =
         market.marketChainData.apys.borrowApy >
         market.strategy.apyRange.upperBound;
+
+      aboveRange ? console.log("above range") : console.log("below range");
+
       const amountToReachTarget = aboveRange
         ? computeSupplyValue(
             market.marketChainData,
@@ -70,6 +92,9 @@ export const getOutOfBoundsMarkets = async (
             market.marketChainData,
             market.strategy.targetBorrowApy!
           ).amount;
+
+      console.log("amount to reach target", amountToReachTarget);
+
       outOfBoundsMarkets.push({
         id: market.id,
         link: {
@@ -109,6 +134,8 @@ export const getOutOfBoundsMarkets = async (
       market.strategy.utilizationRange &&
       isUtilizationOutOfRange(utilization, market.strategy.utilizationRange)
     ) {
+      console.log("utilization out of range");
+
       if (BigInt(market.strategy.utilizationTarget!) === 0n) continue;
       const utilizationTarget = BigInt(market.strategy.utilizationTarget!);
       const aboveRange =
@@ -156,6 +183,7 @@ export const getOutOfBoundsMarkets = async (
         aboveRange,
       });
     }
+    console.log("in range");
   }
 
   return outOfBoundsMarkets.sort(

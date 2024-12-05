@@ -1,4 +1,4 @@
-import { Provider, ZeroAddress } from "ethers";
+import { Contract, Provider, ZeroAddress } from "ethers";
 import {
   AdaptiveCurveIrm__factory,
   BlueIrm__factory,
@@ -27,6 +27,7 @@ import {
   wTaylorCompounded,
 } from "../utils/maths";
 import { fetchAssetData } from "./apiFetchers";
+import safeAbi from "../abis/safeAbi.json";
 
 export const fetchMarketParamsAndData = async (
   marketId: string,
@@ -276,3 +277,29 @@ export const getVaultMarketData = async (
   };
   return marketData;
 };
+
+export async function checkIfSafe(provider: Provider, address: string) {
+  try {
+    const code = await provider.getCode(address);
+    if (code === "0x") return { isSafe: false };
+
+    const safe = new Contract(address, safeAbi, provider);
+
+    const [owners, threshold, version] = await Promise.all([
+      safe.getOwners(),
+      safe.getThreshold(),
+      safe.VERSION().catch(() => null),
+    ]);
+
+    return {
+      isSafe: true,
+      owners,
+      threshold: threshold.toString(),
+      version,
+      multisigConfig: `${threshold} out of ${owners.length} owners required`,
+    };
+  } catch (error) {
+    console.log("Not a safe?", error);
+    return { isSafe: false };
+  }
+}

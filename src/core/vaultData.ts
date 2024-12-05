@@ -104,6 +104,10 @@ export const getVaultDisplayData = async (
       supplyQueue: vault.supplyQueue,
       withdrawQueue: vault.withdrawQueue,
       warnings,
+      owner: vault.owner,
+      ownerSafeDetails: vault.ownerSafeDetails,
+      curator: vault.curator,
+      curatorSafeDetails: vault.curatorSafeDetails,
     });
   }
 
