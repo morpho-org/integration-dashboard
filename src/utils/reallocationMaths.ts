@@ -6,13 +6,7 @@ import {
   ReallocationLogData,
   Withdrawal,
 } from "./types";
-import {
-  formatMarketLink,
-  formatTokenAmount,
-  formatWAD,
-  getMarketName,
-  sortWithdrawals,
-} from "./utils";
+import { formatMarketLink, getMarketName, sortWithdrawals } from "./utils";
 import {
   computeNewBorrowAPY,
   computeNewSupplyAPY,
@@ -122,9 +116,19 @@ export const getMarketReallocationData = (
 
 export const seekForSupplyReallocation = (
   marketToSupplyIntoId: string,
-  vault: MetaMorphoVault
+  vault: MetaMorphoVault,
+  filterIdleMarkets: boolean
 ): Reallocation | undefined => {
-  console.log("seeking for supply reallocation for vault:", vault.link.name);
+  if (
+    filterIdleMarkets &&
+    vault.positions[marketToSupplyIntoId].marketData.collateralAsset.address ===
+      "0x0000000000000000000000000000000000000000"
+  ) {
+    console.log(
+      "collateral asset is undefined, this corresponds to an idle market we don't want to reallocate in it"
+    );
+    return undefined;
+  }
 
   const marketToSupplyInto = vault.positions[marketToSupplyIntoId].marketData;
 
@@ -134,13 +138,7 @@ export const seekForSupplyReallocation = (
     MaxUint256
   ).toSupply;
 
-  console.log(
-    "to supply into the reallocation market:",
-    formatTokenAmount(toSupply, vault.underlyingAsset)
-  );
-
   const enabledMarketIds = Object.keys(vault.positions);
-
   const totalToWithdraw = enabledMarketIds.reduce(
     (total, enabledMarketId) =>
       total +
@@ -276,10 +274,9 @@ export const seekForSupplyReallocation = (
 
 export const seekForWithdrawReallocation = (
   marketToWithdrawFromId: string,
-  vault: MetaMorphoVault
+  vault: MetaMorphoVault,
+  filterIdleMarkets: boolean
 ): Reallocation | undefined => {
-  console.log("seeking for withdraw reallocation for vault:", vault.link.name);
-
   const marketToWithdrawFrom =
     vault.positions[marketToWithdrawFromId].marketData;
 
@@ -289,17 +286,19 @@ export const seekForWithdrawReallocation = (
     MaxUint256
   ).toWithdraw;
 
-  console.log(
-    "to to withdraw from the reallocation market:",
-    formatTokenAmount(toWithdraw, vault.underlyingAsset)
+  let supplyMarket = { id: "", amount: 0n };
+  const enabledMarketIds = Object.keys(vault.positions).filter(
+    (marketId) =>
+      !filterIdleMarkets ||
+      vault.positions[marketId].marketData.collateralAsset.address !==
+        "0x0000000000000000000000000000000000000000"
   );
 
-  let supplyMarket = { id: "", amount: 0n };
-  const enabledMarketIds = Object.keys(vault.positions);
   const amountsToSupply = enabledMarketIds.map(
     (id) => computeToSupplyReallocate(vault, id, MaxUint256).toSupply,
     0n
   );
+
   for (let i = 0; i < enabledMarketIds.length; i++) {
     if (amountsToSupply[i] > supplyMarket.amount)
       supplyMarket = { id: enabledMarketIds[i], amount: amountsToSupply[i] };
@@ -412,32 +411,6 @@ const computeToSupplyReallocate = (
   if (!position.marketData.reallocationData)
     return { toSupply: 0n, remainingToSupply };
 
-  console.log(
-    `trying to supply into ${enabledMarketId} (${position.marketData.name})`
-  );
-  console.log(
-    "market borrow Apy",
-    formatWAD(position.marketData.apys.borrowApy)
-  );
-  console.log(
-    "to supply to reach target apy",
-    formatTokenAmount(
-      position.marketData.reallocationData.toSupply,
-      vault.underlyingAsset
-    )
-  );
-  console.log(
-    "vault supply cap:",
-    formatTokenAmount(position.supplyCap, vault.underlyingAsset)
-  );
-  console.log(
-    "vault flow cap",
-    +formatUnits(
-      vault.flowCaps[enabledMarketId].maxIn,
-      vault.underlyingAsset.decimals
-    )
-  );
-
   let toSupply = min(
     position.marketData.reallocationData.toSupply,
     max(
@@ -448,11 +421,6 @@ const computeToSupplyReallocate = (
   );
   toSupply = min(toSupply, remainingToSupply);
   toSupply = min(toSupply, vault.flowCaps[enabledMarketId].maxIn);
-
-  console.log(
-    "toSupply",
-    +formatUnits(toSupply, vault.underlyingAsset.decimals)
-  );
 
   if (toSupply > 0n) {
     let usdValue =
@@ -474,44 +442,12 @@ const computeToWithdrawReallocate = (
   if (!position.marketData.reallocationData)
     return { toWithdraw: 0n, remainingToWithdraw };
 
-  console.log(
-    `trying to withdraw from ${enabledMarketId} (${position.marketData.name})`
-  );
-  console.log(
-    "market borrow Apy",
-    formatWAD(position.marketData.apys.borrowApy)
-  );
-
-  console.log(
-    "to withdraw to reach target apy",
-    formatTokenAmount(
-      position.marketData.reallocationData.toWithdraw,
-      vault.underlyingAsset
-    )
-  );
-  console.log(
-    "vault supply assets:",
-    formatTokenAmount(position.supplyAssets, vault.underlyingAsset)
-  );
-  console.log(
-    "vault flow cap",
-    +formatUnits(
-      vault.flowCaps[enabledMarketId].maxOut,
-      vault.underlyingAsset.decimals
-    )
-  );
-
   let toWithdraw = min(
     position.marketData.reallocationData.toWithdraw,
     position.supplyAssets
   );
   toWithdraw = min(toWithdraw, remainingToWithdraw);
   toWithdraw = min(toWithdraw, vault.flowCaps[enabledMarketId].maxOut);
-
-  console.log(
-    "toWithdraw",
-    +formatUnits(toWithdraw, vault.underlyingAsset.decimals)
-  );
 
   if (toWithdraw > 0n) {
     let usdValue =

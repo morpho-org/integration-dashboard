@@ -46,8 +46,6 @@ const VaultFlowCapsBubble: React.FC<VaultFlowCapsBubbleProps> = ({
 
   const missingFlowCaps = vault.warnings.missingFlowCaps ?? false;
 
-  console.log("missingFlowCaps", missingFlowCaps);
-
   return (
     <StyledBubble
       expanded={expanded}

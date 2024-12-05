@@ -29,7 +29,8 @@ import {
 
 export const lookForReallocations = async (
   networkId: number,
-  outOfBoundsMarket: OutOfBoundsMarket
+  outOfBoundsMarket: OutOfBoundsMarket,
+  filterIdleMarkets: boolean
 ) => {
   const provider = MulticallWrapper.wrap(getProvider(networkId));
 
@@ -62,8 +63,16 @@ export const lookForReallocations = async (
           networkId
         ),
         reallocation: outOfBoundsMarket.aboveRange
-          ? seekForSupplyReallocation(outOfBoundsMarket.id, vault)
-          : seekForWithdrawReallocation(outOfBoundsMarket.id, vault),
+          ? seekForSupplyReallocation(
+              outOfBoundsMarket.id,
+              vault,
+              filterIdleMarkets
+            )
+          : seekForWithdrawReallocation(
+              outOfBoundsMarket.id,
+              vault,
+              filterIdleMarkets
+            ),
       };
     }
   );

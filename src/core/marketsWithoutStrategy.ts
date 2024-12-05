@@ -8,8 +8,6 @@ import { formatMarketLink, getMarketName } from "../utils/utils";
 export const getMarketsWithoutStrategy = async (
   networkId: number
 ): Promise<MarketWithoutStrategy[]> => {
-  console.log("fetching strategies");
-
   const strategies = await fetchStrategies(networkId);
 
   const marketWithoutStrategies = strategies.filter(
@@ -21,8 +19,6 @@ export const getMarketsWithoutStrategy = async (
       (strategy.utilizationTarget !== undefined &&
         BigInt(strategy.utilizationTarget) === 0n)
   );
-
-  console.log("fetching market data");
 
   const marketData = await Promise.all(
     marketWithoutStrategies.map(async (strategy) =>

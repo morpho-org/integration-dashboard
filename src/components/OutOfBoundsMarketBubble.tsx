@@ -74,6 +74,49 @@ const MarketLink = styled.a`
   font-weight: bold;
 `;
 
+const ButtonContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 20px auto;
+  flex-direction: row;
+`;
+
+const CheckboxContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: white;
+  white-space: nowrap;
+
+  input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+  }
+`;
+
+const ContentContainer = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+`;
+
+const DataContainer = styled.div`
+  flex: 2;
+`;
+
+const ActionContainer = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+`;
+
 type OutOfBoundsMarketBubbleProps = {
   market: OutOfBoundsMarket;
   networkId: number;
@@ -88,22 +131,23 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reallocationsSearched, setReallocationsSearched] = useState(false);
-  const [buttonVisible, setButtonVisible] = useState(true);
+  const [localFilterIdleMarkets, setLocalFilterIdleMarkets] = useState(false);
 
-  const handleSearchReallocations = async (event: React.MouseEvent) => {
+  const handleSearchReallocations = async (
+    event: React.MouseEvent,
+    filterValue?: boolean
+  ) => {
     event.stopPropagation();
 
     setLoading(true);
     setError(null);
-    setButtonVisible(false);
     try {
-      const fetchedVaults = await lookForReallocations(networkId, market);
-      const filteredVaults = fetchedVaults.filter(
-        (vault) =>
-          !vault.reallocation ||
-          vault.reallocation.supplyMarketParams.collateralToken
+      const fetchedVaults = await lookForReallocations(
+        networkId,
+        market,
+        filterValue ?? localFilterIdleMarkets
       );
-      setVaults(filteredVaults);
+      setVaults(fetchedVaults);
       setReallocationsSearched(true);
     } catch (err) {
       setError("Failed to fetch reallocations");
@@ -156,26 +200,47 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
         </BubbleContent>
         {expanded && (
           <MarketContainer>
-            <p>
-              Supply APY: {formatWAD(market.marketChainData.apys.supplyApy)},
-              Borrow APY: {formatWAD(market.marketChainData.apys.borrowApy)}
-            </p>
-            <p>Utilization: {formatWAD(market.utilization)}</p>
-            <p>{target}</p>
-            <p>{`${
-              market.aboveRange ? "Supply" : "Withdraw"
-            } ${formatTokenAmount(
-              market.amountToReachTarget,
-              market.loanAsset
-            )} ${
-              market.aboveRange ? "into" : "from"
-            } the market to reach target.`}</p>
-
-            {buttonVisible && (
-              <StyledButton onClick={handleSearchReallocations}>
-                Seek for reallocations
-              </StyledButton>
-            )}
+            <ContentContainer>
+              <DataContainer>
+                <p>
+                  Supply APY: {formatWAD(market.marketChainData.apys.supplyApy)}
+                  , Borrow APY:{" "}
+                  {formatWAD(market.marketChainData.apys.borrowApy)}
+                </p>
+                <p>Utilization: {formatWAD(market.utilization)}</p>
+                <p>{target}</p>
+                <p>{`${
+                  market.aboveRange ? "Supply" : "Withdraw"
+                } ${formatTokenAmount(
+                  market.amountToReachTarget,
+                  market.loanAsset
+                )} ${
+                  market.aboveRange ? "into" : "from"
+                } the market to reach target.`}</p>
+              </DataContainer>
+              <ActionContainer>
+                <ButtonContainer>
+                  <StyledButton onClick={handleSearchReallocations}>
+                    Seek for reallocations
+                  </StyledButton>
+                  <CheckboxContainer onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={localFilterIdleMarkets}
+                      onChange={(e) => {
+                        const newValue = e.target.checked;
+                        setLocalFilterIdleMarkets(newValue);
+                        handleSearchReallocations(
+                          e as unknown as React.MouseEvent,
+                          newValue
+                        );
+                      }}
+                    />
+                    <label>Filter idle markets</label>
+                  </CheckboxContainer>
+                </ButtonContainer>
+              </ActionContainer>
+            </ContentContainer>
 
             {loading && <p>Loading reallocations...</p>}
 
@@ -198,6 +263,7 @@ const OutOfBoundsMarketBubble: React.FC<OutOfBoundsMarketBubbleProps> = ({
                     key={vault.vault.link.name}
                     vault={vault}
                     networkId={networkId}
+                    filterIdleMarkets={localFilterIdleMarkets}
                   />
                 ))}
               </>

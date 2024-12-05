@@ -371,23 +371,17 @@ export const fetchMarketsWithWarnings = async (
     (market: MarketWithWarningAPIData) => market.warnings.length > 0
   );
 
-  console.log("markets with warnings");
-
   const marketWithRedWarnings = marketsWithWarnings
     .filter((market) =>
       market.warnings!.some((warning) => warning.level === "RED")
     )
     .map((market) => formatMarketWithWarning(market, networkId));
 
-  console.log("markets with red warnings");
-
   const marketWithoutRedWarnings = marketsWithWarnings
     .filter(
       (market) => !market.warnings!.some((warning) => warning.level === "RED")
     )
     .map((market) => formatMarketWithWarning(market, networkId));
-
-  console.log("markets returned");
 
   return [...marketWithRedWarnings, ...marketWithoutRedWarnings];
 };

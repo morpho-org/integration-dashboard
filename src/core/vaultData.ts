@@ -22,27 +22,19 @@ import { MulticallWrapper } from "ethers-multicall-provider";
 export const getVaultDisplayData = async (
   networkId: number
 ): Promise<VaultData[]> => {
-  console.log("fetching strategies");
-
   const strategies = await fetchStrategies(networkId);
 
   const provider = MulticallWrapper.wrap(getProvider(networkId));
 
-  console.log("fetching whitelisted vaults");
-
   const whitelistedVaults = (
     await fetchWhitelistedMetaMorphos(networkId)
   ).filter((vault) => !vaultBlacklist[networkId]!.includes(vault.address));
-
-  console.log("fetching vaults data");
 
   const vaults = await Promise.all(
     whitelistedVaults.map((vault) =>
       fetchVaultData(vault.address, networkId, strategies, provider)
     )
   );
-
-  console.log("vault data fetched");
 
   const missingFlowCaps = [];
 
@@ -114,8 +106,6 @@ export const getVaultDisplayData = async (
       warnings,
     });
   }
-
-  console.log("everithing fetched");
 
   return sortVaults(missingFlowCaps);
 };
