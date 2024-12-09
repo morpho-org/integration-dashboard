@@ -71,7 +71,7 @@ const FilterSelect = styled.select`
 
 const TableHeader = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
   gap: 10px;
   padding: 10px;
   background-color: #1e2124;
@@ -83,7 +83,7 @@ const TableHeader = styled.div`
 
 const VaultRow = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
   gap: 10px;
   padding: 10px;
   background-color: #2c2f33;
@@ -129,6 +129,16 @@ const AddressText = styled.span`
 
   &:hover {
     color: #2973ff;
+  }
+`;
+
+const VaultNameLink = styled.a`
+  color: white;
+  text-decoration: none;
+
+  &:hover {
+    color: #2973ff;
+    text-decoration: underline;
   }
 `;
 
@@ -303,6 +313,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
         <div>Vault Name</div>
         <div>Withdraw Queue</div>
         <div>Supply Queue</div>
+        <div>Public Allocator</div>
         <div>Flow Caps</div>
         <div>Owner</div>
         <div>Curator</div>
@@ -311,7 +322,16 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
         {filteredVaults.map((vault) => (
           <React.Fragment key={vault.vault.link.name}>
             <VaultRow onClick={() => toggleExpand(vault.vault.link.name)}>
-              <div>{vault.vault.link.name}</div>
+              <div>
+                <VaultNameLink
+                  href={vault.vault.link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {vault.vault.link.name}
+                </VaultNameLink>
+              </div>
               <div>
                 {vault.warnings?.idlePositionWithdrawQueue ? (
                   <WarningText>Warning</WarningText>
@@ -326,7 +346,20 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                   "OK"
                 )}
               </div>
-              <div>{vault.warnings?.missingFlowCaps ? "Warning" : "OK"}</div>
+              <div>
+                {vault.publicAllocatorIsAllocator ? (
+                  <span style={{ color: "white" }}>True</span>
+                ) : (
+                  <WarningText>False</WarningText>
+                )}
+              </div>
+              <div>
+                {vault.warnings?.missingFlowCaps ? (
+                  <WarningText>Warning</WarningText>
+                ) : (
+                  "OK"
+                )}
+              </div>
               <div style={{ whiteSpace: "nowrap" }}>
                 <AddressText
                   title={vault.owner}
@@ -419,7 +452,6 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                   />
                 )}
               </div>
-
               {expandedVault === vault.vault.link.name && (
                 <ExpandedContent>
                   <BubbleContainer>

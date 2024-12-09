@@ -91,6 +91,9 @@ export const fetchVaultData = async (
         symbol
         decimals
       }
+      allocators {
+        address
+      }
       state {
         owner
         curator
@@ -130,6 +133,12 @@ export const fetchVaultData = async (
   const curators: string[] = vault.metadata.curators.map(
     (curator: { name: string }) => {
       return curator.name;
+    }
+  );
+
+  const allocators: string[] = vault.allocators.map(
+    (allocator: { address: string }) => {
+      return allocator.address;
     }
   );
 
@@ -223,6 +232,7 @@ export const fetchVaultData = async (
     asset: vault.asset,
     totalAssets: vault.state.totalAssets,
     curators,
+    allocators,
     owner: vault.state.owner,
     ownerSafeDetails,
     curator: vault.state.curator,
@@ -268,6 +278,40 @@ export const fetchMarketAssets = async (
   return {
     loanAsset: market.loanAsset,
     collateralAsset: market.collateralAsset,
+  };
+};
+
+export const fetchPublicAllocator = async (
+  networkId: number
+): Promise<{ publicAllocator: string }> => {
+  const query = `
+    query {
+  publicAllocators(where:{chainId_in:[${networkId}]}) {
+    items {
+      address
+      creationBlockNumber
+      morphoBlue {
+        address
+        chain {
+          id
+          network
+        }
+      }
+    }
+  }
+}
+    `;
+
+  const response = await fetch(BLUE_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  const data = await response.json();
+  const publicAllocator = data.data.publicAllocators.items[0];
+
+  return {
+    publicAllocator: publicAllocator.address,
   };
 };
 
