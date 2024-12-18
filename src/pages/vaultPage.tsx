@@ -71,7 +71,7 @@ const FilterSelect = styled.select`
 
 const TableHeader = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
   gap: 10px;
   padding: 10px;
   background-color: #1e2124;
@@ -83,7 +83,7 @@ const TableHeader = styled.div`
 
 const VaultRow = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
   gap: 10px;
   padding: 10px;
   background-color: #2c2f33;
@@ -132,6 +132,19 @@ const AddressText = styled.span`
   }
 `;
 
+const VaultNameLink = styled.a`
+  color: white;
+  text-decoration: none;
+
+  &:hover {
+    color: #2973ff;
+    text-decoration: underline;
+  }
+`;
+
+const MisconfiguredText = styled.span`
+  color: #ffa500; // Using orange to distinguish from error state
+`;
 type VaultPageProps = {
   network: "ethereum" | "base";
 };
@@ -186,6 +199,8 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
         return vault.warnings?.idlePositionSupplyQueue === true;
       case "MissingFlowCaps":
         return vault.warnings?.missingFlowCaps === true;
+      case "WrongPublicAllocator":
+        return !vault.publicAllocatorIsAllocator;
       default:
         return true;
     }
@@ -207,6 +222,20 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
 
   const toggleExpand = (vaultName: string) => {
     setExpandedVault(expandedVault === vaultName ? null : vaultName);
+  };
+
+  const getFlowCapsStatus = (vault: VaultData) => {
+    if (vault.warnings?.allCapsTo0) {
+      return <WarningText>Not Configured</WarningText>;
+    }
+
+    if (!vault.warnings?.missingFlowCaps) {
+      return "OK";
+    }
+
+    if (vault.warnings?.missingFlowCaps) {
+      return <MisconfiguredText>Misconfigured</MisconfiguredText>;
+    }
   };
 
   return (
@@ -277,6 +306,9 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
             <option value="WrongWithdrawQueue">Wrong Withdraw Queue</option>
             <option value="WrongSupplyQueue">Wrong Supply Queue</option>
             <option value="MissingFlowCaps">Missing Flow Caps</option>
+            <option value="WrongPublicAllocator">
+              Public Allocator missing
+            </option>
           </FilterSelect>
           <FilterSelect
             value={curatorFilter}
@@ -297,12 +329,13 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
         style={{
           background: "transparent",
           color: "#2973FF",
-          marginTop: "10px",
+          marginTop: "30px",
         }}
       >
         <div>Vault Name</div>
         <div>Withdraw Queue</div>
         <div>Supply Queue</div>
+        <div>Public Allocator</div>
         <div>Flow Caps</div>
         <div>Owner</div>
         <div>Curator</div>
@@ -311,7 +344,16 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
         {filteredVaults.map((vault) => (
           <React.Fragment key={vault.vault.link.name}>
             <VaultRow onClick={() => toggleExpand(vault.vault.link.name)}>
-              <div>{vault.vault.link.name}</div>
+              <div>
+                <VaultNameLink
+                  href={vault.vault.link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {vault.vault.link.name}
+                </VaultNameLink>
+              </div>
               <div>
                 {vault.warnings?.idlePositionWithdrawQueue ? (
                   <WarningText>Warning</WarningText>
@@ -326,7 +368,15 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                   "OK"
                 )}
               </div>
-              <div>{vault.warnings?.missingFlowCaps ? "Warning" : "OK"}</div>
+              <div>
+                {/* // if publiocAllocator is allocator, then we want to hceck : */}
+                {vault.publicAllocatorIsAllocator ? (
+                  <span style={{ color: "white" }}>Ok</span>
+                ) : (
+                  <WarningText>Not Ok</WarningText>
+                )}
+              </div>
+              <div>{getFlowCapsStatus(vault)}</div>
               <div style={{ whiteSpace: "nowrap" }}>
                 <AddressText
                   title={vault.owner}
@@ -382,9 +432,9 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                   >
                     {formatAddress(vault.curator)}
                     {copiedAddress === vault.curator ? (
-                      <CopyCheck size={16} style={{ color: "#2973FF" }} />
+                      <CopyCheck size={12} style={{ color: "#2973FF" }} />
                     ) : (
-                      <Copy size={16} />
+                      <Copy size={12} />
                     )}
                     {vault.curatorSafeDetails?.isSafe ? (
                       <img
@@ -419,7 +469,6 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                   />
                 )}
               </div>
-
               {expandedVault === vault.vault.link.name && (
                 <ExpandedContent>
                   <BubbleContainer>
