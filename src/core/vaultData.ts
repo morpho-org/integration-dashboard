@@ -13,6 +13,7 @@ import {
   getProvider,
 } from "../utils/utils";
 import {
+  fetchPublicAllocator,
   fetchStrategies,
   fetchVaultData,
   fetchWhitelistedMetaMorphos,
@@ -35,6 +36,8 @@ export const getVaultDisplayData = async (
       fetchVaultData(vault.address, networkId, strategies, provider)
     )
   );
+
+  const publicAllocator = await fetchPublicAllocator(networkId);
 
   const missingFlowCaps = [];
 
@@ -83,12 +86,16 @@ export const getVaultDisplayData = async (
 
     const warnings = {
       missingFlowCaps: !markets.every((market) => !market.missing),
+      allCapsTo0: markets.every((market) => market.missing),
       idlePositionWithdrawQueue: !vault.withdrawQueue[0].idle,
       idlePositionSupplyQueue:
         vault.supplyQueue.every((market) => !market.idle) ||
         !vault.supplyQueue[vault.supplyQueue.length - 1].idle,
     };
 
+    const publicAllocatorIsAllocator = vault.allocators.includes(
+      publicAllocator.publicAllocator
+    );
     missingFlowCaps.push({
       vault: {
         address: vault.address,
@@ -108,6 +115,7 @@ export const getVaultDisplayData = async (
       ownerSafeDetails: vault.ownerSafeDetails,
       curator: vault.curator,
       curatorSafeDetails: vault.curatorSafeDetails,
+      publicAllocatorIsAllocator,
     });
   }
 

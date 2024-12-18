@@ -188,6 +188,7 @@ export type MetaMorphoVaultData = {
   supplyQueue: Queue;
   withdrawQueue: Queue;
   curators: string[];
+  allocators: string[];
   markets: {
     id: string;
     link: Link;
@@ -331,6 +332,7 @@ export type VaultData = {
     version?: string;
     multisigConfig?: string;
   };
+  publicAllocatorIsAllocator: boolean;
 };
 
 export type VaultReallocationData = {
@@ -344,6 +346,7 @@ export type VaultWarnings = {
   missingFlowCaps?: boolean;
   idlePositionWithdrawQueue?: boolean;
   idlePositionSupplyQueue?: boolean;
+  allCapsTo0?: boolean;
 };
 
 export type VaultWithBlockingFlowCaps = {
