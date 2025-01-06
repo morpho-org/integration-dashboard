@@ -1,5 +1,5 @@
 import { formatUnits } from "ethers";
-import { MarketFlowCaps, VaultData } from "../utils/types";
+import { MarketFlowCaps, MetaMorphoVaultData, VaultData } from "../utils/types";
 import {
   MaxUint128,
   MaxUint184,
@@ -19,6 +19,7 @@ import {
   fetchWhitelistedMetaMorphos,
 } from "../fetchers/apiFetchers";
 import { MulticallWrapper } from "ethers-multicall-provider";
+import { fetchVaultVersion } from "../fetchers/chainFetcher";
 
 export const getVaultDisplayData = async (
   networkId: number
@@ -31,11 +32,27 @@ export const getVaultDisplayData = async (
     await fetchWhitelistedMetaMorphos(networkId)
   ).filter((vault) => !vaultBlacklist[networkId]!.includes(vault.address));
 
-  const vaults = await Promise.all(
+  const [vaultDataPromises, versionPromises]: [
+    Promise<MetaMorphoVaultData>[],
+    Promise<boolean>[]
+  ] = [
     whitelistedVaults.map((vault) =>
       fetchVaultData(vault.address, networkId, strategies, provider)
-    )
-  );
+    ),
+    whitelistedVaults.map((vault) =>
+      fetchVaultVersion(vault.address, networkId, provider)
+    ),
+  ];
+
+  const [vaultData, versions] = await Promise.all([
+    Promise.all(vaultDataPromises),
+    Promise.all(versionPromises),
+  ]);
+
+  const vaults = vaultData.map((vault, index) => ({
+    ...vault,
+    version: versions[index],
+  }));
 
   const publicAllocator = await fetchPublicAllocator(networkId);
 
@@ -97,6 +114,7 @@ export const getVaultDisplayData = async (
       publicAllocator.publicAllocator
     );
     missingFlowCaps.push({
+      isV1_1: vault.version,
       vault: {
         address: vault.address,
         link: {

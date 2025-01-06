@@ -71,7 +71,7 @@ const FilterSelect = styled.select`
 
 const TableHeader = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 0.5fr 1fr 1fr 1fr 1fr 1fr 1fr;
   gap: 10px;
   padding: 10px;
   background-color: #1e2124;
@@ -83,7 +83,7 @@ const TableHeader = styled.div`
 
 const VaultRow = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 0.5fr 1fr 1fr 1fr 1fr 1fr 1fr;
   gap: 10px;
   padding: 10px;
   background-color: #2c2f33;
@@ -156,6 +156,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
   const [filter, setFilter] = useState<string>("");
   const [warningFilter, setWarningFilter] = useState<string>("");
   const [curatorFilter, setCuratorFilter] = useState<string>("");
+  const [versionFilter, setVersionFilter] = useState<string>("");
 
   const [expandedVault, setExpandedVault] = useState<string | null>(null);
 
@@ -218,7 +219,17 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
         vault.vault.address.toLowerCase().includes(filter.toLowerCase())
     )
     .filter(filterByWarning)
-    .filter(filterByCurator);
+    .filter(filterByCurator)
+    .filter((vault) => {
+      switch (versionFilter) {
+        case "v1.1":
+          return vault.isV1_1;
+        case "v0":
+          return !vault.isV1_1;
+        default:
+          return true;
+      }
+    });
 
   const toggleExpand = (vaultName: string) => {
     setExpandedVault(expandedVault === vaultName ? null : vaultName);
@@ -299,6 +310,14 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
             </SearchIcon>
           </SearchWrapper>
           <FilterSelect
+            value={versionFilter}
+            onChange={(e) => setVersionFilter(e.target.value)}
+          >
+            <option value="">v1.0 & v1.1</option>
+            <option value="v1.1">v1.1</option>
+            <option value="v0">v0</option>
+          </FilterSelect>
+          <FilterSelect
             value={warningFilter}
             onChange={(e) => setWarningFilter(e.target.value)}
           >
@@ -333,6 +352,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
         }}
       >
         <div>Vault Name</div>
+        <div>Version</div>
         <div>Withdraw Queue</div>
         <div>Supply Queue</div>
         <div>Public Allocator</div>
@@ -342,7 +362,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
       </TableHeader>
       <VaultsWrapper style={{ marginTop: "10px" }}>
         {filteredVaults.map((vault) => (
-          <React.Fragment key={vault.vault.link.name}>
+          <React.Fragment key={vault.vault.address}>
             <VaultRow onClick={() => toggleExpand(vault.vault.link.name)}>
               <div>
                 <VaultNameLink
@@ -354,6 +374,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                   {vault.vault.link.name}
                 </VaultNameLink>
               </div>
+              <div>{vault.isV1_1 ? "v1.1" : "v0"}</div>
               <div>
                 {vault.warnings?.idlePositionWithdrawQueue ? (
                   <WarningText>Warning</WarningText>
