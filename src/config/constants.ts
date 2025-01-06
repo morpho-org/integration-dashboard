@@ -25,6 +25,11 @@ export const vaultBlacklist: Record<number, string[]> = {
   8453: ["0xfbDEE8670b273E12b019210426E70091464b02Ab"],
 };
 
+export const FACTORY_ADDRESSES_V1_1 = {
+  1: "0x1897a8997241c1cd4bd0698647e4eb7213535c24", // mainnet
+  8453: "0xFf62A7c278C62eD665133147129245053Bbf5918", // base
+};
+
 // THRESHOLDS
 
 export const USD_FLOWCAP_THRESHOLD = 50000;
