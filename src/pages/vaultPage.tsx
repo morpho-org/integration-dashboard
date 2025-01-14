@@ -71,7 +71,7 @@ const FilterSelect = styled.select`
 
 const TableHeader = styled.div`
   display: grid;
-  grid-template-columns: 1fr 0.5fr 1fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 0.5fr 0.5fr 1fr 1fr 1fr 1fr 1fr 1fr;
   gap: 10px;
   padding: 10px;
   background-color: #1e2124;
@@ -83,7 +83,7 @@ const TableHeader = styled.div`
 
 const VaultRow = styled.div`
   display: grid;
-  grid-template-columns: 1fr 0.5fr 1fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 0.5fr 0.5fr 1fr 1fr 1fr 1fr 1fr 1fr;
   gap: 10px;
   padding: 10px;
   background-color: #2c2f33;
@@ -357,6 +357,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
       >
         <div>Vault Name</div>
         <div>Version</div>
+        <div>Timelock (Days)</div>
         <div>Withdraw Queue</div>
         <div>Supply Queue</div>
         <div>Public Allocator</div>
@@ -379,6 +380,11 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                 </VaultNameLink>
               </div>
               <div>{vault.isV1_1 ? "v1.1" : "v0"}</div>
+              <div>
+                {Number(vault.timelock) % 86400 === 0
+                  ? `${Number(vault.timelock) / 86400}`
+                  : `${(Number(vault.timelock) / 86400).toFixed(1)}`}
+              </div>
               <div>
                 {vault.warnings?.idlePositionWithdrawQueue ? (
                   <WarningText>Warning</WarningText>

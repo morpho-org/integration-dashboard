@@ -3,7 +3,6 @@ import {
   AdaptiveCurveIrm__factory,
   BlueIrm__factory,
   MetaMorpho__factory,
-  MetaMorphoFactory__factory,
   MorphoBlue,
   MorphoBlue__factory,
   PublicAllocator__factory,
@@ -16,13 +15,7 @@ import {
   MarketParams,
   Strategy,
 } from "../utils/types";
-import {
-  FACTORY_ADDRESSES_V1_1,
-  MORPHO,
-  publicAllocatorAddress,
-  WAD,
-  YEAR,
-} from "../config/constants";
+import { MORPHO, publicAllocatorAddress, WAD, YEAR } from "../config/constants";
 import { getMarketId, getMarketName } from "../utils/utils";
 import {
   accrueInterest,
@@ -35,64 +28,6 @@ import {
 } from "../utils/maths";
 import { fetchAssetData } from "./apiFetchers";
 import safeAbi from "../abis/safeAbi.json";
-
-export const fetchVaultVersion = async (
-  vaultAddress: string,
-  networkId: number,
-  provider: Provider
-): Promise<boolean> => {
-  try {
-    // Validate inputs
-    if (!vaultAddress || !networkId || !provider) {
-      console.warn("Missing required parameters:", {
-        vaultAddress,
-        networkId,
-        provider,
-      });
-      return false;
-    }
-
-    // Verify the vault address exists on chain
-    const code = await provider.getCode(vaultAddress);
-    if (code === "0x") {
-      console.warn(`No contract found at address ${vaultAddress}`);
-      return false;
-    }
-
-    const factoryAddress =
-      FACTORY_ADDRESSES_V1_1[networkId as keyof typeof FACTORY_ADDRESSES_V1_1];
-    if (!factoryAddress) {
-      console.warn(`No factory address configured for network ${networkId}`);
-      return false;
-    }
-
-    // Verify factory exists on chain
-    const factoryCode = await provider.getCode(factoryAddress);
-    if (factoryCode === "0x") {
-      console.warn(`No factory contract found at address ${factoryAddress}`);
-      return false;
-    }
-
-    const factory = MetaMorphoFactory__factory.connect(
-      factoryAddress,
-      provider
-    );
-
-    return await factory.isMetaMorpho(vaultAddress);
-  } catch (error) {
-    console.warn(`Error checking vault version for ${vaultAddress}:`, error);
-    // Log additional diagnostic information
-    console.warn("Network details:", {
-      networkId,
-      factoryAddress:
-        FACTORY_ADDRESSES_V1_1[
-          networkId as keyof typeof FACTORY_ADDRESSES_V1_1
-        ],
-      provider: provider || "unknown",
-    });
-    return false;
-  }
-};
 
 export const fetchMarketParamsAndData = async (
   marketId: string,

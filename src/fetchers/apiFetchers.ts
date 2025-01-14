@@ -95,7 +95,11 @@ export const fetchVaultData = async (
       allocators {
         address
       }
+      factory {
+        address
+      }
       state {
+        timelock
         owner
         curator
         totalAssets
@@ -234,6 +238,8 @@ export const fetchVaultData = async (
     totalAssets: vault.state.totalAssets,
     curators,
     allocators,
+    factoryAddress: vault.factory.address,
+    timelock: vault.state.timelock,
     owner: vault.state.owner,
     ownerSafeDetails,
     curator: vault.state.curator,
