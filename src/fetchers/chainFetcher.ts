@@ -54,6 +54,9 @@ export const fetchVaultVersion = async (
     return await factory.isMetaMorpho(vaultAddress);
   } catch (error) {
     console.warn(`Error checking vault version for ${vaultAddress}:`, error);
+    console.log("vaultAddress", vaultAddress);
+    console.log("networkId", networkId);
+    console.log("provider", provider);
     return false;
   }
 };
