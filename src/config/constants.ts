@@ -1,5 +1,4 @@
 // URLS
-
 export const BLUE_API = "https://blue-api.morpho.org/graphql";
 export const WHITELIST_API =
   "https://blue-api.morpho.org/vault-lists/whitelist";
@@ -36,7 +35,7 @@ export const USD_FLOWCAP_THRESHOLD = 50000;
 export const REALLOCATION_THRESHOLD_PERCENT = 2; // 2%
 export const REALLOCATION_DIST_THRESHOLD = 5; // 5%
 export const REALLOCATION_USD_THRESHOLD = 10000;
-
+export const BATCH_SIZE = 20;
 // MATHS
 
 export const WAD = 1000000000000000000n;
