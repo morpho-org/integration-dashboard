@@ -15,7 +15,13 @@ import {
   MarketParams,
   Strategy,
 } from "../utils/types";
-import { MORPHO, publicAllocatorAddress, WAD, YEAR } from "../config/constants";
+import {
+  MORPHO,
+  publicAllocatorAddress,
+  WAD,
+  YEAR,
+  BATCH_SIZE,
+} from "../config/constants";
 import { getMarketId, getMarketName } from "../utils/utils";
 import {
   accrueInterest,
@@ -281,26 +287,86 @@ export const getVaultMarketData = async (
   return marketData;
 };
 
-export async function checkIfSafe(provider: Provider, address: string) {
-  try {
-    const code = await provider.getCode(address);
-    if (code === "0x") return { isSafe: false };
-
-    const safe = new Contract(address, safeAbi, provider);
-
-    const [owners, threshold] = await Promise.all([
-      safe.getOwners(),
-      safe.getThreshold().catch(() => null),
-    ]);
-
-    return {
-      isSafe: true,
-      owners,
-      threshold: threshold.toString(),
-      multisigConfig: `${threshold} out of ${owners.length} owners required`,
+export async function checkIfSafeBatch(
+  provider: Provider,
+  addresses: string[]
+) {
+  console.log("checking: ", addresses);
+  const results: {
+    [address: string]: {
+      isSafe: boolean;
+      owners?: string[];
+      threshold?: string;
+      multisigConfig?: string;
     };
-  } catch (error) {
-    console.log("Not a safe?", error);
-    return { isSafe: false };
+  } = {};
+
+  // Process addresses in batches
+  for (let i = 0; i < addresses.length; i += BATCH_SIZE) {
+    const batch = addresses.slice(i, i + BATCH_SIZE);
+
+    // Process batch in parallel
+    const batchResults = await Promise.all(
+      batch.map(async (address) => {
+        try {
+          // First check if address has code
+          const code = await provider.getCode(address).catch(() => "0x");
+          if (code === "0x") {
+            return [address, { isSafe: false }] as const;
+          }
+
+          const safe = new Contract(address, safeAbi, provider);
+
+          // Try to call Safe-specific methods
+          const [owners, threshold] = await Promise.all([
+            safe.getOwners().catch(() => null),
+            safe.getThreshold().catch(() => null),
+          ]);
+
+          if (!owners || !threshold) {
+            return [address, { isSafe: false }] as const;
+          }
+
+          return [
+            address,
+            {
+              isSafe: true,
+              owners,
+              threshold: threshold.toString(),
+              multisigConfig: `${threshold} out of ${owners.length} owners required`,
+            },
+          ] as const;
+        } catch (error) {
+          return [address, { isSafe: false }] as const;
+        }
+      })
+    );
+
+    // Add batch results to the overall results
+    batchResults.forEach((item) => {
+      const [address, result] = item as [
+        string,
+        {
+          isSafe: boolean;
+          owners?: string[];
+          threshold?: string;
+          multisigConfig?: string;
+        }
+      ];
+      results[address] = result;
+    });
+
+    // Optional: Add a small delay between batches to prevent rate limiting
+    if (i + BATCH_SIZE < addresses.length) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
   }
+
+  return results;
+}
+
+// You can keep the original checkIfSafe as a wrapper for single address checks
+export async function checkIfSafe(provider: Provider, address: string) {
+  const results = await checkIfSafeBatch(provider, [address]);
+  return results[address];
 }

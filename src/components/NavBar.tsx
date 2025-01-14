@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import { Link, useLocation } from "react-router-dom";
+import { getProvider } from "../utils/utils";
 
 const NavBarWrapper = styled.div`
   display: flex;
@@ -117,12 +118,25 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
       networkOptions[0]
   );
 
-  const handleNetworkChange = (network: "ethereum" | "base") => {
-    const option = networkOptions.find((opt) => opt.value === network);
-    if (option) {
-      setSelectedNetwork(option);
-      onNetworkSwitch(network);
-    }
+  const handleNetworkChange = async (network: "ethereum" | "base") => {
+    const simulateDoubleClick = async () => {
+      const option = networkOptions.find((opt) => opt.value === network);
+      if (option) {
+        setSelectedNetwork(option);
+        const networkId = network === "ethereum" ? 1 : 8453;
+
+        try {
+          getProvider(networkId);
+          onNetworkSwitch(network);
+          window.location.reload();
+        } catch (error) {
+          console.error("Failed to switch network:", error);
+        }
+      }
+    };
+
+    await simulateDoubleClick();
+    await simulateDoubleClick();
   };
 
   const navItems = [

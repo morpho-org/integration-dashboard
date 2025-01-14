@@ -20,7 +20,7 @@ import {
   formatMarketWithWarning,
   getMarketName,
 } from "../utils/utils";
-import { checkIfSafe, fetchFlowCaps, getQueues } from "./chainFetcher";
+import { fetchFlowCaps, getQueues, checkIfSafeBatch } from "./chainFetcher";
 
 export const fetchStrategies = async (
   networkId: number
@@ -223,12 +223,11 @@ export const fetchVaultData = async (
       };
     });
 
-  const [ownerSafeDetails, curatorSafeDetails] = await Promise.all([
-    checkIfSafe(provider, vault.state.owner),
-    vault.state.curator
-      ? checkIfSafe(provider, vault.state.curator)
-      : Promise.resolve({ isSafe: false }),
-  ]);
+  const addressesToCheck = [vault.state.owner, vault.state.curator].filter(
+    Boolean
+  );
+
+  const safeResults = await checkIfSafeBatch(provider, addressesToCheck);
 
   return {
     symbol: vault.symbol,
@@ -241,9 +240,11 @@ export const fetchVaultData = async (
     factoryAddress: vault.factory.address,
     timelock: vault.state.timelock,
     owner: vault.state.owner,
-    ownerSafeDetails,
+    ownerSafeDetails: safeResults[vault.state.owner],
     curator: vault.state.curator,
-    curatorSafeDetails,
+    curatorSafeDetails: vault.state.curator
+      ? safeResults[vault.state.curator]
+      : { isSafe: false },
     withdrawQueue,
     supplyQueue,
     markets,
