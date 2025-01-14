@@ -87,6 +87,7 @@ export const fetchMarketParams = async (
     };
     return marketParams;
   } catch (error) {
+    console.error("Error fetching market params", error);
     throw error;
   }
 };
@@ -150,6 +151,7 @@ export const fetchMarketChainData = async (
       apys: { borrowApy, supplyApy },
     };
   } catch (error) {
+    console.error("Error fetching market chain data", error);
     throw error;
   }
 };
@@ -169,6 +171,7 @@ export const fetchFlowCaps = async (
     const caps = await publicAllocator.flowCaps(vaultAddress, marketId);
     return { maxIn: caps[0], maxOut: caps[1] };
   } catch (error) {
+    console.error("Error fetching flow caps", error);
     throw error;
   }
 };
@@ -314,17 +317,15 @@ export async function checkIfSafe(provider: Provider, address: string) {
 
     const safe = new Contract(address, safeAbi, provider);
 
-    const [owners, threshold, version] = await Promise.all([
+    const [owners, threshold] = await Promise.all([
       safe.getOwners(),
-      safe.getThreshold(),
-      safe.VERSION().catch(() => null),
+      safe.getThreshold().catch(() => null),
     ]);
 
     return {
       isSafe: true,
       owners,
       threshold: threshold.toString(),
-      version,
       multisigConfig: `${threshold} out of ${owners.length} owners required`,
     };
   } catch (error) {
