@@ -33,6 +33,9 @@ export const getMarketId = (market: MarketParams) => {
   return keccak256(encodedMarket);
 };
 
+// Add a provider cache to track current provider
+let currentProvider: ethers.JsonRpcProvider | null = null;
+
 export const getProvider = (chainId: number): ethers.JsonRpcProvider => {
   let endpoint: string | undefined;
 
@@ -43,15 +46,26 @@ export const getProvider = (chainId: number): ethers.JsonRpcProvider => {
   }
 
   if (!endpoint) {
-    console.log("RPC_URL not set. Exiting…");
-    process.exit(1);
+    throw new Error("RPC_URL not set");
   }
 
-  if (endpoint) {
-    console.log("RPC_URL is set");
+  // Clear existing provider if network changed
+  if (currentProvider && currentProvider._network.chainId !== BigInt(chainId)) {
+    currentProvider = null;
   }
 
-  return new ethers.JsonRpcProvider(endpoint);
+  // Create new provider if needed
+  if (!currentProvider) {
+    currentProvider = new ethers.JsonRpcProvider(endpoint);
+  }
+
+  return currentProvider;
+};
+
+// Add a function to force provider refresh
+export const refreshProvider = (chainId: number): ethers.JsonRpcProvider => {
+  currentProvider = null;
+  return getProvider(chainId);
 };
 
 export const getNetworkDBBlockingFlowCapsKey = (network: string): string => {

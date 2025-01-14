@@ -4,7 +4,7 @@ import SupplyQueueBubble from "../components/SupplyQueueBubble";
 import VaultFlowCapsBubble from "../components/VaultFlowCapsBubble";
 import { VaultData } from "../utils/types";
 import { getVaultDisplayData } from "../core/vaultData";
-import { getNetworkId } from "../utils/utils";
+import { getNetworkId, refreshProvider } from "../utils/utils";
 import styled from "styled-components";
 import {
   HeaderWrapper,
@@ -172,6 +172,9 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
     setLoading(true);
     setError(null);
     try {
+      const networkId = getNetworkId(network);
+      // Force provider refresh when network changes
+      refreshProvider(networkId);
       const data = await getVaultDisplayData(getNetworkId(network));
       setVaults(data);
     } catch (err) {
