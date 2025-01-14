@@ -49,19 +49,8 @@ export const getProvider = (chainId: number): ethers.JsonRpcProvider => {
     throw new Error("RPC_URL not set");
   }
 
-  // Clear existing provider if network changed
-  try {
-    if (currentProvider) {
-      currentProvider = null;
-    }
-  } catch (error) {
-    console.log("error in utils", error);
-  }
-
-  // Create new provider if needed
-  if (!currentProvider) {
-    currentProvider = new ethers.JsonRpcProvider(endpoint);
-  }
+  // Create new provider each time to ensure fresh connection
+  currentProvider = new ethers.JsonRpcProvider(endpoint);
 
   return currentProvider;
 };
