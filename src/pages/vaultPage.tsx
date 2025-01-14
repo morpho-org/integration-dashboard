@@ -177,6 +177,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
     } catch (err) {
       console.error("Error fetching vault data", err);
       setError("Failed to fetch data");
+      setVaults([]);
     } finally {
       setLoading(false);
     }
@@ -186,6 +187,8 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
   useEffect(() => {
+    setVaults([]);
+    setError(null);
     fetchData(network);
   }, [network]);
 
