@@ -175,6 +175,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
       const data = await getVaultDisplayData(getNetworkId(network));
       setVaults(data);
     } catch (err) {
+      console.error("Error fetching vault data", err);
       setError("Failed to fetch data");
     } finally {
       setLoading(false);

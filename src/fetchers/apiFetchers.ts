@@ -58,6 +58,7 @@ export const fetchWhitelistedMetaMorphos = async (
     );
     return metaMorphos;
   } catch (error) {
+    console.error("Error fetching whitelisted vaults", error);
     throw error;
   }
 };
