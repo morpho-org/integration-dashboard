@@ -42,9 +42,36 @@ export const fetchVaultVersion = async (
   provider: Provider
 ): Promise<boolean> => {
   try {
+    // Validate inputs
+    if (!vaultAddress || !networkId || !provider) {
+      console.warn("Missing required parameters:", {
+        vaultAddress,
+        networkId,
+        provider,
+      });
+      return false;
+    }
+
+    // Verify the vault address exists on chain
+    const code = await provider.getCode(vaultAddress);
+    if (code === "0x") {
+      console.warn(`No contract found at address ${vaultAddress}`);
+      return false;
+    }
+
     const factoryAddress =
       FACTORY_ADDRESSES_V1_1[networkId as keyof typeof FACTORY_ADDRESSES_V1_1];
-    if (!factoryAddress) return false;
+    if (!factoryAddress) {
+      console.warn(`No factory address configured for network ${networkId}`);
+      return false;
+    }
+
+    // Verify factory exists on chain
+    const factoryCode = await provider.getCode(factoryAddress);
+    if (factoryCode === "0x") {
+      console.warn(`No factory contract found at address ${factoryAddress}`);
+      return false;
+    }
 
     const factory = MetaMorphoFactory__factory.connect(
       factoryAddress,
@@ -54,9 +81,15 @@ export const fetchVaultVersion = async (
     return await factory.isMetaMorpho(vaultAddress);
   } catch (error) {
     console.warn(`Error checking vault version for ${vaultAddress}:`, error);
-    console.log("vaultAddress", vaultAddress);
-    console.log("networkId", networkId);
-    console.log("provider", provider);
+    // Log additional diagnostic information
+    console.warn("Network details:", {
+      networkId,
+      factoryAddress:
+        FACTORY_ADDRESSES_V1_1[
+          networkId as keyof typeof FACTORY_ADDRESSES_V1_1
+        ],
+      provider: provider || "unknown",
+    });
     return false;
   }
 };
