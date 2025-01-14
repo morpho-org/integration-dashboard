@@ -119,19 +119,24 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
   );
 
   const handleNetworkChange = async (network: "ethereum" | "base") => {
-    const option = networkOptions.find((opt) => opt.value === network);
-    if (option) {
-      setSelectedNetwork(option);
-      const networkId = network === "ethereum" ? 1 : 8453;
+    const simulateDoubleClick = async () => {
+      const option = networkOptions.find((opt) => opt.value === network);
+      if (option) {
+        setSelectedNetwork(option);
+        const networkId = network === "ethereum" ? 1 : 8453;
 
-      // Force new provider creation
-      try {
-        getProvider(networkId);
-        onNetworkSwitch(network);
-      } catch (error) {
-        console.error("Failed to switch network:", error);
+        try {
+          getProvider(networkId);
+          onNetworkSwitch(network);
+          window.location.reload();
+        } catch (error) {
+          console.error("Failed to switch network:", error);
+        }
       }
-    }
+    };
+
+    await simulateDoubleClick();
+    await simulateDoubleClick();
   };
 
   const navItems = [
