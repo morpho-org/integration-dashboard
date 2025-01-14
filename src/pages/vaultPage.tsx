@@ -173,8 +173,9 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
     setError(null);
     try {
       const networkId = getNetworkId(network);
+      console.log("networkId", networkId);
       // Force provider refresh when network changes
-      refreshProvider(networkId);
+      // await refreshProvider(networkId);
       const data = await getVaultDisplayData(getNetworkId(network));
       setVaults(data);
     } catch (err) {

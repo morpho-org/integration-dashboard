@@ -31,8 +31,11 @@ export const getVaultDisplayData = async (
     fetchPublicAllocator(networkId),
   ]);
 
+  console.log("networkId in vaultData", networkId);
+
   const provider = MulticallWrapper.wrap(getProvider(networkId));
 
+  console.log("provider in vaultData", provider);
   // Filter blacklisted vaults
   const whitelistedVaults = whitelistedMMs.filter(
     (vault) => !vaultBlacklist[networkId]!.includes(vault.address)

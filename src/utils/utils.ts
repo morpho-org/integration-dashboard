@@ -50,8 +50,12 @@ export const getProvider = (chainId: number): ethers.JsonRpcProvider => {
   }
 
   // Clear existing provider if network changed
-  if (currentProvider && currentProvider._network.chainId !== BigInt(chainId)) {
-    currentProvider = null;
+  try {
+    if (currentProvider) {
+      currentProvider = null;
+    }
+  } catch (error) {
+    console.log("error in utils", error);
   }
 
   // Create new provider if needed
@@ -65,7 +69,8 @@ export const getProvider = (chainId: number): ethers.JsonRpcProvider => {
 // Add a function to force provider refresh
 export const refreshProvider = (chainId: number): ethers.JsonRpcProvider => {
   currentProvider = null;
-  return getProvider(chainId);
+  const newProvider = getProvider(chainId);
+  return newProvider;
 };
 
 export const getNetworkDBBlockingFlowCapsKey = (network: string): string => {
