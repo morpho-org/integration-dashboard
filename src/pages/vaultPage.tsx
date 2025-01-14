@@ -4,7 +4,7 @@ import SupplyQueueBubble from "../components/SupplyQueueBubble";
 import VaultFlowCapsBubble from "../components/VaultFlowCapsBubble";
 import { VaultData } from "../utils/types";
 import { getVaultDisplayData } from "../core/vaultData";
-import { getNetworkId, refreshProvider } from "../utils/utils";
+import { getNetworkId } from "../utils/utils";
 import styled from "styled-components";
 import {
   HeaderWrapper,
