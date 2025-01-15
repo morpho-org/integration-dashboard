@@ -1,4 +1,4 @@
-import { formatUnits, MaxUint256 } from "ethers";
+import { formatUnits, maxUint256 } from "viem";
 import {
   MarketReallocationData,
   MetaMorphoVault,
@@ -124,7 +124,7 @@ export const seekForSupplyReallocation = (
   const toSupply = computeToSupplyReallocate(
     vault,
     marketToSupplyInto.id,
-    MaxUint256
+    maxUint256
   ).toSupply;
 
   const enabledMarketIds = Object.keys(vault.positions).filter(
@@ -137,7 +137,7 @@ export const seekForSupplyReallocation = (
   const totalToWithdraw = enabledMarketIds.reduce(
     (total, enabledMarketId) =>
       total +
-      computeToWithdrawReallocate(vault, enabledMarketId, MaxUint256)
+      computeToWithdrawReallocate(vault, enabledMarketId, maxUint256)
         .toWithdraw,
     0n
   );
@@ -146,7 +146,7 @@ export const seekForSupplyReallocation = (
   if (toReallocate === 0n) return;
 
   const totalUsd =
-    +formatUnits(toReallocate, vault.underlyingAsset.decimals) *
+    +formatUnits(toReallocate, Number(vault.underlyingAsset.decimals)) *
     vault.underlyingAsset.priceUsd;
 
   const withdrawals: Withdrawal[] = [];
@@ -278,7 +278,7 @@ export const seekForWithdrawReallocation = (
   const toWithdraw = computeToWithdrawReallocate(
     vault,
     marketToWithdrawFrom.id,
-    MaxUint256
+    maxUint256
   ).toWithdraw;
 
   let supplyMarket = { id: "", amount: 0n };
@@ -290,7 +290,7 @@ export const seekForWithdrawReallocation = (
   );
 
   const amountsToSupply = enabledMarketIds.map(
-    (id) => computeToSupplyReallocate(vault, id, MaxUint256).toSupply,
+    (id) => computeToSupplyReallocate(vault, id, maxUint256).toSupply,
     0n
   );
 
@@ -303,7 +303,7 @@ export const seekForWithdrawReallocation = (
   if (toReallocate === 0n) return;
 
   const totalUsd =
-    +formatUnits(toReallocate, vault.underlyingAsset.decimals) *
+    +formatUnits(toReallocate, Number(vault.underlyingAsset.decimals)) *
     vault.underlyingAsset.priceUsd;
 
   const supplyMarketData = vault.positions[supplyMarket.id].marketData;
@@ -419,7 +419,7 @@ const computeToSupplyReallocate = (
 
   if (toSupply > 0n) {
     let usdValue =
-      Number(formatUnits(toSupply, vault.underlyingAsset.decimals)) *
+      Number(formatUnits(toSupply, Number(vault.underlyingAsset.decimals))) *
       vault.underlyingAsset.priceUsd;
     if (usdValue > REALLOCATION_USD_THRESHOLD)
       return { toSupply, remainingToSupply: remainingToSupply - toSupply };
@@ -446,7 +446,7 @@ const computeToWithdrawReallocate = (
 
   if (toWithdraw > 0n) {
     let usdValue =
-      Number(formatUnits(toWithdraw, vault.underlyingAsset.decimals)) *
+      Number(formatUnits(toWithdraw, Number(vault.underlyingAsset.decimals))) *
       vault.underlyingAsset.priceUsd;
     if (usdValue > REALLOCATION_USD_THRESHOLD)
       return {

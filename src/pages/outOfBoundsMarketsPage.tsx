@@ -128,6 +128,9 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
           <h1 style={{ color: "white", fontWeight: "300" }}>
             Out of Range Markets
           </h1>
+          <h2 style={{ color: "white", fontWeight: "200" }}>
+            {filteredMarkets.length}
+          </h2>
         </TitleContainer>
         <div
           style={{ display: "flex", alignItems: "center", marginTop: "10px" }}

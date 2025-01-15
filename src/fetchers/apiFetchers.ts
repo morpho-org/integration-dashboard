@@ -1,4 +1,3 @@
-import { Provider } from "ethers";
 import {
   BLOCKING_FLOW_CAPS_API,
   BLUE_API,
@@ -20,7 +19,8 @@ import {
   formatMarketWithWarning,
   getMarketName,
 } from "../utils/utils";
-import { fetchFlowCaps, getQueues, checkIfSafeBatch } from "./chainFetcher";
+import { getQueuesAndChecks } from "./chainFetcher";
+import { PublicClient } from "viem";
 
 export const fetchStrategies = async (
   networkId: number
@@ -67,8 +67,45 @@ export const fetchVaultData = async (
   vaultAddress: string,
   networkId: number,
   strategies: Strategy[],
-  provider: Provider
+  client: PublicClient
 ): Promise<MetaMorphoVaultData> => {
+  // Define the GraphQL response type
+  interface VaultQueryResponse {
+    data: {
+      vaults: {
+        items: [
+          {
+            symbol: string;
+            name: string;
+            address: string;
+            metadata: {
+              curators: { name: string }[];
+            };
+            asset: Asset;
+            allocators: { address: string }[];
+            factory: { address: string };
+            state: {
+              timelock: number;
+              owner: string;
+              curator: string;
+              totalAssets: number;
+              allocation: {
+                market: {
+                  loanAsset: { symbol: string };
+                  collateralAsset?: { symbol: string };
+                  lltv: bigint;
+                  uniqueKey: string;
+                };
+                supplyAssets: bigint;
+                supplyCap: bigint;
+              }[];
+            };
+          }
+        ];
+      };
+    };
+  }
+
   const query = `
   query VaulData {
   vaults(
@@ -123,78 +160,55 @@ export const fetchVaultData = async (
 }
   `;
 
-  const [response, { withdrawQueueOrder, supplyQueueOrder }] =
-    await Promise.all([
-      fetch(BLUE_API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, variables: { vault: vaultAddress } }),
-      }),
-      getQueues(vaultAddress, provider),
-    ]);
-  const data = await response.json();
+  // First, get the vault data from the API
+  const response = await fetch(BLUE_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, variables: { vault: vaultAddress } }),
+  });
+
+  const data = (await response.json()) as VaultQueryResponse;
   const vault = data.data.vaults.items[0];
 
-  const curators: string[] = vault.metadata.curators.map(
-    (curator: { name: string }) => {
-      return curator.name;
-    }
-  );
+  // Process curators and allocators
+  const curators = vault.metadata.curators.map((curator) => curator.name);
+  const allocators = vault.allocators.map((allocator) => allocator.address);
 
-  const allocators: string[] = vault.allocators.map(
-    (allocator: { address: string }) => {
-      return allocator.address;
-    }
-  );
+  // Process enabled markets before using them
+  const enabledMarkets = vault.state.allocation.map((current) => ({
+    id: current.market.uniqueKey,
+    name: getMarketName(
+      current.market.loanAsset.symbol,
+      current.market.collateralAsset?.symbol || null,
+      current.market.lltv
+    ),
+    supplyAssets: current.supplyAssets,
+    supplyCap: current.supplyCap,
+    idle: !current.market.collateralAsset,
+  }));
 
-  const enabledMarkets = vault.state.allocation.reduce(
-    (acc: any, current: any) => {
-      acc.push({
-        id: current.market.uniqueKey,
-        name: getMarketName(
-          current.market.loanAsset.symbol,
-          current.market.collateralAsset
-            ? current.market.collateralAsset.symbol
-            : null,
-          current.market.lltv
-        ),
-        supplyAssets: current.supplyAssets,
-        supplyCap: current.supplyCap,
-        idle: !current.market.collateralAsset,
-      });
-      return acc;
+  // Now we can fetch queues and checks
+  const { withdrawQueueOrder, supplyQueueOrder, flowCapsAndSafeResults } =
+    await getQueuesAndChecks(
+      vaultAddress,
+      client,
+      enabledMarkets,
+      networkId,
+      vault.state
+    );
+
+  // Process markets with the flow caps data
+  const markets = enabledMarkets.map((market) => ({
+    id: market.id,
+    link: {
+      name: market.name,
+      url: formatMarketLink(market.id, networkId),
     },
-    []
-  );
-
-  const markets = await Promise.all(
-    enabledMarkets.map(
-      async (market: {
-        id: string;
-        name: string;
-        supplyAssets: bigint;
-        supplyCap: bigint;
-        idle: boolean;
-      }) => {
-        return {
-          id: market.id,
-          link: {
-            name: market.name,
-            url: formatMarketLink(market.id, networkId),
-          },
-          flowCaps: await fetchFlowCaps(
-            vault.address,
-            market.id,
-            networkId,
-            provider
-          ),
-          supplyAssets: market.supplyAssets,
-          supplyCap: market.supplyCap,
-          idle: market.idle,
-        };
-      }
-    )
-  );
+    flowCaps: flowCapsAndSafeResults.flowCaps[market.id],
+    supplyAssets: market.supplyAssets,
+    supplyCap: market.supplyCap,
+    idle: market.idle,
+  }));
 
   const withdrawQueue = markets
     .sort((a, b) => {
@@ -223,12 +237,6 @@ export const fetchVaultData = async (
       };
     });
 
-  const addressesToCheck = [vault.state.owner, vault.state.curator].filter(
-    Boolean
-  );
-
-  const safeResults = await checkIfSafeBatch(provider, addressesToCheck);
-
   return {
     symbol: vault.symbol,
     address: vault.address,
@@ -240,10 +248,10 @@ export const fetchVaultData = async (
     factoryAddress: vault.factory.address,
     timelock: vault.state.timelock,
     owner: vault.state.owner,
-    ownerSafeDetails: safeResults[vault.state.owner],
+    ownerSafeDetails: flowCapsAndSafeResults.safeResults[vault.state.owner],
     curator: vault.state.curator,
     curatorSafeDetails: vault.state.curator
-      ? safeResults[vault.state.curator]
+      ? flowCapsAndSafeResults.safeResults[vault.state.curator]
       : { isSafe: false },
     withdrawQueue,
     supplyQueue,

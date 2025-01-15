@@ -8,13 +8,14 @@ import {
 } from "./wrappers";
 import VaultWithBlockingFlowCapsBubble from "../components/VaultWithBlockingFlowCaps";
 import { fetchBlockingFlowCaps } from "../fetchers/apiFetchers";
-import { extractIdFromUrl, getNetworkId, getProvider } from "../utils/utils";
+import { extractIdFromUrl, getNetworkId } from "../utils/utils";
 
 import styled from "styled-components";
-import { Provider } from "ethers";
-import { PublicAllocator__factory } from "ethers-types";
+import { Abi, PublicClient } from "viem";
+
 import { publicAllocatorAddress } from "../config/constants";
-import { MulticallWrapper } from "ethers-multicall-provider";
+import { publicAllocatorAbi } from "@morpho-org/blue-sdk-viem";
+import { initializeClient } from "../utils/client";
 
 // Add these styled components
 const SearchWrapper = styled.div`
@@ -134,6 +135,9 @@ const BlockingFlowCapsPage: React.FC<BlockingFlowCapsPageProps> = ({
           <h1 style={{ color: "white", fontWeight: "300" }}>
             Vaults With Blocking Flow Caps
           </h1>
+          <h2 style={{ color: "white", fontWeight: "200" }}>
+            Displaying {network === "ethereum" ? "Ethereum" : "Base"} vaults
+          </h2>
         </TitleContainer>
         <div
           style={{ display: "flex", alignItems: "center", marginTop: "10px" }}
@@ -207,7 +211,7 @@ const BlockingFlowCapsPage: React.FC<BlockingFlowCapsPageProps> = ({
       <VaultsWrapper>
         {filteredVaults.map((vault) => (
           <VaultWithBlockingFlowCapsBubble
-            key={vault.vault.link.name}
+            key={`${vault.vault.address}-${vault.vault.link.name}`}
             vaultWithBlockingFlowCaps={vault}
           />
         ))}
@@ -235,12 +239,21 @@ const removeOpenFlowCaps = async (
   blockingFlowCaps: BlockingFlowCaps[],
   networkId: number
 ) => {
-  const provider = MulticallWrapper.wrap(getProvider(networkId));
+  const [{ client: clientMainnet }, { client: clientBase }] = await Promise.all(
+    [initializeClient(1), initializeClient(8453)]
+  );
+
+  let client: PublicClient;
+  if (networkId === 1) {
+    client = clientMainnet;
+  } else if (networkId === 8453) {
+    client = clientBase;
+  }
 
   return await Promise.all(
     blockingFlowCaps.filter(
       async (blockingFlowCap) =>
-        await isOpen(blockingFlowCap, networkId, provider)
+        await isOpen(blockingFlowCap, networkId, client)
     )
   );
 };
@@ -248,17 +261,22 @@ const removeOpenFlowCaps = async (
 const isOpen = async (
   blockingFlowCap: BlockingFlowCaps,
   networkId: number,
-  provider: Provider
+  client: PublicClient
 ) => {
-  const publicAllocator = PublicAllocator__factory.connect(
-    publicAllocatorAddress[networkId]!,
-    provider
-  );
+  const publicAllocator = (await client.readContract({
+    address: publicAllocatorAddress[networkId]! as `0x${string}`,
+    abi: publicAllocatorAbi as Abi,
+    functionName: "flowCaps",
+    args: [
+      blockingFlowCap.vault.address,
+      extractIdFromUrl(blockingFlowCap.market.url),
+    ],
+  })) as { maxIn: bigint; maxOut: bigint };
 
-  const flowCaps = await publicAllocator.flowCaps(
-    blockingFlowCap.vault.address,
-    extractIdFromUrl(blockingFlowCap.market.url)
-  );
+  const flowCaps = {
+    maxIn: publicAllocator.maxIn,
+    maxOut: publicAllocator.maxOut,
+  };
 
   const maxInOpen = blockingFlowCap.maxIn
     ? flowCaps.maxIn >= blockingFlowCap.maxIn

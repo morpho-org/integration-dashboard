@@ -1,4 +1,4 @@
-import { formatUnits } from "ethers";
+import { formatUnits, withRetry } from "viem";
 import { MarketFlowCaps, MetaMorphoVaultData, VaultData } from "../utils/types";
 import {
   FACTORY_ADDRESSES_V1_1,
@@ -11,7 +11,6 @@ import {
   formatTokenAmount,
   formatUsdAmount,
   formatVaultLink,
-  getProvider,
 } from "../utils/utils";
 import {
   fetchPublicAllocator,
@@ -19,7 +18,8 @@ import {
   fetchVaultData,
   fetchWhitelistedMetaMorphos,
 } from "../fetchers/apiFetchers";
-import { MulticallWrapper } from "ethers-multicall-provider";
+import { initializeClient } from "../utils/client";
+import { PublicClient } from "viem/_types/clients/createPublicClient";
 
 export const getVaultDisplayData = async (
   networkId: number
@@ -32,47 +32,68 @@ export const getVaultDisplayData = async (
   ]);
 
   console.log("networkId in vaultData", networkId);
+  // Initialize clients in parallel
+  const [{ client: clientMainnet }, { client: clientBase }] = await Promise.all(
+    [initializeClient(1), initializeClient(8453)]
+  );
 
-  const provider = MulticallWrapper.wrap(getProvider(networkId));
+  let client: PublicClient;
+  if (networkId === 1) {
+    client = clientMainnet;
+  } else if (networkId === 8453) {
+    client = clientBase;
+  }
 
-  console.log("provider in vaultData", provider);
   // Filter blacklisted vaults
-  const whitelistedVaults = whitelistedMMs.filter(
-    (vault) => !vaultBlacklist[networkId]!.includes(vault.address)
-  );
+  const whitelistedVaults = whitelistedMMs
+    // .slice(0, 5)
+    .filter((vault) => !vaultBlacklist[networkId]!.includes(vault.address));
 
-  // Fetch all vault data in parallel
-  const vaultData = await Promise.all(
-    whitelistedVaults.map((vault) =>
-      fetchVaultData(vault.address, networkId, strategies, provider)
-    )
-  );
+  // Fetch vault data in batches
+  const BATCH_SIZE = 10;
+  const vaultData = [];
+
+  for (let i = 0; i < whitelistedVaults.length; i += BATCH_SIZE) {
+    const batch = whitelistedVaults.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map((vault) =>
+        withRetry(() =>
+          fetchVaultData(vault.address, networkId, strategies, client)
+        )
+      )
+    );
+    vaultData.push(...batchResults);
+  }
+
+  console.log("finalized querying vault data");
 
   // Process vault data
-  const processedVaults = vaultData.map((vault) => {
-    const markets = processMarkets(vault);
-    const warnings = generateWarnings(markets, vault);
+  const processedVaults = vaultData
+    .filter((vault) => vault !== undefined)
+    .map((vault) => {
+      const markets = processMarkets(vault);
+      const warnings = generateWarnings(markets, vault);
 
-    return {
-      isV1_1: vault.factoryAddress
-        ? isV1_1Factory(vault.factoryAddress, networkId)
-        : false,
-      timelock: vault.timelock,
-      vault: formatVaultInfo(vault, networkId),
-      markets: sortMarkets(markets),
-      warnings,
-      curators: vault.curators,
-      supplyQueue: vault.supplyQueue,
-      withdrawQueue: vault.withdrawQueue,
-      owner: vault.owner,
-      ownerSafeDetails: vault.ownerSafeDetails,
-      curator: vault.curator,
-      curatorSafeDetails: vault.curatorSafeDetails,
-      publicAllocatorIsAllocator: vault.allocators.includes(
-        publicAllocator.publicAllocator
-      ),
-    };
-  });
+      return {
+        isV1_1: vault.factoryAddress
+          ? isV1_1Factory(vault.factoryAddress, networkId)
+          : false,
+        timelock: vault.timelock,
+        vault: formatVaultInfo(vault, networkId),
+        markets: sortMarkets(markets),
+        warnings,
+        curators: vault.curators,
+        supplyQueue: vault.supplyQueue,
+        withdrawQueue: vault.withdrawQueue,
+        owner: vault.owner,
+        ownerSafeDetails: vault.ownerSafeDetails,
+        curator: vault.curator,
+        curatorSafeDetails: vault.curatorSafeDetails,
+        publicAllocatorIsAllocator: vault.allocators.includes(
+          publicAllocator.publicAllocator
+        ),
+      };
+    });
 
   return sortVaults(processedVaults);
 };
@@ -81,13 +102,13 @@ export const getVaultDisplayData = async (
 const processMarkets = (vault: MetaMorphoVaultData): MarketFlowCaps[] => {
   return vault.markets.map((market) => {
     const maxInUsd =
-      +formatUnits(market.flowCaps.maxIn, vault.asset.decimals) *
+      +formatUnits(market.flowCaps.maxIn, Number(vault.asset.decimals)) *
       vault.asset.priceUsd;
     const maxOutUsd =
-      +formatUnits(market.flowCaps.maxOut, vault.asset.decimals) *
+      +formatUnits(market.flowCaps.maxOut, Number(vault.asset.decimals)) *
       vault.asset.priceUsd;
     const supplyAssetsUsd =
-      +formatUnits(market.supplyAssets, vault.asset.decimals) *
+      +formatUnits(market.supplyAssets, Number(vault.asset.decimals)) *
       vault.asset.priceUsd;
 
     return {
@@ -111,7 +132,7 @@ const processMarkets = (vault: MetaMorphoVaultData): MarketFlowCaps[] => {
         market.supplyCap === MaxUint184
           ? "MAX"
           : formatUsdAmount(
-              +formatUnits(market.supplyCap, vault.asset.decimals) *
+              +formatUnits(market.supplyCap, Number(vault.asset.decimals)) *
                 vault.asset.priceUsd
             ),
       missing:
