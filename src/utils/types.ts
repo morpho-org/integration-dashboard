@@ -190,7 +190,7 @@ export type MetaMorphoVaultData = {
   curators: string[];
   allocators: string[];
   factoryAddress?: string;
-  timelock?: string;
+  timelock?: number;
   markets: {
     id: string;
     link: Link;
@@ -314,7 +314,7 @@ export type UtilizationTarget = {
 export type VaultData = {
   vault: VaultDisplayData;
   isV1_1: boolean;
-  timelock?: string;
+  timelock?: number;
   curators: string[];
   markets: MarketFlowCaps[];
   supplyQueue: Queue;

@@ -22,7 +22,7 @@ import {
   WEXP_UPPER_VALUE,
   YEAR,
 } from "../config/constants";
-import { MaxUint256, ZeroAddress } from "ethers";
+import { maxUint256, zeroAddress } from "viem";
 
 export const pow10 = (exponant: bigint | number) => 10n ** BigInt(exponant);
 
@@ -202,7 +202,7 @@ export const computeSupplyValue = (
   );
   const toSupply =
     newUtilization === 0n
-      ? MaxUint256
+      ? maxUint256
       : wDivDown(marketData.marketState.totalBorrowAssets, newUtilization) -
         marketData.marketState.totalSupplyAssets;
   return { amount: toSupply, newUtilization };
@@ -255,7 +255,7 @@ export const getReallocationData = (
   if (!strategy || strategy.blacklist) return;
   if (strategy.idleMarket)
     return {
-      toSupply: MaxUint256,
+      toSupply: maxUint256,
       toWithdraw: marketChainData.marketState.totalSupplyAssets,
       toBorrow: 0n,
     };
@@ -363,7 +363,7 @@ export const computeNewBorrowAPY = (
   newUtilization: bigint,
   rateAtTarget: bigint
 ) => {
-  if (irm !== ZeroAddress) {
+  if (irm !== zeroAddress) {
     let newRate = 0n;
     if (newUtilization > TARGET_UTILIZATION) {
       newRate =

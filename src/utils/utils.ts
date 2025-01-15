@@ -1,4 +1,4 @@
-import { AbiCoder, ethers, keccak256 } from "ethers";
+import { encodeAbiParameters, keccak256 } from "viem";
 import {
   Apys,
   Asset,
@@ -20,46 +20,23 @@ export const isUtilizationOutOfRange = (utilization: bigint, range: Range) => {
 };
 
 export const getMarketId = (market: MarketParams) => {
-  const encodedMarket = AbiCoder.defaultAbiCoder().encode(
-    ["address", "address", "address", "address", "uint256"],
+  const encodedMarket = encodeAbiParameters(
     [
-      market.loanToken,
-      market.collateralToken,
-      market.oracle,
-      market.irm,
+      { name: "loanToken", type: "address" },
+      { name: "collateralToken", type: "address" },
+      { name: "oracle", type: "address" },
+      { name: "irm", type: "address" },
+      { name: "lltv", type: "uint256" },
+    ],
+    [
+      market.loanToken as `0x${string}`,
+      market.collateralToken as `0x${string}`,
+      market.oracle as `0x${string}`,
+      market.irm as `0x${string}`,
       market.lltv,
     ]
   );
   return keccak256(encodedMarket);
-};
-
-// Add a provider cache to track current provider
-let currentProvider: ethers.JsonRpcProvider | null = null;
-
-export const getProvider = (chainId: number): ethers.JsonRpcProvider => {
-  let endpoint: string | undefined;
-
-  if (chainId === 1) {
-    endpoint = process.env.REACT_APP_RPC_URL_MAINNET;
-  } else if (chainId === 8453) {
-    endpoint = process.env.REACT_APP_RPC_URL_BASE;
-  }
-
-  if (!endpoint) {
-    throw new Error("RPC_URL not set");
-  }
-
-  // Create new provider each time to ensure fresh connection
-  currentProvider = new ethers.JsonRpcProvider(endpoint);
-
-  return currentProvider;
-};
-
-// Add a function to force provider refresh
-export const refreshProvider = (chainId: number): ethers.JsonRpcProvider => {
-  currentProvider = null;
-  const newProvider = getProvider(chainId);
-  return newProvider;
 };
 
 export const getNetworkDBBlockingFlowCapsKey = (network: string): string => {

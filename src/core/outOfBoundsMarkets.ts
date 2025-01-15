@@ -4,46 +4,69 @@ import {
   computeWithdrawValue,
   wDivDown,
 } from "./../utils/maths";
-import { MulticallWrapper } from "ethers-multicall-provider";
 import { fetchMarketAssets, fetchStrategies } from "../fetchers/apiFetchers";
 import { fetchMarketParamsAndData } from "../fetchers/chainFetcher";
 import { OutOfBoundsMarket } from "../utils/types";
 import {
   formatMarketLink,
   getMarketName,
-  getProvider,
   isApyOutOfRange,
   isUtilizationOutOfRange,
 } from "../utils/utils";
 import { computeUtilization } from "../utils/maths";
-import { formatUnits } from "ethers";
+import { formatUnits, PublicClient, withRetry } from "viem";
+import { initializeClient } from "../utils/client";
+
+const BATCH_SIZE = 25;
+
+const fetchMarketDataWithRetry = async (
+  strategy: any,
+  client: PublicClient
+): Promise<any> => {
+  const [{ loanAsset, collateralAsset }, { marketParams, marketChainData }] =
+    await Promise.all([
+      fetchMarketAssets(strategy.id),
+      withRetry(() => fetchMarketParamsAndData(client, strategy.id)),
+    ]);
+
+  return {
+    id: strategy.id,
+    strategy,
+    loanAsset,
+    collateralAsset,
+    marketParams,
+    marketChainData,
+  };
+};
 
 export const getOutOfBoundsMarkets = async (
   networkId: number
 ): Promise<OutOfBoundsMarket[]> => {
-  const provider = MulticallWrapper.wrap(getProvider(networkId));
+  const [{ client: clientMainnet }, { client: clientBase }] = await Promise.all(
+    [initializeClient(1), initializeClient(8453)]
+  );
+
+  let client: PublicClient;
+  if (networkId === 1) {
+    client = clientMainnet;
+  } else if (networkId === 8453) {
+    client = clientBase;
+  }
 
   const strategies = await fetchStrategies(networkId);
 
-  const whitelistedMarkets = await Promise.all(
-    strategies.map(async (strategy) => {
-      const [
-        { loanAsset, collateralAsset },
-        { marketParams, marketChainData },
-      ] = await Promise.all([
-        fetchMarketAssets(strategy.id),
-        fetchMarketParamsAndData(strategy.id, provider),
-      ]);
-      return {
-        id: strategy.id,
-        strategy: strategy,
-        loanAsset,
-        collateralAsset,
-        marketParams,
-        marketChainData,
-      };
-    })
-  );
+  // Fetch market data in batches with retry mechanism
+  const whitelistedMarkets = [];
+  for (let i = 0; i < strategies.length; i += BATCH_SIZE) {
+    console.log("fetching batch", i);
+    const batch = strategies.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map((strategy) => fetchMarketDataWithRetry(strategy, client))
+    );
+    whitelistedMarkets.push(
+      ...batchResults.filter((result) => result !== undefined)
+    );
+  }
 
   console.log("whitelisted markets fetched");
 
@@ -108,7 +131,7 @@ export const getOutOfBoundsMarkets = async (
         totalSupplyUsd:
           +formatUnits(
             market.marketChainData.marketState.totalBorrowAssets,
-            market.loanAsset.decimals
+            Number(market.loanAsset.decimals)
           ) * market.loanAsset.priceUsd,
         loanAsset: market.loanAsset,
         collateralAsset: market.collateralAsset,
@@ -164,7 +187,7 @@ export const getOutOfBoundsMarkets = async (
         totalSupplyUsd:
           +formatUnits(
             market.marketChainData.marketState.totalBorrowAssets,
-            market.loanAsset.decimals
+            Number(market.loanAsset.decimals)
           ) * market.loanAsset.priceUsd,
         loanAsset: market.loanAsset,
         collateralAsset: market.collateralAsset,

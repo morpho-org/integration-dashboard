@@ -43,8 +43,8 @@ const VaultWithBlockingFlowCapsBubble: React.FC<
         </h3>
         {expanded && (
           <MarketContainer>
-            {vaultWithBlockingFlowCaps.blockingFlowCaps.map((item) => (
-              <BlockingFlowCapsBubble blockingFlowCaps={item} />
+            {vaultWithBlockingFlowCaps.blockingFlowCaps.map((item, index) => (
+              <BlockingFlowCapsBubble key={index} blockingFlowCaps={item} />
             ))}
           </MarketContainer>
         )}

@@ -13,6 +13,7 @@ import {
   VaultsWrapper,
 } from "./wrappers";
 import { Copy, CopyCheck, ChevronDown, ChevronUp } from "lucide-react";
+
 // Add these styled components
 const SearchWrapper = styled.div`
   position: relative;
@@ -262,6 +263,9 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
       <HeaderWrapper>
         <TitleContainer>
           <h1 style={{ color: "white", fontWeight: "300" }}>Morpho Vaults</h1>
+          <h2 style={{ color: "white", fontWeight: "200" }}>
+            Number of vaults: {filteredVaults.length}
+          </h2>
         </TitleContainer>
         <div
           style={{ display: "flex", alignItems: "center", marginTop: "10px" }}
@@ -350,7 +354,9 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
           </FilterSelect>
         </div>
       </HeaderWrapper>
-      {loading && <p style={{ color: "white" }}>Loading...</p>}
+      {loading && (
+        <p style={{ color: "white" }}>Loading needs beetwen 3 to 10 seconds</p>
+      )}
       {error && <p style={{ color: "white" }}>{error}</p>}
       <TableHeader
         style={{
