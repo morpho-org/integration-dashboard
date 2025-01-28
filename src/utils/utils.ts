@@ -78,7 +78,7 @@ export const getMarketName = (
   if (!collateralSymbol) {
     return `${loanSymbol} idle market`;
   } else {
-    return `${collateralSymbol}/${loanSymbol}(${formatWAD(lltv)})`;
+    return `${collateralSymbol}/${loanSymbol} (${formatWAD(lltv)})`;
   }
 };
 
