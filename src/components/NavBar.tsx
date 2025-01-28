@@ -38,7 +38,7 @@ const NavLink = styled(Link)<{ $isActive: boolean }>`
   }
 `;
 
-const NetworkSelector = styled.div`
+export const NetworkSelector = styled.div`
   display: flex;
   align-items: center;
   background-color: #2c2f33;
@@ -47,7 +47,7 @@ const NetworkSelector = styled.div`
   margin-left: auto;
 `;
 
-const NetworkButton = styled.button<{ $isActive: boolean }>`
+export const NetworkButton = styled.button<{ $isActive: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -68,8 +68,8 @@ const NetworkButton = styled.button<{ $isActive: boolean }>`
   }
 `;
 
-const ethLogo = "https://cdn.morpho.org/assets/chains/eth.svg";
-const baseLogo = "https://cdn.morpho.org/assets/chains/base.png";
+export const ethLogo = "https://cdn.morpho.org/assets/chains/eth.svg";
+export const baseLogo = "https://cdn.morpho.org/assets/chains/base.png";
 
 type NetworkOption = {
   value: "ethereum" | "base";
@@ -135,6 +135,7 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
     { path: "/markets-without-strategy", label: "Strategyless Markets" },
     { path: "/out-of-bounds-markets", label: "Out of Range Markets" },
     { path: "/blocking-flow-caps", label: "Blocking Flow Caps" },
+    { path: "/manual-reallocation", label: "Manual Reallocation" },
   ];
 
   return (

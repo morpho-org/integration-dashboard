@@ -6,7 +6,7 @@ import OutOfBoundsMarketsPage from "./pages/outOfBoundsMarketsPage";
 import MarketWarningsPage from "./pages/marketWarningsPage";
 import MarketsWithoutStrategyPage from "./pages/marketWithoutStrategyPage";
 import BlockingFlowCapsPage from "./pages/blockingFlowCapsPage";
-
+import ManualReallocationPage from "./pages/manualReallocationPage";
 const App: React.FC = () => {
   const [network, setNetwork] = useState<"ethereum" | "base">("ethereum");
 
@@ -48,6 +48,10 @@ const App: React.FC = () => {
           <Route
             path="/blocking-flow-caps"
             element={<BlockingFlowCapsPage network={network} />}
+          />{" "}
+          <Route
+            path="/manual-reallocation"
+            element={<ManualReallocationPage network={network} />}
           />{" "}
         </Routes>
       </div>
