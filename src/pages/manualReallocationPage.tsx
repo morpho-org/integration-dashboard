@@ -92,7 +92,16 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
 
   const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setInputs((prev) => ({ ...prev, [name]: value }));
+    // Add formatting for requestedLiquidity input
+    if (name === "requestedLiquidity") {
+      // Remove any non-digit characters
+      const numericValue = value.replace(/[^\d]/g, "");
+      // Add thousand separators
+      const formattedValue = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      setInputs((prev) => ({ ...prev, [name]: formattedValue }));
+    } else {
+      setInputs((prev) => ({ ...prev, [name]: value }));
+    }
     setResult(null);
     setError(null);
     setInputLoading(true);
@@ -118,10 +127,12 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     setError("");
     setResult(null);
     try {
+      // Remove thousand separators before processing
+      const numericValue = inputs.requestedLiquidity.replace(/,/g, "");
       const res = await compareAndReallocate(
         inputs.marketId as MarketId,
         Number(inputs.chainId) as ChainId,
-        BigInt(inputs.requestedLiquidity)
+        BigInt(numericValue)
       );
       setResult(res);
     } catch (err) {
