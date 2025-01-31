@@ -486,13 +486,25 @@ export async function compareAndReallocate(
       market.totalBorrowAssets;
     result.apiMetrics.maxBorrowWithoutReallocation = maxAdditionalBorrow;
 
-    // Check if we need reallocation
-    if (
+    const needsReallocation =
       MarketUtils.getUtilization({
         totalSupplyAssets: newTotalSupplyAssets,
         totalBorrowAssets: newTotalBorrowAssets,
-      }) > supplyTargetUtilization
-    ) {
+      }) > supplyTargetUtilization;
+
+    // Simulate borrow impact without reallocation
+    const borrowAmount = MathLib.min(
+      scaledRequestedLiquidity,
+      market.liquidity
+    );
+
+    const targetMarketBorrowSimulated = market.borrow(
+      borrowAmount,
+      0n,
+      Time.timestamp()
+    );
+
+    if (needsReallocation) {
       // Calculate required assets for target utilization
       let requiredAssets =
         MathLib.wDivDown(newTotalBorrowAssets, supplyTargetUtilization) -
@@ -611,6 +623,30 @@ export async function compareAndReallocate(
         };
       }
     } else {
+      // Add simulation results even when no reallocation is needed
+      result.simulation = {
+        targetMarket: {
+          preReallocation: {
+            liquidity: market.liquidity,
+            borrowApy: market.borrowApy,
+            utilization: market.utilization,
+          },
+          postReallocation: {
+            liquidity: market.liquidity,
+            borrowApy: market.borrowApy,
+            reallocatedAmount: 0n,
+            utilization: market.utilization,
+          },
+          postBorrow: {
+            liquidity: targetMarketBorrowSimulated.market.liquidity,
+            borrowApy: targetMarketBorrowSimulated.market.borrowApy,
+            borrowAmount,
+            utilization: targetMarketBorrowSimulated.market.utilization,
+          },
+        },
+        sourceMarkets: {},
+      };
+
       result.reason = {
         type: "success",
         message:
