@@ -26,24 +26,24 @@ import {
  */
 export const DEFAULT_SUPPLY_TARGET_UTILIZATION = 90_5000000000000000n;
 
-interface VaultReallocation {
+export interface VaultReallocation {
   id: MarketId;
   assets: bigint;
 }
 
-interface WithdrawalDetails {
+export interface WithdrawalDetails {
   marketId: MarketId;
   marketParams: MarketParams;
   amount: bigint;
   sourceMarketLiquidity: bigint;
 }
 
-interface ProcessedWithdrawals {
+export interface ProcessedWithdrawals {
   withdrawalsPerVault: { [vaultAddress: string]: WithdrawalDetails[] };
   totalReallocated: bigint;
 }
 
-interface MarketSimulationResult {
+export interface MarketSimulationResult {
   preReallocation: {
     liquidity: bigint;
     borrowApy: bigint;
@@ -57,7 +57,7 @@ interface MarketSimulationResult {
   };
 }
 
-interface SimulationResults {
+export interface SimulationResults {
   targetMarket: MarketSimulationResult & {
     postBorrow: {
       liquidity: bigint;
@@ -85,6 +85,8 @@ interface AllocationMarket {
   targetWithdrawUtilization: string;
   state: {
     utilization: number;
+    supplyAssets: bigint;
+    borrowAssets: bigint;
   };
 }
 
@@ -157,6 +159,8 @@ query MarketByUniqueKeyReallocatable($uniqueKey: String!, $chainId: Int!) {
         targetWithdrawUtilization
         state {
           utilization
+          supplyAssets
+          borrowAssets
         } 
         uniqueKey
         collateralAsset {
@@ -439,7 +443,8 @@ function simulateMarketStates(
 export async function compareAndReallocate(
   marketId: MarketId,
   chainId: number,
-  requestedLiquidity: bigint
+  requestedLiquidity: bigint,
+  modifiedWithdrawals?: ProcessedWithdrawals
 ): Promise<ReallocationResult> {
   const result: ReallocationResult = {
     requestedLiquidity,
@@ -559,22 +564,32 @@ export async function compareAndReallocate(
           );
         }
 
-        result.reallocation = {
-          withdrawals: {
-            withdrawalsPerVault,
-            totalReallocated,
-          },
-          liquidityNeededFromReallocation: requiredAssets,
-          reallocatableLiquidity: totalReallocated,
-          isLiquidityFullyMatched,
-          liquidityShortfall: isLiquidityFullyMatched
-            ? 0n
-            : scaledRequestedLiquidity -
-              (result.currentMarketLiquidity + totalReallocated),
-        };
+        if (modifiedWithdrawals) {
+          result.reallocation = {
+            withdrawals: modifiedWithdrawals,
+            liquidityNeededFromReallocation: requiredAssets,
+            reallocatableLiquidity: modifiedWithdrawals.totalReallocated,
+            isLiquidityFullyMatched: true,
+            liquidityShortfall: 0n,
+          };
+        } else {
+          result.reallocation = {
+            withdrawals: {
+              withdrawalsPerVault,
+              totalReallocated,
+            },
+            liquidityNeededFromReallocation: requiredAssets,
+            reallocatableLiquidity: totalReallocated,
+            isLiquidityFullyMatched,
+            liquidityShortfall: isLiquidityFullyMatched
+              ? 0n
+              : scaledRequestedLiquidity -
+                (result.currentMarketLiquidity + totalReallocated),
+          };
+        }
 
         // Generate raw transaction if we have reallocations
-        if (totalReallocated > 0n) {
+        if (result.reallocation.withdrawals.totalReallocated > 0n) {
           const supplyMarketParams = MarketParams.get(marketId);
 
           // Sort withdrawals by market id for consistency
