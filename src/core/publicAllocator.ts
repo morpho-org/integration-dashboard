@@ -26,24 +26,24 @@ import {
  */
 export const DEFAULT_SUPPLY_TARGET_UTILIZATION = 90_5000000000000000n;
 
-interface VaultReallocation {
+export interface VaultReallocation {
   id: MarketId;
   assets: bigint;
 }
 
-interface WithdrawalDetails {
+export interface WithdrawalDetails {
   marketId: MarketId;
   marketParams: MarketParams;
   amount: bigint;
   sourceMarketLiquidity: bigint;
 }
 
-interface ProcessedWithdrawals {
+export interface ProcessedWithdrawals {
   withdrawalsPerVault: { [vaultAddress: string]: WithdrawalDetails[] };
   totalReallocated: bigint;
 }
 
-interface MarketSimulationResult {
+export interface MarketSimulationResult {
   preReallocation: {
     liquidity: bigint;
     borrowApy: bigint;
@@ -57,7 +57,7 @@ interface MarketSimulationResult {
   };
 }
 
-interface SimulationResults {
+export interface SimulationResults {
   targetMarket: MarketSimulationResult & {
     postBorrow: {
       liquidity: bigint;
@@ -85,6 +85,8 @@ interface AllocationMarket {
   targetWithdrawUtilization: string;
   state: {
     utilization: number;
+    supplyAssets: bigint;
+    borrowAssets: bigint;
   };
 }
 
@@ -157,6 +159,8 @@ query MarketByUniqueKeyReallocatable($uniqueKey: String!, $chainId: Int!) {
         targetWithdrawUtilization
         state {
           utilization
+          supplyAssets
+          borrowAssets
         } 
         uniqueKey
         collateralAsset {
@@ -276,10 +280,6 @@ async function fetchMarketMetricsFromAPI(marketId: MarketId, chainId: number) {
 
 async function fetchMarketData(loader: LiquidityLoader, marketId: MarketId) {
   const rpcData = await loader.fetch(marketId);
-  console.log(
-    "Market data loader withdrawals retrieved: ",
-    rpcData.withdrawals
-  );
   return {
     rpcData,
     hasReallocatableLiquidity: rpcData.withdrawals.length > 0,
@@ -371,15 +371,16 @@ function simulateMarketStates(
 
   // Get initial and final states for target market
   const marketInitial = rpcData.startState.getMarket(marketId);
-  const marketSimulated = simulatedState.getMarket(marketId);
-  const reallocatedAmount = marketSimulated.liquidity - marketInitial.liquidity;
+  const marketPostReallocationSimulated = simulatedState.getMarket(marketId);
+  const reallocatedAmount =
+    marketPostReallocationSimulated.liquidity - marketInitial.liquidity;
 
   // Simulate borrow impact
   const borrowAmount = MathLib.min(
     requestedLiquidity,
-    marketSimulated.liquidity
+    marketPostReallocationSimulated.liquidity
   );
-  const borrowResult = marketSimulated.borrow(
+  const borrowResult = marketPostReallocationSimulated.borrow(
     borrowAmount,
     0n,
     Time.timestamp()
@@ -420,10 +421,10 @@ function simulateMarketStates(
         utilization: marketInitial.utilization,
       },
       postReallocation: {
-        liquidity: marketSimulated.liquidity,
-        borrowApy: marketSimulated.borrowApy,
+        liquidity: marketPostReallocationSimulated.liquidity,
+        borrowApy: marketPostReallocationSimulated.borrowApy,
         reallocatedAmount,
-        utilization: marketSimulated.utilization,
+        utilization: marketPostReallocationSimulated.utilization,
       },
       postBorrow: {
         liquidity: marketPostBorrow.liquidity,
@@ -439,7 +440,8 @@ function simulateMarketStates(
 export async function compareAndReallocate(
   marketId: MarketId,
   chainId: number,
-  requestedLiquidity: bigint
+  requestedLiquidity: bigint,
+  modifiedWithdrawals?: ProcessedWithdrawals
 ): Promise<ReallocationResult> {
   const result: ReallocationResult = {
     requestedLiquidity,
@@ -486,13 +488,25 @@ export async function compareAndReallocate(
       market.totalBorrowAssets;
     result.apiMetrics.maxBorrowWithoutReallocation = maxAdditionalBorrow;
 
-    // Check if we need reallocation
-    if (
+    const needsReallocation =
       MarketUtils.getUtilization({
         totalSupplyAssets: newTotalSupplyAssets,
         totalBorrowAssets: newTotalBorrowAssets,
-      }) > supplyTargetUtilization
-    ) {
+      }) > supplyTargetUtilization;
+
+    // Simulate borrow impact without reallocation
+    const borrowAmount = MathLib.min(
+      scaledRequestedLiquidity,
+      market.liquidity
+    );
+
+    const targetMarketBorrowSimulated = market.borrow(
+      borrowAmount,
+      0n,
+      Time.timestamp()
+    );
+
+    if (needsReallocation) {
       // Calculate required assets for target utilization
       let requiredAssets =
         MathLib.wDivDown(newTotalBorrowAssets, supplyTargetUtilization) -
@@ -547,22 +561,32 @@ export async function compareAndReallocate(
           );
         }
 
-        result.reallocation = {
-          withdrawals: {
-            withdrawalsPerVault,
-            totalReallocated,
-          },
-          liquidityNeededFromReallocation: requiredAssets,
-          reallocatableLiquidity: totalReallocated,
-          isLiquidityFullyMatched,
-          liquidityShortfall: isLiquidityFullyMatched
-            ? 0n
-            : scaledRequestedLiquidity -
-              (result.currentMarketLiquidity + totalReallocated),
-        };
+        if (modifiedWithdrawals) {
+          result.reallocation = {
+            withdrawals: modifiedWithdrawals,
+            liquidityNeededFromReallocation: requiredAssets,
+            reallocatableLiquidity: modifiedWithdrawals.totalReallocated,
+            isLiquidityFullyMatched: true,
+            liquidityShortfall: 0n,
+          };
+        } else {
+          result.reallocation = {
+            withdrawals: {
+              withdrawalsPerVault,
+              totalReallocated,
+            },
+            liquidityNeededFromReallocation: requiredAssets,
+            reallocatableLiquidity: totalReallocated,
+            isLiquidityFullyMatched,
+            liquidityShortfall: isLiquidityFullyMatched
+              ? 0n
+              : scaledRequestedLiquidity -
+                (result.currentMarketLiquidity + totalReallocated),
+          };
+        }
 
         // Generate raw transaction if we have reallocations
-        if (totalReallocated > 0n) {
+        if (result.reallocation.withdrawals.totalReallocated > 0n) {
           const supplyMarketParams = MarketParams.get(marketId);
 
           // Sort withdrawals by market id for consistency
@@ -611,6 +635,30 @@ export async function compareAndReallocate(
         };
       }
     } else {
+      // Add simulation results even when no reallocation is needed
+      result.simulation = {
+        targetMarket: {
+          preReallocation: {
+            liquidity: market.liquidity,
+            borrowApy: market.borrowApy,
+            utilization: market.utilization,
+          },
+          postReallocation: {
+            liquidity: market.liquidity,
+            borrowApy: market.borrowApy,
+            reallocatedAmount: 0n,
+            utilization: market.utilization,
+          },
+          postBorrow: {
+            liquidity: targetMarketBorrowSimulated.market.liquidity,
+            borrowApy: targetMarketBorrowSimulated.market.borrowApy,
+            borrowAmount,
+            utilization: targetMarketBorrowSimulated.market.utilization,
+          },
+        },
+        sourceMarkets: {},
+      };
+
       result.reason = {
         type: "success",
         message:
