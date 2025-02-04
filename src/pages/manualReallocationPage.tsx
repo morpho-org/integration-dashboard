@@ -105,7 +105,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
 }) => {
   const [inputs, setInputs] = useState({
     marketId:
-      "0xd0e50cdac92fe2172043f5e0c36532c6369d24947e40968f34a5e8819ca9ec5d",
+      "0x9103c3b4e834476c9a62ea009ba2c884ee42e94e6e314a26f04d312434191836",
     chainId: network === "ethereum" ? "1" : "8453",
     requestedLiquidity: "10",
   });
@@ -157,13 +157,13 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
 
   const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    // Add formatting for requestedLiquidity input
+    // For requestedLiquidity input
     if (name === "requestedLiquidity") {
-      // Remove any non-digit characters
+      // Remove any non-digit characters from input
       const numericValue = value.replace(/[^\d]/g, "");
-      // Add thousand separators
-      const formattedValue = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-      setInputs((prev) => ({ ...prev, [name]: formattedValue }));
+
+      // Store raw numeric value in state
+      setInputs((prev) => ({ ...prev, [name]: numericValue }));
     } else {
       setInputs((prev) => ({ ...prev, [name]: value }));
     }
@@ -327,7 +327,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                 <input
                   type="text"
                   name="requestedLiquidity"
-                  value={inputs.requestedLiquidity}
+                  value={Number(inputs.requestedLiquidity).toLocaleString()}
                   onChange={handleInputChange}
                   className="w-full p-2 rounded bg-gray-800 text-xs"
                 />
@@ -934,8 +934,8 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                 <span className="text-red-400 ml-2">
                                   {Number(
                                     formatUnits(
-                                      result.simulation.targetMarket.postBorrow
-                                        .utilization -
+                                      result.simulation.targetMarket
+                                        .postReallocation.utilization -
                                         result.simulation.targetMarket
                                           .preReallocation.utilization,
                                       16
@@ -1287,284 +1287,281 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                     </div>
                   </SimpleCard>
 
-                  {result.rawTransaction && (
-                    <SimpleCard title="Reallocation Execution">
-                      <div className="space-y-4">
-                        {/* Wallet Connection */}
-                        <div className="flex justify-end mb-4">
-                          <ConnectButton />
-                        </div>
+                  <SimpleCard title="Reallocation Execution">
+                    <div className="space-y-4">
+                      {/* Wallet Connection */}
+                      <div className="flex justify-end mb-4">
+                        <ConnectButton />
+                      </div>
 
-                        {/* Reallocation Details Table */}
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-700">
-                            <thead>
-                              <tr>
-                                <th className="px-4 py-2 text-left text-sm text-gray-400">
-                                  Vault
-                                </th>
-                                <th className="px-4 py-2 text-left text-sm text-gray-400">
-                                  Market
-                                </th>
-                                <th className="px-4 py-2 text-left text-sm text-gray-400">
-                                  Max Reallocatable
-                                </th>
-                                <th className="px-4 py-2 text-left text-sm text-gray-400">
-                                  Current Utilization
-                                </th>
-                                <th className="px-4 py-2 text-left text-sm text-gray-400">
-                                  Modified Amount
-                                </th>
-                                <th className="px-4 py-2 text-left text-sm text-gray-400">
-                                  Modified Value (USD)
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-700">
-                              {result.apiMetrics.publicAllocatorSharedLiquidity.map(
-                                (item) => (
-                                  <tr
-                                    key={`${item.vault.address}-${item.allocationMarket.uniqueKey}`}
-                                    className="hover:bg-gray-800/50"
-                                  >
-                                    <td className="px-4 py-2 text-sm">
-                                      <a
-                                        href={formatVaultLink(
-                                          item.vault.address,
-                                          Number(inputs.chainId)
-                                        )}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-gray-300 hover:text-blue-400"
-                                      >
-                                        {item.vault.name}
-                                      </a>
-                                    </td>
-                                    <td className="px-4 py-2 text-sm">
-                                      <a
-                                        href={formatMarketLink(
-                                          item.allocationMarket.uniqueKey,
-                                          Number(inputs.chainId)
-                                        )}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-gray-300 hover:text-blue-400"
-                                      >
-                                        {getMarketName(
-                                          item.allocationMarket.loanAsset
-                                            .symbol,
-                                          item.allocationMarket.collateralAsset
-                                            ?.symbol || null,
-                                          BigInt(item.allocationMarket.lltv)
-                                        )}
-                                      </a>
-                                    </td>
-                                    <td className="px-4 py-2 text-sm">
-                                      {formatUsdWithStyle(
-                                        formatUsdAmount(
-                                          Number(
-                                            formatUnits(
-                                              BigInt(item.assets),
-                                              result.apiMetrics.decimals
-                                            )
-                                          ) * result.apiMetrics.priceUsd,
-                                          2
-                                        )
+                      {/* Reallocation Details Table */}
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-700">
+                          <thead>
+                            <tr>
+                              <th className="px-4 py-2 text-left text-sm text-gray-400">
+                                Vault
+                              </th>
+                              <th className="px-4 py-2 text-left text-sm text-gray-400">
+                                Market
+                              </th>
+                              <th className="px-4 py-2 text-left text-sm text-gray-400">
+                                Max Reallocatable
+                              </th>
+                              <th className="px-4 py-2 text-left text-sm text-gray-400">
+                                Current Utilization
+                              </th>
+                              <th className="px-4 py-2 text-left text-sm text-gray-400">
+                                Modified Amount
+                              </th>
+                              <th className="px-4 py-2 text-left text-sm text-gray-400">
+                                Modified Value (USD)
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-700">
+                            {result.apiMetrics.publicAllocatorSharedLiquidity.map(
+                              (item) => (
+                                <tr
+                                  key={`${item.vault.address}-${item.allocationMarket.uniqueKey}`}
+                                  className="hover:bg-gray-800/50"
+                                >
+                                  <td className="px-4 py-2 text-sm">
+                                    <a
+                                      href={formatVaultLink(
+                                        item.vault.address,
+                                        Number(inputs.chainId)
                                       )}
-                                      <br />
-                                      <span className="text-gray-400">
-                                        (
-                                        {Number(
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-gray-300 hover:text-blue-400"
+                                    >
+                                      {item.vault.name}
+                                    </a>
+                                  </td>
+                                  <td className="px-4 py-2 text-sm">
+                                    <a
+                                      href={formatMarketLink(
+                                        item.allocationMarket.uniqueKey,
+                                        Number(inputs.chainId)
+                                      )}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-gray-300 hover:text-blue-400"
+                                    >
+                                      {getMarketName(
+                                        item.allocationMarket.loanAsset.symbol,
+                                        item.allocationMarket.collateralAsset
+                                          ?.symbol || null,
+                                        BigInt(item.allocationMarket.lltv)
+                                      )}
+                                    </a>
+                                  </td>
+                                  <td className="px-4 py-2 text-sm">
+                                    {formatUsdWithStyle(
+                                      formatUsdAmount(
+                                        Number(
                                           formatUnits(
                                             BigInt(item.assets),
                                             result.apiMetrics.decimals
                                           )
-                                        ).toFixed(2)}{" "}
-                                        {result.apiMetrics.symbol})
-                                      </span>
-                                    </td>
-                                    <td className="px-4 py-2 text-sm">
-                                      {(
-                                        item.allocationMarket.state
-                                          .utilization * 100
-                                      ).toFixed(2)}
-                                      %
-                                      {modifiedAmounts[
-                                        `${item.vault.address}-${item.allocationMarket.uniqueKey}`
-                                      ] &&
-                                        Number(
+                                        ) * result.apiMetrics.priceUsd,
+                                        2
+                                      )
+                                    )}
+                                    <br />
+                                    <span className="text-gray-400">
+                                      (
+                                      {Number(
+                                        formatUnits(
+                                          BigInt(item.assets),
+                                          result.apiMetrics.decimals
+                                        )
+                                      ).toFixed(2)}{" "}
+                                      {result.apiMetrics.symbol})
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-2 text-sm">
+                                    {(
+                                      item.allocationMarket.state.utilization *
+                                      100
+                                    ).toFixed(2)}
+                                    %
+                                    {modifiedAmounts[
+                                      `${item.vault.address}-${item.allocationMarket.uniqueKey}`
+                                    ] &&
+                                      Number(
+                                        modifiedAmounts[
+                                          `${item.vault.address}-${item.allocationMarket.uniqueKey}`
+                                        ]
+                                      ) > 0 && (
+                                        <span className="text-red-400">
+                                          {" → "}
+                                          {(
+                                            ((Number(
+                                              item.allocationMarket.state
+                                                .borrowAssets
+                                            ) +
+                                              Number(
+                                                parseUnits(
+                                                  modifiedAmounts[
+                                                    `${item.vault.address}-${item.allocationMarket.uniqueKey}`
+                                                  ],
+                                                  result.apiMetrics.decimals
+                                                )
+                                              )) /
+                                              Number(
+                                                item.allocationMarket.state
+                                                  .supplyAssets
+                                              )) *
+                                            100
+                                          ).toFixed(2)}
+                                          %
+                                        </span>
+                                      )}
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        onClick={() =>
+                                          handleAmountChange(
+                                            item.vault.address,
+                                            item.allocationMarket.uniqueKey,
+                                            formatUnits(
+                                              BigInt(item.assets),
+                                              result.apiMetrics.decimals
+                                            )
+                                          )
+                                        }
+                                        className="text-xs text-gray-400 hover:text-blue-400 px-1"
+                                      >
+                                        MAX
+                                      </button>
+                                      <input
+                                        type="text"
+                                        className="flex-1 p-2 rounded bg-gray-800 text-xs"
+                                        value={
                                           modifiedAmounts[
                                             `${item.vault.address}-${item.allocationMarket.uniqueKey}`
-                                          ]
-                                        ) > 0 && (
-                                          <span className="text-red-400">
-                                            {" → "}
-                                            {(
-                                              ((Number(
-                                                item.allocationMarket.state
-                                                  .borrowAssets
-                                              ) +
-                                                Number(
-                                                  parseUnits(
-                                                    modifiedAmounts[
-                                                      `${item.vault.address}-${item.allocationMarket.uniqueKey}`
-                                                    ],
-                                                    result.apiMetrics.decimals
-                                                  )
-                                                )) /
-                                                Number(
-                                                  item.allocationMarket.state
-                                                    .supplyAssets
-                                                )) *
-                                              100
-                                            ).toFixed(2)}
-                                            %
-                                          </span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-2">
-                                      <div className="flex items-center gap-1">
-                                        <button
-                                          onClick={() =>
-                                            handleAmountChange(
-                                              item.vault.address,
-                                              item.allocationMarket.uniqueKey,
-                                              formatUnits(
-                                                BigInt(item.assets),
-                                                result.apiMetrics.decimals
-                                              )
-                                            )
-                                          }
-                                          className="text-xs text-gray-400 hover:text-blue-400 px-1"
-                                        >
-                                          MAX
-                                        </button>
-                                        <input
-                                          type="text"
-                                          className="flex-1 p-2 rounded bg-gray-800 text-xs"
-                                          value={
-                                            modifiedAmounts[
-                                              `${item.vault.address}-${item.allocationMarket.uniqueKey}`
-                                            ] || "0"
-                                          }
-                                          onChange={(e) =>
-                                            handleAmountChange(
-                                              item.vault.address,
-                                              item.allocationMarket.uniqueKey,
-                                              e.target.value
-                                            )
-                                          }
-                                        />
-                                        <button
-                                          onClick={() =>
-                                            handleAmountChange(
-                                              item.vault.address,
-                                              item.allocationMarket.uniqueKey,
-                                              "0"
-                                            )
-                                          }
-                                          className="text-xs text-gray-400 hover:text-blue-400 px-1"
-                                        >
-                                          MIN
-                                        </button>
-                                      </div>
-                                    </td>
-                                    <td className="px-4 py-2 text-sm">
-                                      {modifiedAmounts[
-                                        `${item.vault.address}-${item.allocationMarket.uniqueKey}`
-                                      ] ? (
-                                        <>
-                                          {formatUsdWithStyle(
-                                            formatUsdAmount(
-                                              Number(
-                                                modifiedAmounts[
-                                                  `${item.vault.address}-${item.allocationMarket.uniqueKey}`
-                                                ]
-                                              ) * result.apiMetrics.priceUsd,
-                                              2
-                                            )
-                                          )}
-                                          <br />
-                                          <span className="text-gray-400">
-                                            (
-                                            {Number(
+                                          ] || "0"
+                                        }
+                                        onChange={(e) =>
+                                          handleAmountChange(
+                                            item.vault.address,
+                                            item.allocationMarket.uniqueKey,
+                                            e.target.value
+                                          )
+                                        }
+                                      />
+                                      <button
+                                        onClick={() =>
+                                          handleAmountChange(
+                                            item.vault.address,
+                                            item.allocationMarket.uniqueKey,
+                                            "0"
+                                          )
+                                        }
+                                        className="text-xs text-gray-400 hover:text-blue-400 px-1"
+                                      >
+                                        MIN
+                                      </button>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-2 text-sm">
+                                    {modifiedAmounts[
+                                      `${item.vault.address}-${item.allocationMarket.uniqueKey}`
+                                    ] ? (
+                                      <>
+                                        {formatUsdWithStyle(
+                                          formatUsdAmount(
+                                            Number(
                                               modifiedAmounts[
                                                 `${item.vault.address}-${item.allocationMarket.uniqueKey}`
                                               ]
-                                            ).toFixed(2)}{" "}
-                                            {result.apiMetrics.symbol})
-                                          </span>
-                                        </>
-                                      ) : (
-                                        "-"
-                                      )}
-                                    </td>
-                                  </tr>
-                                )
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex justify-end gap-4 mt-4">
-                          <TransactionSimulatorV2
-                            networkId={Number(inputs.chainId)}
-                            marketId={inputs.marketId as MarketId}
-                            withdrawalsPerVault={Object.entries(
-                              modifiedAmounts
-                            ).reduce((acc, [key, amount]) => {
-                              const [vaultAddress, marketId] = key.split("-");
-                              if (!acc[vaultAddress]) {
-                                acc[vaultAddress] = [];
-                              }
-                              if (amount && Number(amount) > 0) {
-                                acc[vaultAddress].push({
-                                  marketId: marketId as MarketId,
-                                  amount: parseUnits(
-                                    amount,
-                                    result.apiMetrics.decimals
-                                  ),
-                                  marketParams: MarketParams.get(
-                                    marketId as MarketId
-                                  ),
-                                  sourceMarketLiquidity: BigInt(0),
-                                });
-                              }
-                              return acc;
-                            }, {} as { [vaultAddress: string]: WithdrawalDetails[] })}
-                          />
-
-                          <TransactionSenderV2
-                            networkId={Number(inputs.chainId)}
-                            marketId={inputs.marketId as MarketId}
-                            withdrawalsPerVault={Object.entries(
-                              modifiedAmounts
-                            ).reduce((acc, [key, amount]) => {
-                              const [vaultAddress, marketId] = key.split("-");
-                              if (!acc[vaultAddress]) {
-                                acc[vaultAddress] = [];
-                              }
-                              if (amount && Number(amount) > 0) {
-                                acc[vaultAddress].push({
-                                  marketId: marketId as MarketId,
-                                  amount: parseUnits(
-                                    amount,
-                                    result.apiMetrics.decimals
-                                  ),
-                                  marketParams: MarketParams.get(
-                                    marketId as MarketId
-                                  ),
-                                  sourceMarketLiquidity: BigInt(0),
-                                });
-                              }
-                              return acc;
-                            }, {} as { [vaultAddress: string]: WithdrawalDetails[] })}
-                          />
-                        </div>
+                                            ) * result.apiMetrics.priceUsd,
+                                            2
+                                          )
+                                        )}
+                                        <br />
+                                        <span className="text-gray-400">
+                                          (
+                                          {Number(
+                                            modifiedAmounts[
+                                              `${item.vault.address}-${item.allocationMarket.uniqueKey}`
+                                            ]
+                                          ).toFixed(2)}{" "}
+                                          {result.apiMetrics.symbol})
+                                        </span>
+                                      </>
+                                    ) : (
+                                      "-"
+                                    )}
+                                  </td>
+                                </tr>
+                              )
+                            )}
+                          </tbody>
+                        </table>
                       </div>
-                    </SimpleCard>
-                  )}
+
+                      {/* Action Buttons */}
+                      <div className="flex justify-end gap-4 mt-4">
+                        <TransactionSimulatorV2
+                          networkId={Number(inputs.chainId)}
+                          marketId={inputs.marketId as MarketId}
+                          withdrawalsPerVault={Object.entries(
+                            modifiedAmounts
+                          ).reduce((acc, [key, amount]) => {
+                            const [vaultAddress, marketId] = key.split("-");
+                            if (!acc[vaultAddress]) {
+                              acc[vaultAddress] = [];
+                            }
+                            if (amount && Number(amount) > 0) {
+                              acc[vaultAddress].push({
+                                marketId: marketId as MarketId,
+                                amount: parseUnits(
+                                  amount,
+                                  result.apiMetrics.decimals
+                                ),
+                                marketParams: MarketParams.get(
+                                  marketId as MarketId
+                                ),
+                                sourceMarketLiquidity: BigInt(0),
+                              });
+                            }
+                            return acc;
+                          }, {} as { [vaultAddress: string]: WithdrawalDetails[] })}
+                        />
+
+                        <TransactionSenderV2
+                          networkId={Number(inputs.chainId)}
+                          marketId={inputs.marketId as MarketId}
+                          withdrawalsPerVault={Object.entries(
+                            modifiedAmounts
+                          ).reduce((acc, [key, amount]) => {
+                            const [vaultAddress, marketId] = key.split("-");
+                            if (!acc[vaultAddress]) {
+                              acc[vaultAddress] = [];
+                            }
+                            if (amount && Number(amount) > 0) {
+                              acc[vaultAddress].push({
+                                marketId: marketId as MarketId,
+                                amount: parseUnits(
+                                  amount,
+                                  result.apiMetrics.decimals
+                                ),
+                                marketParams: MarketParams.get(
+                                  marketId as MarketId
+                                ),
+                                sourceMarketLiquidity: BigInt(0),
+                              });
+                            }
+                            return acc;
+                          }, {} as { [vaultAddress: string]: WithdrawalDetails[] })}
+                        />
+                      </div>
+                    </div>
+                  </SimpleCard>
                 </div>
               )}
             </>

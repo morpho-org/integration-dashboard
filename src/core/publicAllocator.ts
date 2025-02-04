@@ -280,10 +280,6 @@ async function fetchMarketMetricsFromAPI(marketId: MarketId, chainId: number) {
 
 async function fetchMarketData(loader: LiquidityLoader, marketId: MarketId) {
   const rpcData = await loader.fetch(marketId);
-  console.log(
-    "Market data loader withdrawals retrieved: ",
-    rpcData.withdrawals
-  );
   return {
     rpcData,
     hasReallocatableLiquidity: rpcData.withdrawals.length > 0,
@@ -375,15 +371,16 @@ function simulateMarketStates(
 
   // Get initial and final states for target market
   const marketInitial = rpcData.startState.getMarket(marketId);
-  const marketSimulated = simulatedState.getMarket(marketId);
-  const reallocatedAmount = marketSimulated.liquidity - marketInitial.liquidity;
+  const marketPostReallocationSimulated = simulatedState.getMarket(marketId);
+  const reallocatedAmount =
+    marketPostReallocationSimulated.liquidity - marketInitial.liquidity;
 
   // Simulate borrow impact
   const borrowAmount = MathLib.min(
     requestedLiquidity,
-    marketSimulated.liquidity
+    marketPostReallocationSimulated.liquidity
   );
-  const borrowResult = marketSimulated.borrow(
+  const borrowResult = marketPostReallocationSimulated.borrow(
     borrowAmount,
     0n,
     Time.timestamp()
@@ -424,10 +421,10 @@ function simulateMarketStates(
         utilization: marketInitial.utilization,
       },
       postReallocation: {
-        liquidity: marketSimulated.liquidity,
-        borrowApy: marketSimulated.borrowApy,
+        liquidity: marketPostReallocationSimulated.liquidity,
+        borrowApy: marketPostReallocationSimulated.borrowApy,
         reallocatedAmount,
-        utilization: marketSimulated.utilization,
+        utilization: marketPostReallocationSimulated.utilization,
       },
       postBorrow: {
         liquidity: marketPostBorrow.liquidity,
