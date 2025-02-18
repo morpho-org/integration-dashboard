@@ -182,9 +182,11 @@ export type MetaMorphoVault = {
 export type MetaMorphoVaultData = {
   symbol: string;
   address: string;
+  isWhitelisted: boolean;
   name: string;
   asset: Asset;
   totalAssets: number;
+  totalAssetsUsd: number;
   supplyQueue: Queue;
   withdrawQueue: Queue;
   curators: string[];
@@ -337,6 +339,7 @@ export type VaultData = {
     multisigConfig?: string;
   };
   publicAllocatorIsAllocator: boolean;
+  isWhitelisted: boolean;
 };
 
 export type VaultReallocationData = {

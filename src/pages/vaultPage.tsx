@@ -4,7 +4,7 @@ import SupplyQueueBubble from "../components/SupplyQueueBubble";
 import VaultFlowCapsBubble from "../components/VaultFlowCapsBubble";
 import { VaultData } from "../utils/types";
 import { getVaultDisplayData } from "../core/vaultData";
-import { getNetworkId } from "../utils/utils";
+import { formatUsdAmount, getNetworkId } from "../utils/utils";
 import styled from "styled-components";
 import {
   HeaderWrapper,
@@ -72,7 +72,7 @@ const FilterSelect = styled.select`
 
 const TableHeader = styled.div`
   display: grid;
-  grid-template-columns: 1fr 0.5fr 0.5fr 1fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 0.5fr 0.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
   gap: 10px;
   padding: 10px;
   background-color: #1e2124;
@@ -84,7 +84,7 @@ const TableHeader = styled.div`
 
 const VaultRow = styled.div`
   display: grid;
-  grid-template-columns: 1fr 0.5fr 0.5fr 1fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 0.5fr 0.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
   gap: 10px;
   padding: 10px;
   background-color: #2c2f33;
@@ -162,6 +162,16 @@ const BlinkingAddressText = styled(AddressText)`
   }
 `;
 
+const formatUsdWithStyle = (amount: string, color?: string) => {
+  const [dollars, cents] = amount.split(".");
+  return (
+    <span style={{ color: color || "#2973FF" }}>
+      {dollars}
+      <span style={{ color: "rgba(255, 255, 255, 0.5)" }}>.{cents}</span>
+    </span>
+  );
+};
+
 type VaultPageProps = {
   network: "ethereum" | "base";
 };
@@ -174,6 +184,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
   const [warningFilter, setWarningFilter] = useState<string>("");
   const [curatorFilter, setCuratorFilter] = useState<string>("");
   const [versionFilter, setVersionFilter] = useState<string>("");
+  const [whitelistFilter, setWhitelistFilter] = useState<string>("whitelisted");
 
   const [expandedVault, setExpandedVault] = useState<string | null>(null);
 
@@ -185,20 +196,35 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
     setTimeout(() => setCopiedAddress(null), 2000);
   };
 
-  const fetchData = async (network: "ethereum" | "base") => {
+  const fetchData = async (
+    network: "ethereum" | "base",
+    isWhitelistedOnly: boolean = true
+  ) => {
     setLoading(true);
     setError(null);
     try {
       const networkId = getNetworkId(network);
-      console.log("networkId", networkId);
-      // Force provider refresh when network changes
-      // await refreshProvider(networkId);
-      const data = await getVaultDisplayData(getNetworkId(network));
-      setVaults(data);
+      const data = await getVaultDisplayData(networkId, isWhitelistedOnly);
+      // Filter out any malformed vault data
+      const validVaults = data.filter((vault) => {
+        try {
+          // Basic validation that required properties exist
+          return vault && vault.vault && vault.vault.asset;
+        } catch (e) {
+          console.warn("Skipping malformed vault data:", vault);
+          return false;
+        }
+      });
+      setVaults(validVaults);
+      if (validVaults.length < data.length) {
+        setError(
+          "Some vaults could not be loaded completely but displaying available data"
+        );
+      }
     } catch (err) {
       console.error("Error fetching vault data", err);
-      setError("Failed to fetch data");
-      setVaults([]);
+      setError("Some data failed to load but displaying available vaults");
+      // Don't clear existing vaults, keep showing what we have
     } finally {
       setLoading(false);
     }
@@ -210,8 +236,9 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
   useEffect(() => {
     setVaults([]);
     setError(null);
-    fetchData(network);
-  }, [network]);
+    const isWhitelistedOnly = whitelistFilter === "whitelisted";
+    fetchData(network, isWhitelistedOnly);
+  }, [network, whitelistFilter]);
 
   const allCurators = vaults
     .flatMap((vault) => vault.curators)
@@ -219,6 +246,8 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
 
   const filterByWarning = (vault: VaultData) => {
     switch (warningFilter) {
+      case "NotWhitelisted":
+        return !vault.isWhitelisted;
       case "WrongWithdrawQueue":
         return vault.warnings?.idlePositionWithdrawQueue === true;
       case "WrongSupplyQueue":
@@ -264,8 +293,8 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
       }
     });
 
-  const toggleExpand = (vaultName: string) => {
-    setExpandedVault(expandedVault === vaultName ? null : vaultName);
+  const toggleExpand = (vaultAddress: string) => {
+    setExpandedVault(expandedVault === vaultAddress ? null : vaultAddress);
   };
 
   const getFlowCapsStatus = (vault: VaultData) => {
@@ -289,6 +318,17 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
           <h1 style={{ color: "white", fontWeight: "300" }}>Morpho Vaults</h1>
           <h2 style={{ color: "white", fontWeight: "200" }}>
             Number of vaults: {filteredVaults.length}
+          </h2>
+          <h2 style={{ color: "white", fontWeight: "200" }}>
+            Total Deposit:{" "}
+            {formatUsdWithStyle(
+              formatUsdAmount(
+                filteredVaults.reduce(
+                  (acc, vault) => acc + vault.vault.totalAssetsUsd,
+                  0
+                )
+              )
+            )}
           </h2>
         </TitleContainer>
         <div
@@ -358,6 +398,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
             onChange={(e) => setWarningFilter(e.target.value)}
           >
             <option value="">All Vaults</option>
+            <option value="NotWhitelisted">Not Whitelisted</option>
             <option value="WrongWithdrawQueue">Wrong Withdraw Queue</option>
             <option value="WrongSupplyQueue">Wrong Supply Queue</option>
             <option value="MissingFlowCaps">Missing Flow Caps</option>
@@ -378,6 +419,13 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
               </option>
             ))}
           </FilterSelect>
+          <FilterSelect
+            value={whitelistFilter}
+            onChange={(e) => setWhitelistFilter(e.target.value)}
+          >
+            <option value="whitelisted">Whitelisted Only</option>
+            <option value="not-whitelisted">Not Whitelisted Only</option>
+          </FilterSelect>
         </div>
       </HeaderWrapper>
       {loading && (
@@ -394,6 +442,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
         <div>Vault Name</div>
         <div>Version</div>
         <div>Timelock (Days)</div>
+        <div>Total Assets</div>
         <div>Withdraw Queue</div>
         <div>Supply Queue</div>
         <div>Public Allocator</div>
@@ -404,7 +453,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
       <VaultsWrapper style={{ marginTop: "10px" }}>
         {filteredVaults.map((vault) => (
           <React.Fragment key={vault.vault.address}>
-            <VaultRow onClick={() => toggleExpand(vault.vault.link.name)}>
+            <VaultRow onClick={() => toggleExpand(vault.vault.address)}>
               <div>
                 <VaultNameLink
                   href={vault.vault.link.url}
@@ -420,6 +469,13 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                 {Number(vault.timelock) % 86400 === 0
                   ? `${Number(vault.timelock) / 86400}`
                   : `${(Number(vault.timelock) / 86400).toFixed(1)}`}
+              </div>
+              <div>
+                {formatUsdWithStyle(
+                  formatUsdAmount(
+                    Number(BigInt(Math.floor(vault.vault.totalAssetsUsd)) || 0n)
+                  )
+                )}
               </div>
               <div>
                 {vault.warnings?.idlePositionWithdrawQueue ? (
@@ -542,7 +598,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                     <WarningText> ❌</WarningText>
                   </BlinkingAddressText>
                 )}
-                {expandedVault === vault.vault.link.name ? (
+                {expandedVault === vault.vault.address ? (
                   <ChevronUp
                     size={20}
                     style={{ color: "#2973FF", marginLeft: "10px" }}
@@ -554,7 +610,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                   />
                 )}
               </div>
-              {expandedVault === vault.vault.link.name && (
+              {expandedVault === vault.vault.address && (
                 <ExpandedContent>
                   <BubbleContainer>
                     <WithdrawQueueBubble
