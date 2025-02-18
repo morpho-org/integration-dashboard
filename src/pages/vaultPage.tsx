@@ -143,7 +143,7 @@ const VaultNameLink = styled.a`
   }
 `;
 
-const MisconfiguredText = styled.span`
+const YellowText = styled.span`
   color: #ffa500; // Using orange to distinguish from error state
 `;
 
@@ -307,7 +307,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
     }
 
     if (vault.warnings?.missingFlowCaps) {
-      return <MisconfiguredText>Misconfigured</MisconfiguredText>;
+      return <YellowText>Misconfigured</YellowText>;
     }
   };
 
@@ -486,7 +486,15 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
               </div>
               <div>
                 {vault.warnings?.idlePositionSupplyQueue ? (
-                  <WarningText>Warning</WarningText>
+                  vault.warnings.idleSupplyQueueWarningReason ===
+                  "deprecated" ? (
+                    <WarningText>Vault deprecated</WarningText>
+                  ) : vault.warnings.idleSupplyQueueWarningReason ===
+                    "wrong_order" ? (
+                    <YellowText>Wrong order</YellowText>
+                  ) : (
+                    <WarningText>Warning</WarningText>
+                  )
                 ) : (
                   "OK"
                 )}
