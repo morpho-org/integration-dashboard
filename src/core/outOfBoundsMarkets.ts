@@ -25,7 +25,7 @@ const fetchMarketDataWithRetry = async (
 ): Promise<any> => {
   const [{ loanAsset, collateralAsset }, { marketParams, marketChainData }] =
     await Promise.all([
-      fetchMarketAssets(strategy.id),
+      fetchMarketAssets(strategy.id, client.chain?.id!),
       withRetry(() => fetchMarketParamsAndData(client, strategy.id)),
     ]);
 
