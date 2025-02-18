@@ -1,5 +1,10 @@
 import { formatUnits, withRetry } from "viem";
-import { MarketFlowCaps, MetaMorphoVaultData, VaultData } from "../utils/types";
+import {
+  MarketFlowCaps,
+  MetaMorphoVaultData,
+  VaultData,
+  VaultWarnings,
+} from "../utils/types";
 import {
   FACTORY_ADDRESSES_V1_1,
   MaxUint128,
@@ -141,6 +146,7 @@ const processMarkets = (vault: MetaMorphoVaultData): MarketFlowCaps[] => {
 
     return {
       id: market.id,
+      idle: market.idle ?? false,
       link: { name: market.link.name, url: market.link.url },
       maxInUsd:
         market.flowCaps.maxIn === MaxUint128
@@ -172,17 +178,43 @@ const processMarkets = (vault: MetaMorphoVaultData): MarketFlowCaps[] => {
 const generateWarnings = (
   markets: MarketFlowCaps[],
   vault: MetaMorphoVaultData
-) => ({
-  missingFlowCaps: !markets.every((market) => !market.missing),
-  allCapsTo0: markets.every((market) => market.missing),
-  idlePositionWithdrawQueue:
-    vault.withdrawQueue.length === 0 ? false : !vault.withdrawQueue[0].idle,
-  idlePositionSupplyQueue:
-    vault.supplyQueue.length === 0
-      ? false
-      : vault.supplyQueue.every((market) => !market.idle) ||
-        !vault.supplyQueue[vault.supplyQueue.length - 1].idle,
-});
+): VaultWarnings => {
+  // Find the idle market from the withdraw queue
+  const idleMarketFromWithdrawQueue = vault.withdrawQueue.find(
+    (market) => market.idle
+  );
+  const idleMarketId = idleMarketFromWithdrawQueue?.id;
+
+  // Check if the idle market is in the supply queue
+  const idleMarketInSupplyQueue = vault.supplyQueue.find(
+    (market) => market.id === idleMarketId && market.idle
+  );
+
+  let idleSupplyQueueWarningReason: string | undefined;
+  let idlePositionSupplyQueue = false;
+
+  if (vault.supplyQueue.length > 0) {
+    if (idleMarketId && !idleMarketInSupplyQueue) {
+      idlePositionSupplyQueue = true;
+      idleSupplyQueueWarningReason = "deprecated";
+    } else if (
+      idleMarketId &&
+      !vault.supplyQueue[vault.supplyQueue.length - 1].idle
+    ) {
+      idlePositionSupplyQueue = true;
+      idleSupplyQueueWarningReason = "wrong_order";
+    }
+  }
+
+  return {
+    missingFlowCaps: !markets.every((market) => !market.missing),
+    allCapsTo0: markets.every((market) => market.missing),
+    idlePositionWithdrawQueue:
+      vault.withdrawQueue.length === 0 ? false : !vault.withdrawQueue[0].idle,
+    idlePositionSupplyQueue,
+    idleSupplyQueueWarningReason,
+  };
+};
 
 const formatVaultInfo = (vault: MetaMorphoVaultData, networkId: number) => ({
   address: vault.address,

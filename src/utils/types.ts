@@ -256,6 +256,7 @@ export type VaultDisplayData = {
 export type Queue = {
   link: Link;
   idle?: boolean;
+  id?: string;
 }[];
 
 export type Reallocation = {
@@ -353,6 +354,7 @@ export type VaultWarnings = {
   missingFlowCaps?: boolean;
   idlePositionWithdrawQueue?: boolean;
   idlePositionSupplyQueue?: boolean;
+  idleSupplyQueueWarningReason?: string;
   allCapsTo0?: boolean;
 };
 
@@ -394,6 +396,7 @@ export type MarketFlowCaps = {
   supplyAssetsFormatted: string;
   supplyCapUsd: string;
   missing: boolean;
+  idle: boolean;
 };
 
 export type OutOfBoundsMarket = {

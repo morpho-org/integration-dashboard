@@ -486,7 +486,15 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
               </div>
               <div>
                 {vault.warnings?.idlePositionSupplyQueue ? (
-                  <WarningText>Warning</WarningText>
+                  <WarningText>
+                    {vault.warnings.idleSupplyQueueWarningReason ===
+                    "deprecated"
+                      ? "Vault deprecated"
+                      : vault.warnings.idleSupplyQueueWarningReason ===
+                        "wrong_order"
+                      ? "Wrong order"
+                      : "Warning"}
+                  </WarningText>
                 ) : (
                   "OK"
                 )}
