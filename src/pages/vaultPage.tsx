@@ -447,7 +447,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                   )}
                   {vault.ownerSafeDetails.isSafe ? (
                     <AddressText>
-                      {vault.ownerSafeDetails.threshold}/
+                      {vault.ownerSafeDetails.threshold?.toString()}/
                       {vault.ownerSafeDetails.owners?.length}
                     </AddressText>
                   ) : null}
@@ -490,7 +490,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                     )}
                     {vault.curatorSafeDetails?.isSafe ? (
                       <AddressText>
-                        {vault.curatorSafeDetails.threshold}/
+                        {vault.curatorSafeDetails.threshold?.toString()}/
                         {vault.curatorSafeDetails.owners?.length}
                       </AddressText>
                     ) : (
