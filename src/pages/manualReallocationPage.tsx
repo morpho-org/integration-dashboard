@@ -12,16 +12,11 @@ import {
   formatVaultLink,
   getMarketName,
 } from "../utils/utils";
-import {
-  NetworkSelector,
-  NetworkButton,
-  ethLogo,
-  baseLogo,
-} from "../components/NavBar";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import TransactionSenderV2 from "../components/TransactionSenderV2";
 import TransactionSimulatorV2 from "../components/TransactionSimulatorV2";
 import { fetchMarketAssets } from "../fetchers/apiFetchers"; // Import the fetchMarketAssets function
+import { useChainId, useSwitchChain } from "wagmi";
 
 // SimpleCard component remains unchanged
 const SimpleCard = ({
@@ -109,11 +104,21 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
   const [inputs, setInputs] = useState({
     marketId:
       "0x9103c3b4e834476c9a62ea009ba2c884ee42e94e6e314a26f04d312434191836",
-    chainId: network === "ethereum" ? "1" : "8453",
     requestedLiquidityNative: "1000", // Changed default to 1000
     requestedLiquidityUsd: "",
     requestedLiquidityType: "native", // default to native
   });
+
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
+
+  // Add useEffect to handle network switching
+  useEffect(() => {
+    if (switchChain && chainId !== (network === "ethereum" ? 1 : 8453)) {
+      switchChain({ chainId: network === "ethereum" ? 1 : 8453 });
+    }
+  }, [network, chainId, switchChain]);
+
   const [loading, setLoading] = useState(false);
   const [inputLoading, setInputLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -130,10 +135,6 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
 
   // Update chainId when network prop changes
   useEffect(() => {
-    setInputs((prev) => ({
-      ...prev,
-      chainId: network === "ethereum" ? "1" : "8453",
-    }));
     setResult(undefined);
     setError(null);
   }, [network]);
@@ -144,17 +145,17 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
       try {
         const assets = await fetchMarketAssets(
           inputs.marketId,
-          Number(inputs.chainId)
+          Number(chainId)
         );
         setMarketAsset(assets);
       } catch (err) {
         console.error("Error fetching market assets", err);
       }
     }
-    if (inputs.marketId && inputs.chainId) {
+    if (inputs.marketId && chainId) {
       fetchAssets();
     }
-  }, [inputs.marketId, inputs.chainId]);
+  }, [inputs.marketId, chainId]);
 
   // Update simulation results (unchanged)
   useEffect(() => {
@@ -211,16 +212,16 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     }, 500);
   };
 
-  const handleNetworkChange = (chainId: string) => {
-    setInputs((prev) => ({ ...prev, chainId }));
-    setResult(undefined);
-    setError(null);
-    setInputLoading(true);
+  // const handleNetworkChange = (chainId: string) => {
+  //   setInputs((prev) => ({ ...prev, chainId }));
+  //   setResult(undefined);
+  //   setError(null);
+  //   setInputLoading(true);
 
-    setTimeout(() => {
-      setInputLoading(false);
-    }, 500);
-  };
+  //   setTimeout(() => {
+  //     setInputLoading(false);
+  //   }, 500);
+  // };
 
   // Update handleSubmit to use the appropriate liquidity field.
   const handleSubmit = async () => {
@@ -248,7 +249,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
 
       const res = await compareAndReallocate(
         inputs.marketId as MarketId,
-        Number(inputs.chainId) as ChainId,
+        Number(chainId) as ChainId,
         liquidityValue
       );
       setResult(res);
@@ -308,6 +309,9 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
             {result.reason.message}
           </div>
         )}
+        <div className="flex justify-end mb-4">
+          <ConnectButton />
+        </div>
       </div>
 
       <div className="flex gap-6">
@@ -327,44 +331,6 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                   className="w-full p-2 rounded bg-gray-800 text-xs"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Chain ID
-                </label>
-                <div className="flex justify-center">
-                  <NetworkSelector className="inline-flex w-full rounded-lg overflow-hidden">
-                    <NetworkButton
-                      className="flex-1 px-4 py-2 border-r border-gray-700"
-                      $isActive={inputs.chainId === "1"}
-                      onClick={() => handleNetworkChange("1")}
-                    >
-                      <div className="flex items-center justify-center">
-                        <img
-                          src={ethLogo}
-                          alt="Ethereum"
-                          className="w-5 h-5 mr-2"
-                        />
-                        Ethereum
-                      </div>
-                    </NetworkButton>
-                    <NetworkButton
-                      className="flex-1 px-4 py-2"
-                      $isActive={inputs.chainId === "8453"}
-                      onClick={() => handleNetworkChange("8453")}
-                    >
-                      <div className="flex items-center justify-center">
-                        <img
-                          src={baseLogo}
-                          alt="Base"
-                          className="w-5 h-5 mr-2"
-                        />
-                        Base
-                      </div>
-                    </NetworkButton>
-                  </NetworkSelector>
-                </div>
-              </div>
-
               {/* Borrow Request Liquidity Inputs */}
               <div>
                 <label className="block text-sm font-medium mb-1">
@@ -567,7 +533,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                               <a
                                 href={formatMarketLink(
                                   inputs.marketId,
-                                  Number(inputs.chainId)
+                                  Number(chainId)
                                 )}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -746,7 +712,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                     <a
                                       href={formatVaultLink(
                                         data.vaultAddress,
-                                        Number(inputs.chainId)
+                                        Number(chainId)
                                       )}
                                       target="_blank"
                                       rel="noopener noreferrer"
@@ -762,7 +728,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                       key={market.allocationMarket.uniqueKey}
                                       href={formatMarketLink(
                                         market.allocationMarket.uniqueKey,
-                                        Number(inputs.chainId)
+                                        Number(chainId)
                                       )}
                                       target="_blank"
                                       rel="noopener noreferrer"
@@ -867,7 +833,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                               <a
                                 href={formatMarketLink(
                                   inputs.marketId,
-                                  Number(inputs.chainId)
+                                  Number(chainId)
                                 )}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -1156,7 +1122,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                         <a
                                           href={formatVaultLink(
                                             data.vaultAddress,
-                                            Number(inputs.chainId)
+                                            Number(chainId)
                                           )}
                                           target="_blank"
                                           rel="noopener noreferrer"
@@ -1174,7 +1140,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                           }
                                           href={formatMarketLink(
                                             market.allocationMarket.uniqueKey,
-                                            Number(inputs.chainId)
+                                            Number(chainId)
                                           )}
                                           target="_blank"
                                           rel="noopener noreferrer"
@@ -1357,9 +1323,6 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
 
                   <SimpleCard title="Reallocation Execution">
                     <div className="space-y-4">
-                      <div className="flex justify-end mb-4">
-                        <ConnectButton />
-                      </div>
                       <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-700">
                           <thead>
@@ -1395,7 +1358,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                     <a
                                       href={formatVaultLink(
                                         item.vault.address,
-                                        Number(inputs.chainId)
+                                        Number(chainId)
                                       )}
                                       target="_blank"
                                       rel="noopener noreferrer"
@@ -1408,7 +1371,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                     <a
                                       href={formatMarketLink(
                                         item.allocationMarket.uniqueKey,
-                                        Number(inputs.chainId)
+                                        Number(chainId)
                                       )}
                                       target="_blank"
                                       rel="noopener noreferrer"
@@ -1570,7 +1533,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                       </div>
                       <div className="flex justify-end gap-4 mt-4">
                         <TransactionSimulatorV2
-                          networkId={Number(inputs.chainId)}
+                          networkId={Number(chainId)}
                           marketId={inputs.marketId as MarketId}
                           withdrawalsPerVault={Object.entries(
                             modifiedAmounts
@@ -1596,7 +1559,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                           }, {} as { [vaultAddress: string]: WithdrawalDetails[] })}
                         />
                         <TransactionSenderV2
-                          networkId={Number(inputs.chainId)}
+                          networkId={Number(chainId)}
                           marketId={inputs.marketId as MarketId}
                           withdrawalsPerVault={Object.entries(
                             modifiedAmounts
