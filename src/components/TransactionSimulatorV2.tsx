@@ -31,12 +31,17 @@ export default function TransactionSimulatorV2({
   if (!config) throw new Error(`Unsupported chain ID: ${networkId}`);
 
   // Ensure consistent ordering of vaults and withdrawals
-  const sortedVaults = Object.keys(withdrawalsPerVault).sort();
-  const multicallActions = sortedVaults.map((vaultAddress) => {
+  // Only keep vaults with at least one withdrawal having a non-zero amount
+  const filteredVaults = Object.entries(withdrawalsPerVault)
+    .filter(([, withdrawals]) => withdrawals.some((w) => w.amount > 0n))
+    .map(([vaultAddress]) => vaultAddress);
+
+  const multicallActions = filteredVaults.map((vaultAddress) => {
     const vaultWithdrawals = withdrawalsPerVault[vaultAddress];
     // Sort withdrawals by market id for consistency
     vaultWithdrawals.sort((a, b) => (a.marketId > b.marketId ? 1 : -1));
 
+    console.log("vaultWithdrawals in simulator:", vaultWithdrawals);
     const action = BundlerAction.metaMorphoReallocateTo(
       config.publicAllocator,
       vaultAddress,
@@ -119,14 +124,16 @@ export default function TransactionSimulatorV2({
 
       {/* Modal for displaying error details */}
       {showErrorModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-2xl w-full">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
+          <div className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
             <h2 className="text-lg font-bold mb-4 text-white">
               Simulation Error
             </h2>
-            <pre className="text-red-400 text-sm break-all whitespace-pre-wrap">
-              {error?.message || "Unknown error occurred"}
-            </pre>
+            <div className="overflow-y-auto flex-1">
+              <pre className="text-red-400 text-sm break-all whitespace-pre-wrap">
+                {error?.message || "Unknown error occurred"}
+              </pre>
+            </div>
             <button
               onClick={() => setShowErrorModal(false)}
               className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"

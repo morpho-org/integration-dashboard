@@ -39,11 +39,12 @@ export default function TransactionSenderV2({
       const config = getChainAddresses(networkId);
       if (!config) throw new Error(`Unsupported chain ID: ${networkId}`);
 
-      // Sort vaults for consistent ordering
-      const sortedVaults = Object.keys(withdrawalsPerVault).sort();
+      const filteredVaults = Object.entries(withdrawalsPerVault)
+        .filter(([, withdrawals]) => withdrawals.some((w) => w.amount > 0n))
+        .map(([vaultAddress]) => vaultAddress);
 
       // Create multicall actions
-      const multicallActions = sortedVaults.map((vaultAddress) => {
+      const multicallActions = filteredVaults.map((vaultAddress) => {
         const vaultWithdrawals = withdrawalsPerVault[vaultAddress];
         // Sort withdrawals within each vault
         vaultWithdrawals.sort((a, b) => (a.marketId > b.marketId ? 1 : -1));
