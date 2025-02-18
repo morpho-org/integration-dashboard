@@ -260,11 +260,12 @@ export const fetchVaultData = async (
 };
 
 export const fetchMarketAssets = async (
-  marketId: string
+  marketId: string,
+  chainId: number
 ): Promise<{ loanAsset: Asset; collateralAsset: Asset }> => {
   const query = `
     query {
-    markets(where: {  uniqueKey_in: "${marketId}"} ) {
+    markets(where: {  uniqueKey_in: "${marketId}", chainId_in: [${chainId}]} ) {
       items {
         collateralAsset {
           address

@@ -5,24 +5,20 @@ import {
   WithdrawalDetails,
 } from "../core/publicAllocator"; // Update with correct path
 import { ChainId, MarketId, MarketParams } from "@morpho-org/blue-sdk";
-import { formatUnits } from "viem";
+import { formatUnits, parseUnits } from "viem";
 import {
   formatMarketLink,
   formatUsdAmount,
   formatVaultLink,
   getMarketName,
 } from "../utils/utils";
-import {
-  NetworkSelector,
-  NetworkButton,
-  ethLogo,
-  baseLogo,
-} from "../components/NavBar";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { parseUnits } from "viem";
 import TransactionSenderV2 from "../components/TransactionSenderV2";
 import TransactionSimulatorV2 from "../components/TransactionSimulatorV2";
+import { fetchMarketAssets } from "../fetchers/apiFetchers"; // Import the fetchMarketAssets function
+import { useChainId, useSwitchChain } from "wagmi";
 
+// SimpleCard component remains unchanged
 const SimpleCard = ({
   title,
   children,
@@ -73,6 +69,7 @@ interface ManualReallocationPageProps {
   network: "ethereum" | "base";
 }
 
+// Helper functions remain unchanged
 const formatUsdWithStyle = (
   amount: string,
   color?: string,
@@ -103,12 +100,25 @@ const formatBorrowApyWithStyle = (apy: string, color?: string) => (
 const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
   network,
 }) => {
+  // Update the initial state to set default native value to 1000
   const [inputs, setInputs] = useState({
     marketId:
       "0x9103c3b4e834476c9a62ea009ba2c884ee42e94e6e314a26f04d312434191836",
-    chainId: network === "ethereum" ? "1" : "8453",
-    requestedLiquidity: "10",
+    requestedLiquidityNative: "1000", // Changed default to 1000
+    requestedLiquidityUsd: "",
+    requestedLiquidityType: "native", // default to native
   });
+
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
+
+  // Add useEffect to handle network switching
+  useEffect(() => {
+    if (switchChain && chainId !== (network === "ethereum" ? 1 : 8453)) {
+      switchChain({ chainId: network === "ethereum" ? 1 : 8453 });
+    }
+  }, [network, chainId, switchChain]);
+
   const [loading, setLoading] = useState(false);
   const [inputLoading, setInputLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -117,28 +127,44 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     [key: string]: string;
   }>({});
 
-  // Add useEffect to update chainId when network prop changes
+  // New state to hold market asset data fetched from the API.
+  const [marketAsset, setMarketAsset] = useState<{
+    loanAsset: any;
+    collateralAsset: any;
+  } | null>(null);
+
+  // Update chainId when network prop changes
   useEffect(() => {
-    setInputs((prev) => ({
-      ...prev,
-      chainId: network === "ethereum" ? "1" : "8453",
-    }));
     setResult(undefined);
     setError(null);
   }, [network]);
 
-  // Update the useEffect that handles simulation results
+  // Fetch market asset data when marketId or chainId changes
+  useEffect(() => {
+    async function fetchAssets() {
+      try {
+        const assets = await fetchMarketAssets(
+          inputs.marketId,
+          Number(chainId)
+        );
+        setMarketAsset(assets);
+      } catch (err) {
+        console.error("Error fetching market assets", err);
+      }
+    }
+    if (inputs.marketId && chainId) {
+      fetchAssets();
+    }
+  }, [inputs.marketId, chainId]);
+
+  // Update simulation results (unchanged)
   useEffect(() => {
     if (result?.simulation?.sourceMarkets) {
-      // Initialize modifiedAmounts based on simulation results
       const initialModifiedAmounts =
         result.apiMetrics.publicAllocatorSharedLiquidity.reduce((acc, item) => {
           const key = `${item.vault.address}-${item.allocationMarket.uniqueKey}`;
           const simulationData =
             result.simulation?.sourceMarkets[item.allocationMarket.uniqueKey];
-
-          // If market is in simulation results, use the diff between post-reallocation and pre-reallocation amount
-          // Convert to native units by dividing by 10^decimals
           const amount = simulationData
             ? formatUnits(
                 simulationData.preReallocation.liquidity -
@@ -146,7 +172,6 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                 result.apiMetrics.decimals
               )
             : "0";
-
           acc[key] = amount;
           return acc;
         }, {} as { [key: string]: string });
@@ -155,15 +180,26 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     }
   }, [result]);
 
+  // Update input change handler
   const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    // For requestedLiquidity input
-    if (name === "requestedLiquidity") {
-      // Remove any non-digit characters from input
-      const numericValue = value.replace(/[^\d]/g, "");
 
-      // Store raw numeric value in state
-      setInputs((prev) => ({ ...prev, [name]: numericValue }));
+    if (name === "requestedLiquidityNative") {
+      const numericValue = value.replace(/[^\d]/g, "");
+      setInputs((prev) => ({
+        ...prev,
+        requestedLiquidityNative: numericValue,
+        requestedLiquidityType: "native",
+        requestedLiquidityUsd: "", // Reset USD field to empty string
+      }));
+    } else if (name === "requestedLiquidityUsd") {
+      const numericValue = value.replace(/[^\d]/g, "");
+      setInputs((prev) => ({
+        ...prev,
+        requestedLiquidityUsd: numericValue,
+        requestedLiquidityType: "usd",
+        requestedLiquidityNative: "", // Reset native field to empty string
+      }));
     } else {
       setInputs((prev) => ({ ...prev, [name]: value }));
     }
@@ -176,28 +212,45 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     }, 500);
   };
 
-  const handleNetworkChange = (chainId: string) => {
-    setInputs((prev) => ({ ...prev, chainId }));
-    setResult(undefined);
-    setError(null);
-    setInputLoading(true);
+  // const handleNetworkChange = (chainId: string) => {
+  //   setInputs((prev) => ({ ...prev, chainId }));
+  //   setResult(undefined);
+  //   setError(null);
+  //   setInputLoading(true);
 
-    setTimeout(() => {
-      setInputLoading(false);
-    }, 500);
-  };
+  //   setTimeout(() => {
+  //     setInputLoading(false);
+  //   }, 500);
+  // };
 
+  // Update handleSubmit to use the appropriate liquidity field.
   const handleSubmit = async () => {
     setLoading(true);
     setError("");
     setResult(undefined);
     try {
-      // Remove thousand separators before processing
-      const numericValue = inputs.requestedLiquidity.replace(/,/g, "");
+      let liquidityValue: bigint;
+      if (inputs.requestedLiquidityType === "native") {
+        // Use native input field
+        const numericValue = inputs.requestedLiquidityNative.replace(/,/g, "");
+        liquidityValue = BigInt(numericValue);
+      } else if (inputs.requestedLiquidityType === "usd") {
+        if (!marketAsset) {
+          throw new Error("Market asset data not loaded. Please try again.");
+        }
+        const usdValue = Number(inputs.requestedLiquidityUsd.replace(/,/g, ""));
+        const priceUsd = marketAsset.loanAsset.priceUsd;
+
+        const nativeAmount = (usdValue / priceUsd).toFixed(0);
+        liquidityValue = BigInt(nativeAmount);
+      } else {
+        throw new Error("Invalid liquidity type");
+      }
+
       const res = await compareAndReallocate(
         inputs.marketId as MarketId,
-        Number(inputs.chainId) as ChainId,
-        BigInt(numericValue)
+        Number(chainId) as ChainId,
+        liquidityValue
       );
       setResult(res);
     } catch (err) {
@@ -208,17 +261,15 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     }
   };
 
+  // The handleAmountChange function remains unchanged.
   const handleAmountChange = (
     vaultAddress: string,
     marketId: string,
     newAmount: string
   ) => {
     const key = `${vaultAddress}-${marketId}`;
-
-    // Remove any non-numeric characters except decimal point
     const cleanedAmount = newAmount.replace(/[^\d.]/g, "");
 
-    // Find the market data to get max reallocatable amount
     const marketData = result?.apiMetrics.publicAllocatorSharedLiquidity.find(
       (item) =>
         item.vault.address === vaultAddress &&
@@ -229,14 +280,8 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
       const maxAmount = Number(
         formatUnits(BigInt(marketData.assets), result.apiMetrics.decimals)
       );
-
-      // Convert cleaned amount to number, default to 0 if invalid
       let numericAmount = Number(cleanedAmount);
-
-      // Bound the amount between 0 and maxAmount
       numericAmount = Math.max(0, Math.min(numericAmount, maxAmount));
-
-      // Convert back to string with fixed decimal places (e.g., 2)
       const boundedAmount = numericAmount.toFixed(result.apiMetrics.decimals);
 
       setModifiedAmounts((prev) => ({
@@ -264,6 +309,9 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
             {result.reason.message}
           </div>
         )}
+        <div className="flex justify-end mb-4">
+          <ConnectButton />
+        </div>
       </div>
 
       <div className="flex gap-6">
@@ -283,55 +331,34 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                   className="w-full p-2 rounded bg-gray-800 text-xs"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Chain ID
-                </label>
-                <div className="flex justify-center">
-                  <NetworkSelector className="inline-flex w-full rounded-lg overflow-hidden">
-                    <NetworkButton
-                      className="flex-1 px-4 py-2 border-r border-gray-700"
-                      $isActive={inputs.chainId === "1"}
-                      onClick={() => handleNetworkChange("1")}
-                    >
-                      <div className="flex items-center justify-center">
-                        <img
-                          src={ethLogo}
-                          alt="Ethereum"
-                          className="w-5 h-5 mr-2"
-                        />
-                        Ethereum
-                      </div>
-                    </NetworkButton>
-                    <NetworkButton
-                      className="flex-1 px-4 py-2"
-                      $isActive={inputs.chainId === "8453"}
-                      onClick={() => handleNetworkChange("8453")}
-                    >
-                      <div className="flex items-center justify-center">
-                        <img
-                          src={baseLogo}
-                          alt="Base"
-                          className="w-5 h-5 mr-2"
-                        />
-                        Base
-                      </div>
-                    </NetworkButton>
-                  </NetworkSelector>
-                </div>
-              </div>
+              {/* Borrow Request Liquidity Inputs */}
               <div>
                 <label className="block text-sm font-medium mb-1">
                   Borrow Request Liquidity (native units)
                 </label>
                 <input
                   type="text"
-                  name="requestedLiquidity"
-                  value={Number(inputs.requestedLiquidity).toLocaleString()}
+                  name="requestedLiquidityNative"
+                  value={Number(
+                    inputs.requestedLiquidityNative
+                  ).toLocaleString()}
                   onChange={handleInputChange}
                   className="w-full p-2 rounded bg-gray-800 text-xs"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Borrow Request Liquidity (USD)
+                </label>
+                <input
+                  type="text"
+                  name="requestedLiquidityUsd"
+                  value={Number(inputs.requestedLiquidityUsd).toLocaleString()}
+                  onChange={handleInputChange}
+                  className="w-full p-2 rounded bg-gray-800 text-xs"
+                />
+              </div>
+
               <button
                 onClick={handleSubmit}
                 disabled={loading}
@@ -347,8 +374,14 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                     <span className="text-red-400">
                       {formatUsdWithStyle(
                         formatUsdAmount(
-                          Number(inputs.requestedLiquidity) *
-                            result.apiMetrics.priceUsd
+                          Number(
+                            // If native was used, convert using the priceUsd
+                            inputs.requestedLiquidityType === "native"
+                              ? Number(inputs.requestedLiquidityNative) *
+                                  result.apiMetrics.priceUsd
+                              : Number(inputs.requestedLiquidityUsd)
+                          ),
+                          2
                         ),
                         "text-red-400"
                       )}
@@ -378,7 +411,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
           </SimpleCard>
         </div>
 
-        {/* Right side - Results */}
+        {/* Right side - Results (unchanged) */}
         <div className="w-3/4">
           {(loading || inputLoading) && (
             <div className="flex items-center justify-center p-8">
@@ -488,6 +521,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                       </div>
                     </SimpleCard>
                   )}
+
                   <SimpleCard title="Market Metrics">
                     <div className="space-y-6">
                       {/* Target Market Section */}
@@ -499,7 +533,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                               <a
                                 href={formatMarketLink(
                                   inputs.marketId,
-                                  Number(inputs.chainId)
+                                  Number(chainId)
                                 )}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -678,7 +712,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                     <a
                                       href={formatVaultLink(
                                         data.vaultAddress,
-                                        Number(inputs.chainId)
+                                        Number(chainId)
                                       )}
                                       target="_blank"
                                       rel="noopener noreferrer"
@@ -694,7 +728,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                       key={market.allocationMarket.uniqueKey}
                                       href={formatMarketLink(
                                         market.allocationMarket.uniqueKey,
-                                        Number(inputs.chainId)
+                                        Number(chainId)
                                       )}
                                       target="_blank"
                                       rel="noopener noreferrer"
@@ -799,7 +833,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                               <a
                                 href={formatMarketLink(
                                   inputs.marketId,
-                                  Number(inputs.chainId)
+                                  Number(chainId)
                                 )}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -925,8 +959,8 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                 {formatBorrowApyWithStyle(
                                   Number(
                                     formatUnits(
-                                      result.simulation.targetMarket
-                                        .postReallocation.utilization,
+                                      result.simulation.targetMarket.postBorrow
+                                        .utilization,
                                       16
                                     )
                                   ).toFixed(2)
@@ -934,8 +968,8 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                 <span className="text-red-400 ml-2">
                                   {Number(
                                     formatUnits(
-                                      result.simulation.targetMarket
-                                        .postReallocation.utilization -
+                                      result.simulation.targetMarket.postBorrow
+                                        .utilization -
                                         result.simulation.targetMarket
                                           .preReallocation.utilization,
                                       16
@@ -1088,7 +1122,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                         <a
                                           href={formatVaultLink(
                                             data.vaultAddress,
-                                            Number(inputs.chainId)
+                                            Number(chainId)
                                           )}
                                           target="_blank"
                                           rel="noopener noreferrer"
@@ -1106,7 +1140,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                           }
                                           href={formatMarketLink(
                                             market.allocationMarket.uniqueKey,
-                                            Number(inputs.chainId)
+                                            Number(chainId)
                                           )}
                                           target="_blank"
                                           rel="noopener noreferrer"
@@ -1289,12 +1323,6 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
 
                   <SimpleCard title="Reallocation Execution">
                     <div className="space-y-4">
-                      {/* Wallet Connection */}
-                      <div className="flex justify-end mb-4">
-                        <ConnectButton />
-                      </div>
-
-                      {/* Reallocation Details Table */}
                       <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-700">
                           <thead>
@@ -1330,7 +1358,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                     <a
                                       href={formatVaultLink(
                                         item.vault.address,
-                                        Number(inputs.chainId)
+                                        Number(chainId)
                                       )}
                                       target="_blank"
                                       rel="noopener noreferrer"
@@ -1343,7 +1371,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                     <a
                                       href={formatMarketLink(
                                         item.allocationMarket.uniqueKey,
-                                        Number(inputs.chainId)
+                                        Number(chainId)
                                       )}
                                       target="_blank"
                                       rel="noopener noreferrer"
@@ -1503,11 +1531,9 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                           </tbody>
                         </table>
                       </div>
-
-                      {/* Action Buttons */}
                       <div className="flex justify-end gap-4 mt-4">
                         <TransactionSimulatorV2
-                          networkId={Number(inputs.chainId)}
+                          networkId={Number(chainId)}
                           marketId={inputs.marketId as MarketId}
                           withdrawalsPerVault={Object.entries(
                             modifiedAmounts
@@ -1532,9 +1558,8 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                             return acc;
                           }, {} as { [vaultAddress: string]: WithdrawalDetails[] })}
                         />
-
                         <TransactionSenderV2
-                          networkId={Number(inputs.chainId)}
+                          networkId={Number(chainId)}
                           marketId={inputs.marketId as MarketId}
                           withdrawalsPerVault={Object.entries(
                             modifiedAmounts

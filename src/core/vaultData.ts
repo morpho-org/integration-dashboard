@@ -45,9 +45,9 @@ export const getVaultDisplayData = async (
   }
 
   // Filter blacklisted vaults
-  const whitelistedVaults = whitelistedMMs
-    // .slice(0, 5)
-    .filter((vault) => !vaultBlacklist[networkId]!.includes(vault.address));
+  const whitelistedVaults = whitelistedMMs.filter(
+    (vault) => !vaultBlacklist[networkId]!.includes(vault.address)
+  );
 
   // Fetch vault data in batches
   const BATCH_SIZE = 10;
@@ -73,7 +73,6 @@ export const getVaultDisplayData = async (
     .map((vault) => {
       const markets = processMarkets(vault);
       const warnings = generateWarnings(markets, vault);
-
       return {
         isV1_1: vault.factoryAddress
           ? isV1_1Factory(vault.factoryAddress, networkId)
