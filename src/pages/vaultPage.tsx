@@ -264,8 +264,8 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
       }
     });
 
-  const toggleExpand = (vaultName: string) => {
-    setExpandedVault(expandedVault === vaultName ? null : vaultName);
+  const toggleExpand = (vaultAddress: string) => {
+    setExpandedVault(expandedVault === vaultAddress ? null : vaultAddress);
   };
 
   const getFlowCapsStatus = (vault: VaultData) => {
@@ -404,7 +404,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
       <VaultsWrapper style={{ marginTop: "10px" }}>
         {filteredVaults.map((vault) => (
           <React.Fragment key={vault.vault.address}>
-            <VaultRow onClick={() => toggleExpand(vault.vault.link.name)}>
+            <VaultRow onClick={() => toggleExpand(vault.vault.address)}>
               <div>
                 <VaultNameLink
                   href={vault.vault.link.url}
@@ -542,7 +542,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                     <WarningText> ❌</WarningText>
                   </BlinkingAddressText>
                 )}
-                {expandedVault === vault.vault.link.name ? (
+                {expandedVault === vault.vault.address ? (
                   <ChevronUp
                     size={20}
                     style={{ color: "#2973FF", marginLeft: "10px" }}
@@ -554,7 +554,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                   />
                 )}
               </div>
-              {expandedVault === vault.vault.link.name && (
+              {expandedVault === vault.vault.address && (
                 <ExpandedContent>
                   <BubbleContainer>
                     <WithdrawQueueBubble
