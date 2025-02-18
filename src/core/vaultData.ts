@@ -5,7 +5,6 @@ import {
   MaxUint128,
   MaxUint184,
   USD_FLOWCAP_THRESHOLD,
-  vaultBlacklist,
 } from "../config/constants";
 import {
   formatTokenAmount,
@@ -14,22 +13,32 @@ import {
 } from "../utils/utils";
 import {
   fetchPublicAllocator,
-  fetchStrategies,
   fetchVaultData,
-  fetchWhitelistedMetaMorphos,
+  fetchMorphoVaultsAddresses,
 } from "../fetchers/apiFetchers";
 import { initializeClient } from "../utils/client";
 import { PublicClient } from "viem/_types/clients/createPublicClient";
 
 export const getVaultDisplayData = async (
-  networkId: number
+  networkId: number,
+  isWhitelistedOnly: boolean = true
 ): Promise<VaultData[]> => {
   // Fetch data in parallel
-  const [strategies, whitelistedMMs, publicAllocator] = await Promise.all([
-    fetchStrategies(networkId),
-    fetchWhitelistedMetaMorphos(networkId),
+  const [allVaults, publicAllocator] = await Promise.all([
+    fetchMorphoVaultsAddresses(networkId),
     fetchPublicAllocator(networkId),
   ]);
+
+  // Filter vaults based on whitelist status before processing
+  const vaultsToProcess = isWhitelistedOnly
+    ? allVaults.filter((vault) => vault.whitelisted)
+    : allVaults
+        // .filter(
+        //   (vault) =>
+        //     vault.address.toLowerCase() ===
+        //     "0x2a79E2c69ff4d3a50BF335153e4c09Fa360F3386".toLowerCase()
+        // )
+        .filter((vault) => !vault.whitelisted);
 
   // Initialize clients in parallel
   const [{ client: clientMainnet }, { client: clientBase }] = await Promise.all(
@@ -43,55 +52,76 @@ export const getVaultDisplayData = async (
     client = clientBase;
   }
 
-  // Filter blacklisted vaults
-  const whitelistedVaults = whitelistedMMs.filter(
-    (vault) => !vaultBlacklist[networkId]!.includes(vault.address)
-  );
-
   // Fetch vault data in batches
   const BATCH_SIZE = 10;
   const vaultData = [];
 
-  for (let i = 0; i < whitelistedVaults.length; i += BATCH_SIZE) {
-    const batch = whitelistedVaults.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < vaultsToProcess.length; i += BATCH_SIZE) {
+    const batch = vaultsToProcess.slice(i, i + BATCH_SIZE);
     const batchResults = await Promise.all(
       batch.map((vault) =>
         withRetry(() =>
-          fetchVaultData(vault.address, networkId, strategies, client)
+          fetchVaultData(vault.address, networkId, client, vault.whitelisted)
         )
       )
     );
-    vaultData.push(...batchResults);
+    const validResults = batchResults.filter(
+      (result): result is MetaMorphoVaultData => result !== undefined
+    );
+    vaultData.push(...validResults);
   }
 
   console.log("finalized querying vault data");
 
   // Process vault data
   const processedVaults = vaultData
-    .filter((vault) => vault !== undefined)
+    .filter((vault): vault is NonNullable<typeof vault> => {
+      if (!vault) {
+        console.warn("Skipping undefined vault");
+        return false;
+      }
+
+      // Add basic validation for required properties
+      if (!vault.address || !vault.factoryAddress || !vault.timelock) {
+        console.warn("Skipping malformed vault data:", vault);
+        return false;
+      }
+
+      return true;
+    })
     .map((vault) => {
-      const markets = processMarkets(vault);
-      const warnings = generateWarnings(markets, vault);
-      return {
-        isV1_1: vault.factoryAddress
-          ? isV1_1Factory(vault.factoryAddress, networkId)
-          : false,
-        timelock: vault.timelock,
-        vault: formatVaultInfo(vault, networkId),
-        markets: sortMarkets(markets),
-        warnings,
-        curators: vault.curators,
-        supplyQueue: vault.supplyQueue,
-        withdrawQueue: vault.withdrawQueue,
-        owner: vault.owner,
-        ownerSafeDetails: vault.ownerSafeDetails,
-        curator: vault.curator,
-        curatorSafeDetails: vault.curatorSafeDetails,
-        publicAllocatorIsAllocator: vault.allocators.includes(
-          publicAllocator.publicAllocator
-        ),
-      };
-    });
+      try {
+        const markets = processMarkets(vault);
+        const warnings = generateWarnings(markets, vault);
+
+        // Use optional chaining and provide defaults
+        return {
+          isV1_1: vault.factoryAddress
+            ? isV1_1Factory(vault.factoryAddress, networkId)
+            : false,
+          timelock: vault.timelock,
+          vault: formatVaultInfo(vault, networkId),
+          markets: sortMarkets(markets),
+          warnings,
+          curators: vault.curators ?? [],
+          supplyQueue: vault.supplyQueue ?? [],
+          withdrawQueue: vault.withdrawQueue ?? [],
+          owner: vault.owner ?? "0x0000000000000000000000000000000000000000",
+          ownerSafeDetails: vault.ownerSafeDetails ?? { isSafe: false },
+          curator:
+            vault.curator ?? "0x0000000000000000000000000000000000000000",
+          curatorSafeDetails: vault.curatorSafeDetails ?? { isSafe: false },
+          publicAllocatorIsAllocator:
+            Array.isArray(vault.allocators) &&
+            vault.allocators.includes(publicAllocator.publicAllocator),
+          isWhitelisted: Boolean(vault.isWhitelisted),
+        };
+      } catch (error) {
+        console.error("Error processing vault:", vault, error);
+        return null;
+      }
+    })
+    .filter((vault): vault is NonNullable<typeof vault> => vault !== null);
 
   return sortVaults(processedVaults);
 };
@@ -145,10 +175,13 @@ const generateWarnings = (
 ) => ({
   missingFlowCaps: !markets.every((market) => !market.missing),
   allCapsTo0: markets.every((market) => market.missing),
-  idlePositionWithdrawQueue: !vault.withdrawQueue[0].idle,
+  idlePositionWithdrawQueue:
+    vault.withdrawQueue.length === 0 ? false : !vault.withdrawQueue[0].idle,
   idlePositionSupplyQueue:
-    vault.supplyQueue.every((market) => !market.idle) ||
-    !vault.supplyQueue[vault.supplyQueue.length - 1].idle,
+    vault.supplyQueue.length === 0
+      ? false
+      : vault.supplyQueue.every((market) => !market.idle) ||
+        !vault.supplyQueue[vault.supplyQueue.length - 1].idle,
 });
 
 const formatVaultInfo = (vault: MetaMorphoVaultData, networkId: number) => ({
@@ -158,7 +191,7 @@ const formatVaultInfo = (vault: MetaMorphoVaultData, networkId: number) => ({
     name: vault.name,
   },
   asset: vault.asset,
-  totalAssetsUsd: vault.totalAssets * vault.asset.priceUsd,
+  totalAssetsUsd: vault.totalAssetsUsd,
 });
 
 const isV1_1Factory = (factoryAddress: string, networkId: number) =>

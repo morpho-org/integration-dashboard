@@ -46,6 +46,77 @@ export const fetchBlockingFlowCaps = async (
   }
 };
 
+export const fetchMorphoVaultsAddresses = async (networkId: number) => {
+  // Define the GraphQL response type
+  interface VaultQueryResponse {
+    data: {
+      vaults: {
+        items: Array<{
+          address: string;
+          whitelisted: boolean;
+        }>;
+      };
+    };
+  }
+
+  const PAGE_SIZE = 100;
+  let allVaults: Array<{ address: string; whitelisted: boolean }> = [];
+  let skip = 0;
+
+  // Query with pagination
+  const baseQuery = `
+    query VaultData($skip: Int!) {
+      vaults(
+        first: ${PAGE_SIZE}
+        skip: $skip
+        where: {
+          chainId_in: [${networkId}]
+        }
+      ) {
+        items {
+          address
+          whitelisted
+        }
+      }
+    }
+  `;
+
+  while (true) {
+    try {
+      const response = await fetch(BLUE_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: baseQuery,
+          variables: { skip },
+        }),
+      });
+
+      const data = (await response.json()) as VaultQueryResponse;
+      const newVaults = data.data.vaults.items;
+
+      // If no new vaults returned, we've reached the end
+      if (newVaults.length === 0) {
+        break;
+      }
+
+      allVaults = [...allVaults, ...newVaults];
+
+      // If we got less than PAGE_SIZE results, we've reached the end
+      if (newVaults.length < PAGE_SIZE) {
+        break;
+      }
+
+      skip += PAGE_SIZE;
+    } catch (error) {
+      console.error("Error fetching vaults:", error);
+      break;
+    }
+  }
+
+  return allVaults;
+};
+
 export const fetchWhitelistedMetaMorphos = async (
   chainId: number
 ): Promise<WhitelistedVault[]> => {
@@ -66,9 +137,9 @@ export const fetchWhitelistedMetaMorphos = async (
 export const fetchVaultData = async (
   vaultAddress: string,
   networkId: number,
-  strategies: Strategy[],
-  client: PublicClient
-): Promise<MetaMorphoVaultData> => {
+  client: PublicClient,
+  isWhitelisted?: boolean
+): Promise<MetaMorphoVaultData | undefined> => {
   // Define the GraphQL response type
   interface VaultQueryResponse {
     data: {
@@ -89,6 +160,7 @@ export const fetchVaultData = async (
               owner: string;
               curator: string;
               totalAssets: number;
+              totalAssetsUsd: number;
               allocation: {
                 market: {
                   loanAsset: { symbol: string };
@@ -140,6 +212,7 @@ export const fetchVaultData = async (
         owner
         curator
         totalAssets
+        totalAssetsUsd
         allocation {
           market {
             loanAsset {
@@ -170,9 +243,16 @@ export const fetchVaultData = async (
   const data = (await response.json()) as VaultQueryResponse;
   const vault = data.data.vaults.items[0];
 
-  // Process curators and allocators
-  const curators = vault.metadata.curators.map((curator) => curator.name);
-  const allocators = vault.allocators.map((allocator) => allocator.address);
+  // Skip if vault not found
+  if (!vault) {
+    return undefined;
+  }
+
+  // Process curators and allocators with null checks
+  const curators =
+    vault.metadata?.curators?.map((curator) => curator.name) || [];
+  const allocators =
+    vault.allocators?.map((allocator) => allocator.address) || [];
 
   // Process enabled markets before using them
   const enabledMarkets = vault.state.allocation.map((current) => ({
@@ -243,6 +323,7 @@ export const fetchVaultData = async (
     name: vault.name,
     asset: vault.asset,
     totalAssets: vault.state.totalAssets,
+    totalAssetsUsd: vault.state.totalAssetsUsd,
     curators,
     allocators,
     factoryAddress: vault.factory.address,
@@ -256,6 +337,7 @@ export const fetchVaultData = async (
     withdrawQueue,
     supplyQueue,
     markets,
+    isWhitelisted: isWhitelisted || false,
   };
 };
 
