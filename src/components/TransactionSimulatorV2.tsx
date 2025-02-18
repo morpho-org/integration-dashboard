@@ -36,12 +36,17 @@ export default function TransactionSimulatorV2({
     .filter(([, withdrawals]) => withdrawals.some((w) => w.amount > 0n))
     .map(([vaultAddress]) => vaultAddress);
 
+  console.log("filteredVaults in simulator:", filteredVaults);
+  console.log(
+    "withdrawalsPerVault with amount above 0 in simulator:",
+    Object.values(withdrawalsPerVault).filter((withdrawals) =>
+      withdrawals.some((w) => w.amount > 0n)
+    )
+  );
   const multicallActions = filteredVaults.map((vaultAddress) => {
     const vaultWithdrawals = withdrawalsPerVault[vaultAddress];
     // Sort withdrawals by market id for consistency
     vaultWithdrawals.sort((a, b) => (a.marketId > b.marketId ? 1 : -1));
-
-    console.log("vaultWithdrawals in simulator:", vaultWithdrawals);
     const action = BundlerAction.metaMorphoReallocateTo(
       config.publicAllocator,
       vaultAddress,

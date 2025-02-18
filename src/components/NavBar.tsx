@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import { Link, useLocation } from "react-router-dom";
+import { useChainId } from "wagmi";
 
 const NavBarWrapper = styled.div`
   display: flex;
@@ -112,8 +113,13 @@ type NavBarProps = {
 
 const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
   const location = useLocation();
+
+  const chainId = useChainId();
+
+  const defaultNetwork =
+    chainId === 8453 ? "base" : chainId === 1 ? "ethereum" : "ethereum";
   const [selectedNetwork, setSelectedNetwork] = useState<NetworkOption>(
-    networkOptions.find((option) => option.value === currentNetwork) ||
+    networkOptions.find((option) => option.value === defaultNetwork) ||
       networkOptions[0]
   );
 

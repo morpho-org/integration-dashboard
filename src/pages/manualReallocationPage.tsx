@@ -12,11 +12,11 @@ import {
   formatVaultLink,
   getMarketName,
 } from "../utils/utils";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import TransactionSenderV2 from "../components/TransactionSenderV2";
 import TransactionSimulatorV2 from "../components/TransactionSimulatorV2";
 import { fetchMarketAssets } from "../fetchers/apiFetchers"; // Import the fetchMarketAssets function
 import { useChainId, useSwitchChain } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 // SimpleCard component remains unchanged
 const SimpleCard = ({
