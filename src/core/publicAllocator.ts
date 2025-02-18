@@ -590,9 +590,15 @@ export async function compareAndReallocate(
           const supplyMarketParams = MarketParams.get(marketId);
 
           // Sort withdrawals by market id for consistency
-          const sortedVaults = Object.keys(withdrawalsPerVault).sort();
+          const filteredVaults = Object.keys(withdrawalsPerVault).filter(
+            (vaultAddress) =>
+              withdrawalsPerVault[vaultAddress].length > 0 &&
+              withdrawalsPerVault[vaultAddress].map(
+                (withdrawal) => withdrawal.amount > 0n
+              )
+          );
 
-          const multicallActions = sortedVaults.map((vaultAddress) => {
+          const multicallActions = filteredVaults.map((vaultAddress) => {
             const vaultWithdrawals = withdrawalsPerVault[vaultAddress];
             // Sort withdrawals within each vault
             vaultWithdrawals.sort((a, b) => (a.marketId > b.marketId ? 1 : -1));

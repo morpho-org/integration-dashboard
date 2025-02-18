@@ -31,7 +31,6 @@ export const getVaultDisplayData = async (
     fetchPublicAllocator(networkId),
   ]);
 
-  console.log("networkId in vaultData", networkId);
   // Initialize clients in parallel
   const [{ client: clientMainnet }, { client: clientBase }] = await Promise.all(
     [initializeClient(1), initializeClient(8453)]
