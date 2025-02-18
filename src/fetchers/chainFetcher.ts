@@ -323,14 +323,13 @@ export async function checkIfSafeBatch(
   addresses: string[]
 ) {
   const results: { [key: string]: any } = {};
-  const BATCH_SIZE = 2; // Reduce batch size
-  const DELAY_BETWEEN_BATCHES = 1000; // 1 second delay between batches
+  const BATCH_SIZE = 2;
+  const DELAY_BETWEEN_BATCHES = 1000;
 
   for (let i = 0; i < addresses.length; i += BATCH_SIZE) {
     const batch = addresses.slice(i, i + BATCH_SIZE);
     console.log("checking batch: ", batch);
 
-    // Process batch
     const batchResults = await Promise.all(
       batch
         .filter((address) => address !== zeroAddress)
@@ -339,35 +338,51 @@ export async function checkIfSafeBatch(
             const code = await client.getCode({
               address: address as `0x${string}`,
             });
-            const isSafe = code !== "0x";
 
-            if (isSafe) {
-              try {
-                // Use multicall for Safe contract calls
-                const [{ result: owners }, { result: threshold }] =
-                  await client.multicall({
-                    contracts: [
-                      {
-                        address: address as `0x${string}`,
-                        abi: safeAbi,
-                        functionName: "getOwners",
-                      },
-                      {
-                        address: address as `0x${string}`,
-                        abi: safeAbi,
-                        functionName: "getThreshold",
-                      },
-                    ],
-                  });
-
-                return [address, { isSafe, owners, threshold }];
-              } catch (error) {
-                // Silently handle error - not a Safe contract
-                return [address, { isSafe: false }];
-              }
+            // First check if there's code at the address
+            if (code === "0x") {
+              return [address, { isSafe: false }];
             }
 
-            return [address, { isSafe }];
+            try {
+              // Use multicall for Safe contract calls
+              const [{ result: owners }, { result: threshold }] =
+                await client.multicall({
+                  contracts: [
+                    {
+                      address: address as `0x${string}`,
+                      abi: safeAbi,
+                      functionName: "getOwners",
+                    },
+                    {
+                      address: address as `0x${string}`,
+                      abi: safeAbi,
+                      functionName: "getThreshold",
+                    },
+                  ],
+                });
+
+              // Additional validation to ensure it's actually a Safe
+              const isSafe = Boolean(
+                owners &&
+                  Array.isArray(owners) &&
+                  owners.length > 0 &&
+                  threshold &&
+                  typeof threshold === "bigint" &&
+                  threshold > 0n
+              );
+
+              return [
+                address,
+                {
+                  isSafe,
+                  ...(isSafe ? { owners, threshold } : {}),
+                },
+              ];
+            } catch (error) {
+              // If multicall fails, it's not a Safe contract
+              return [address, { isSafe: false }];
+            }
           } catch (error) {
             console.error(`Error processing address ${address}:`, error);
             return [address, { isSafe: false }];
@@ -392,7 +407,7 @@ export async function checkIfSafeBatch(
   return results;
 }
 
-// You can keep the original checkIfSafe as a wrapper for single address checks
+// Wrapper for single address checks
 export async function checkIfSafe(client: PublicClient, address: string) {
   const results = await checkIfSafeBatch(client, [address]);
   return results[address];

@@ -146,6 +146,22 @@ const VaultNameLink = styled.a`
 const MisconfiguredText = styled.span`
   color: #ffa500; // Using orange to distinguish from error state
 `;
+
+// Add this new styled component for blinking text
+const BlinkingAddressText = styled(AddressText)`
+  animation: blink 1s ease-in-out infinite;
+
+  @keyframes blink {
+    0%,
+    100% {
+      color: white;
+    }
+    50% {
+      color: #c93333;
+    }
+  }
+`;
+
 type VaultPageProps = {
   network: "ethereum" | "base";
 };
@@ -211,6 +227,14 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
         return vault.warnings?.missingFlowCaps === true;
       case "WrongPublicAllocator":
         return !vault.publicAllocatorIsAllocator;
+      case "OwnerNotSafe":
+        return !vault.ownerSafeDetails.isSafe;
+      case "CuratorNotSafe":
+        // Check if curator exists (not zero address) and is not a safe
+        return (
+          vault.curator !== "0x0000000000000000000000000000000000000000" &&
+          !vault.curatorSafeDetails?.isSafe
+        );
       default:
         return true;
     }
@@ -340,6 +364,8 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
             <option value="WrongPublicAllocator">
               Public Allocator missing
             </option>
+            <option value="OwnerNotSafe">Owner Not Safe</option>
+            <option value="CuratorNotSafe">Curator Not Safe</option>
           </FilterSelect>
           <FilterSelect
             value={curatorFilter}
@@ -419,22 +445,20 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
               </div>
               <div>{getFlowCapsStatus(vault)}</div>
               <div style={{ whiteSpace: "nowrap" }}>
-                <AddressText
-                  title={vault.owner}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCopy(vault.owner);
-                  }}
-                >
-                  {formatAddress(vault.owner)}
-
-                  {copiedAddress === vault.owner ? (
-                    <CopyCheck size={12} style={{ color: "#2973FF" }} />
-                  ) : (
-                    <Copy size={12} />
-                  )}
-
-                  {vault.ownerSafeDetails.isSafe ? (
+                {vault.ownerSafeDetails.isSafe ? (
+                  <AddressText
+                    title={vault.owner}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopy(vault.owner);
+                    }}
+                  >
+                    {formatAddress(vault.owner)}
+                    {copiedAddress === vault.owner ? (
+                      <CopyCheck size={12} style={{ color: "#2973FF" }} />
+                    ) : (
+                      <Copy size={12} />
+                    )}
                     <img
                       src="https://app.safe.global/favicon.ico"
                       alt="Safe Icon"
@@ -442,16 +466,28 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                       height={12}
                       style={{ marginLeft: "4px", verticalAlign: "middle" }}
                     />
-                  ) : (
-                    <WarningText> ❌</WarningText>
-                  )}
-                  {vault.ownerSafeDetails.isSafe ? (
                     <AddressText>
                       {vault.ownerSafeDetails.threshold?.toString()}/
                       {vault.ownerSafeDetails.owners?.length}
                     </AddressText>
-                  ) : null}
-                </AddressText>
+                  </AddressText>
+                ) : (
+                  <BlinkingAddressText
+                    title={vault.owner}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopy(vault.owner);
+                    }}
+                  >
+                    {formatAddress(vault.owner)}
+                    {copiedAddress === vault.owner ? (
+                      <CopyCheck size={12} style={{ color: "#2973FF" }} />
+                    ) : (
+                      <Copy size={12} />
+                    )}
+                    <WarningText> ❌</WarningText>
+                  </BlinkingAddressText>
+                )}
               </div>
               <div
                 style={{
@@ -463,7 +499,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                 {vault.curator ===
                 "0x0000000000000000000000000000000000000000" ? (
                   <AddressText>-</AddressText>
-                ) : (
+                ) : vault.curatorSafeDetails!.isSafe ? (
                   <AddressText
                     title={vault.curator}
                     onClick={(e) => {
@@ -477,26 +513,34 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                     ) : (
                       <Copy size={12} />
                     )}
-                    {vault.curatorSafeDetails?.isSafe ? (
-                      <img
-                        src="https://app.safe.global/favicon.ico"
-                        alt="Safe Icon"
-                        width={12}
-                        height={12}
-                        style={{ marginLeft: "4px", verticalAlign: "middle" }}
-                      />
-                    ) : (
-                      <WarningText>❌</WarningText>
-                    )}
-                    {vault.curatorSafeDetails?.isSafe ? (
-                      <AddressText>
-                        {vault.curatorSafeDetails.threshold?.toString()}/
-                        {vault.curatorSafeDetails.owners?.length}
-                      </AddressText>
-                    ) : (
-                      <WarningText>-</WarningText>
-                    )}
+                    <img
+                      src="https://app.safe.global/favicon.ico"
+                      alt="Safe Icon"
+                      width={12}
+                      height={12}
+                      style={{ marginLeft: "4px", verticalAlign: "middle" }}
+                    />
+                    <AddressText>
+                      {vault.curatorSafeDetails.threshold?.toString()}/
+                      {vault.curatorSafeDetails.owners?.length}
+                    </AddressText>
                   </AddressText>
+                ) : (
+                  <BlinkingAddressText
+                    title={vault.curator}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopy(vault.curator);
+                    }}
+                  >
+                    {formatAddress(vault.curator)}
+                    {copiedAddress === vault.curator ? (
+                      <CopyCheck size={12} style={{ color: "#2973FF" }} />
+                    ) : (
+                      <Copy size={12} />
+                    )}
+                    <WarningText> ❌</WarningText>
+                  </BlinkingAddressText>
                 )}
                 {expandedVault === vault.vault.link.name ? (
                   <ChevronUp
