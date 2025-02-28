@@ -47,11 +47,22 @@ export default function TransactionSimulatorV2({
     const vaultWithdrawals = withdrawalsPerVault[vaultAddress];
     // Sort withdrawals by market id for consistency
     vaultWithdrawals.sort((a, b) => (a.marketId > b.marketId ? 1 : -1));
+
+    // Create a copy of withdrawals with reduced amounts (0.1% less)
+    const reducedWithdrawals = vaultWithdrawals.map((withdrawal) => {
+      if (withdrawal.amount > 0n) {
+        // Reduce by 0.1% (multiply by 999 and divide by 1000)
+        const reducedAmount = (withdrawal.amount * 999n) / 1000n;
+        return { ...withdrawal, amount: reducedAmount };
+      }
+      return withdrawal;
+    });
+
     const action = BundlerAction.metaMorphoReallocateTo(
       config.publicAllocator,
       vaultAddress,
       0n, // No fee for now
-      vaultWithdrawals,
+      reducedWithdrawals, // Use the reduced withdrawals
       MarketParams.get(marketId)
     );
     // Ensure proper hex string formatting
@@ -59,6 +70,27 @@ export default function TransactionSimulatorV2({
       ? (action as `0x${string}`)
       : (`0x${action}` as `0x${string}`);
   });
+
+  // Log the raw transaction data
+  // For further Debugging
+  // useEffect(() => {
+  //   if (multicallActions.length > 0) {
+  //     // Create the calldata that would be sent to the contract
+  //     const encodedCalldata =
+  //       BaseBundlerV2__factory.createInterface().encodeFunctionData(
+  //         "multicall",
+  //         [multicallActions]
+  //       );
+
+  //     console.log("Raw transaction data:");
+  //     console.log("To:", config.bundler);
+  //     console.log("Value:", parseEther("0").toString());
+  //     console.log("Data:", encodedCalldata);
+
+  //     // For easier debugging, also log the decoded actions
+  //     console.log("Decoded multicall actions:", multicallActions);
+  //   }
+  // }, [multicallActions, config.bundler]);
 
   // Destructure error along with simulation, isError, and isLoading
   const {

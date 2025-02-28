@@ -49,11 +49,21 @@ export default function TransactionSenderV2({
         // Sort withdrawals within each vault
         vaultWithdrawals.sort((a, b) => (a.marketId > b.marketId ? 1 : -1));
 
+        // Create a copy of withdrawals with reduced amounts (0.1% less)
+        const reducedWithdrawals = vaultWithdrawals.map((withdrawal) => {
+          if (withdrawal.amount > 0n) {
+            // Reduce by 0.1% (multiply by 999 and divide by 1000)
+            const reducedAmount = (withdrawal.amount * 999n) / 1000n;
+            return { ...withdrawal, amount: reducedAmount };
+          }
+          return withdrawal;
+        });
+
         const action = BundlerAction.metaMorphoReallocateTo(
           config.publicAllocator,
           vaultAddress,
           0n, // No fee for now
-          vaultWithdrawals,
+          reducedWithdrawals, // Use the reduced withdrawals
           MarketParams.get(marketId)
         );
 

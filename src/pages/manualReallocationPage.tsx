@@ -157,7 +157,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     }
   }, [inputs.marketId, chainId]);
 
-  // Update simulation results (unchanged)
+  // Update simulation results to ensure modified amounts never exceed max values
   useEffect(() => {
     if (result?.simulation?.sourceMarkets) {
       const initialModifiedAmounts =
@@ -165,13 +165,27 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
           const key = `${item.vault.address}-${item.allocationMarket.uniqueKey}`;
           const simulationData =
             result.simulation?.sourceMarkets[item.allocationMarket.uniqueKey];
-          const amount = simulationData
+
+          // Calculate the amount from simulation
+          let amount = simulationData
             ? formatUnits(
                 simulationData.preReallocation.liquidity -
                   simulationData.postReallocation.liquidity,
                 result.apiMetrics.decimals
               )
             : "0";
+
+          // Get the maximum available amount
+          const maxAmount = formatUnits(
+            BigInt(item.assets),
+            result.apiMetrics.decimals
+          );
+
+          // Ensure the amount doesn't exceed the maximum
+          if (Number(amount) > Number(maxAmount)) {
+            amount = maxAmount;
+          }
+
           acc[key] = amount;
           return acc;
         }, {} as { [key: string]: string });
