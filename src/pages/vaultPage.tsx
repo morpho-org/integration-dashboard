@@ -6,12 +6,7 @@ import { VaultData } from "../utils/types";
 import { getVaultDisplayData } from "../core/vaultData";
 import { formatUsdAmount, getNetworkId } from "../utils/utils";
 import styled from "styled-components";
-import {
-  HeaderWrapper,
-  PageWrapper,
-  TitleContainer,
-  VaultsWrapper,
-} from "./wrappers";
+import { PageWrapper, VaultsWrapper } from "./wrappers";
 import {
   Copy,
   CopyCheck,
@@ -20,6 +15,7 @@ import {
   EyeOff,
   Eye,
 } from "lucide-react";
+import DualRangeSlider from "../components/DualRangeSlider";
 
 // Add these styled components
 const SearchWrapper = styled.div`
@@ -56,7 +52,7 @@ const SearchIcon = styled.svg`
 
 const FilterSelect = styled.select`
   width: 100%;
-  max-width: 200px;
+  max-width: 250px;
   height: 40px;
   padding: 8px 16px;
   border-radius: 9999px;
@@ -187,6 +183,109 @@ const HideButton = styled.button`
   }
 `;
 
+// Modify the HeaderWrapper to use a row layout with specific width distributions
+const HeaderWrapper = styled.div`
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  margin-bottom: 20px;
+  align-items: flex-start; // Align items to the top
+`;
+
+// Make TitleContainer take exactly 20% width
+const TitleContainer = styled.div`
+  width: 20%;
+  padding-right: 20px;
+`;
+
+// Optimize FiltersContainer to take remaining width and position better
+const FiltersContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  width: 80%;
+  align-items: flex-end;
+  justify-content: flex-start; // Start content at top
+  margin-top: 0; // Remove extra top margin
+  gap: 10px; // Use gap instead of margin for more compact spacing
+`;
+
+// Make FilterRow more compact
+const FilterRow = styled.div`
+  display: flex;
+  width: 100%;
+  max-width: 1000px;
+  justify-content: flex-end;
+  margin-bottom: 5px; // Reduce from 15px to 5px for tighter spacing
+`;
+
+// For the search row, we can make small adjustments
+const SearchRow = styled(FilterRow)`
+  width: 100%;
+  max-width: 840px;
+  margin-bottom: 10px;
+`;
+// But keep a simple container for the slider area:
+const RangeSliderContainer = styled.div`
+  width: 500px;
+  margin: 0;
+  background-color: #2c2f33;
+  border-radius: 30px;
+  padding: 1rem;
+`;
+
+// Add this new styled component for the checkbox container
+const CheckboxFilterContainer = styled.div`
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 270px;
+  height: 40px;
+  padding: 1rem;
+  border-radius: 9999px;
+  background: rgba(250, 250, 250, 0.1);
+  color: white;
+  font-size: 0.875rem;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  user-select: none;
+  justify-content: space-between;
+  margin-right: 10px;
+  margin-left: 10px;
+  white-space: nowrap;
+  &:hover {
+    background: rgba(250, 250, 250, 0.15);
+  }
+
+  &:focus {
+    box-shadow: 0 0 0 2px #2973ff;
+  }
+`;
+
+const CustomCheckbox = styled.div<{ checked: boolean }>`
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: ${(props) => (props.checked ? "#2973ff" : "transparent")};
+  border: 2px solid
+    ${(props) => (props.checked ? "#2973ff" : "rgba(255, 255, 255, 0.5)")};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  margin-left: 3px;
+  &:after {
+    content: "";
+    display: ${(props) => (props.checked ? "block" : "none")};
+    width: 6px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    margin-bottom: 2px;
+  }
+`;
+
 const formatUsdWithStyle = (amount: string, color?: string) => {
   const [dollars, cents] = amount.split(".");
   return (
@@ -212,6 +311,8 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
   const [whitelistFilter, setWhitelistFilter] = useState<string>("all");
   const [hiddenVaults, setHiddenVaults] = useState<string[]>([]);
   const [showHiddenVaults, setShowHiddenVaults] = useState<boolean>(false);
+  const [minTimelock, setMinTimelock] = useState<number>(0);
+  const [maxTimelock, setMaxTimelock] = useState<number>(14);
 
   const [expandedVault, setExpandedVault] = useState<string | null>(null);
 
@@ -358,6 +459,11 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
           return true;
       }
     })
+    // Add timelock filter
+    .filter((vault) => {
+      const timelockDays = Number(vault.timelock) / 86400; // Convert seconds to days
+      return timelockDays >= minTimelock && timelockDays <= maxTimelock;
+    })
     .filter((vault) => {
       // Only show hidden vaults when the toggle is on
       if (showHiddenVaults) {
@@ -405,126 +511,140 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
             )}
           </h2>
         </TitleContainer>
-        <div
-          style={{ display: "flex", alignItems: "center", marginTop: "10px" }}
-        >
-          <SearchWrapper>
-            <SearchInput
-              type="text"
-              placeholder="Search by asset or address..."
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
-            <SearchIcon
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
+
+        <FiltersContainer>
+          {/* First row: Search bar only */}
+          <SearchRow>
+            <SearchWrapper style={{ width: "350px" }}>
+              {" "}
+              {/* Fixed width search box */}
+              <SearchInput
+                type="text"
+                placeholder="Search by asset or address..."
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+              />
+              <SearchIcon
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <path
+                  d="M17.3813 19.6187C17.723 19.9604 18.277 19.9604 18.6187 19.6187C18.9604 19.277 18.9604 18.723 18.6187 18.3813L17.3813 19.6187ZM13.3813 15.6187L17.3813 19.6187L18.6187 18.3813L14.6187 14.3813L13.3813 15.6187Z"
+                  fill="url(#paint0_linear_32_2985)"
+                />
+                <circle
+                  cx="10"
+                  cy="11"
+                  r="6"
+                  stroke="url(#paint1_linear_32_2985)"
+                  strokeWidth="1.75"
+                />
+                <defs>
+                  <linearGradient
+                    id="paint0_linear_32_2985"
+                    x1="15.9998"
+                    y1="15"
+                    x2="15.9998"
+                    y2="19"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop stopColor="#2470FF" />
+                    <stop offset="1" stopColor="#5792FF" />
+                  </linearGradient>
+                  <linearGradient
+                    id="paint1_linear_32_2985"
+                    x1="9.99927"
+                    y1="5"
+                    x2="9.9993"
+                    y2="17"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop stopColor="#2470FF" />
+                    <stop offset="1" stopColor="#5792FF" />
+                  </linearGradient>
+                </defs>
+              </SearchIcon>
+            </SearchWrapper>
+          </SearchRow>
+
+          {/* Second row: Version, Warning, Curator, and Whitelist filters */}
+          <FilterRow>
+            <FilterSelect
+              value={versionFilter}
+              onChange={(e) => setVersionFilter(e.target.value)}
+              style={{ marginLeft: "0" }} // First select shouldn't have left margin
             >
-              <path
-                d="M17.3813 19.6187C17.723 19.9604 18.277 19.9604 18.6187 19.6187C18.9604 19.277 18.9604 18.723 18.6187 18.3813L17.3813 19.6187ZM13.3813 15.6187L17.3813 19.6187L18.6187 18.3813L14.6187 14.3813L13.3813 15.6187Z"
-                fill="url(#paint0_linear_32_2985)"
-              />
-              <circle
-                cx="10"
-                cy="11"
-                r="6"
-                stroke="url(#paint1_linear_32_2985)"
-                strokeWidth="1.75"
-              />
-              <defs>
-                <linearGradient
-                  id="paint0_linear_32_2985"
-                  x1="15.9998"
-                  y1="15"
-                  x2="15.9998"
-                  y2="19"
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <stop stopColor="#2470FF" />
-                  <stop offset="1" stopColor="#5792FF" />
-                </linearGradient>
-                <linearGradient
-                  id="paint1_linear_32_2985"
-                  x1="9.99927"
-                  y1="5"
-                  x2="9.9993"
-                  y2="17"
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <stop stopColor="#2470FF" />
-                  <stop offset="1" stopColor="#5792FF" />
-                </linearGradient>
-              </defs>
-            </SearchIcon>
-          </SearchWrapper>
-          <FilterSelect
-            value={versionFilter}
-            onChange={(e) => setVersionFilter(e.target.value)}
-          >
-            <option value="">v1.0 & v1.1</option>
-            <option value="v1.1">v1.1</option>
-            <option value="v0">v0</option>
-          </FilterSelect>
-          <FilterSelect
-            value={warningFilter}
-            onChange={(e) => setWarningFilter(e.target.value)}
-          >
-            <option value="">All Vaults</option>
-            <option value="NotWhitelisted">Not Whitelisted</option>
-            <option value="WrongWithdrawQueue">Wrong Withdraw Queue</option>
-            <option value="WrongSupplyQueue">Wrong Supply Queue</option>
-            <option value="MissingFlowCaps">Missing Flow Caps</option>
-            <option value="WrongPublicAllocator">
-              Public Allocator missing
-            </option>
-            <option value="OwnerNotSafe">Owner Not Safe</option>
-            <option value="CuratorNotSafe">Curator Not Safe</option>
-          </FilterSelect>
-          <FilterSelect
-            value={curatorFilter}
-            onChange={(e) => setCuratorFilter(e.target.value)}
-          >
-            <option value="">All Curators</option>
-            {allCurators.map((curator, index) => (
-              <option key={index} value={curator}>
-                {curator}
+              <option value="">v1.0 & v1.1</option>
+              <option value="v1.1">v1.1</option>
+              <option value="v0">v0</option>
+            </FilterSelect>
+            <FilterSelect
+              value={warningFilter}
+              onChange={(e) => setWarningFilter(e.target.value)}
+            >
+              <option value="">All Vaults</option>
+              <option value="NotWhitelisted">Not Whitelisted</option>
+              <option value="WrongWithdrawQueue">Wrong Withdraw Queue</option>
+              <option value="WrongSupplyQueue">Wrong Supply Queue</option>
+              <option value="MissingFlowCaps">Missing Flow Caps</option>
+              <option value="WrongPublicAllocator">
+                Public Allocator missing
               </option>
-            ))}
-          </FilterSelect>
-          <FilterSelect
-            value={whitelistFilter}
-            onChange={(e) => setWhitelistFilter(e.target.value)}
-          >
-            <option value="all">All Vaults</option>
-            <option value="whitelisted">Whitelisted Only</option>
-            <option value="not-whitelisted">Not Whitelisted Only</option>
-          </FilterSelect>
-          <div
-            style={{
-              marginLeft: "10px",
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            <label
-              style={{
-                color: "white",
-                marginRight: "5px",
-                fontSize: "0.875rem",
+              <option value="OwnerNotSafe">Owner Not Safe</option>
+              <option value="CuratorNotSafe">Curator Not Safe</option>
+            </FilterSelect>
+            <FilterSelect
+              value={curatorFilter}
+              onChange={(e) => setCuratorFilter(e.target.value)}
+            >
+              <option value="">All Curators</option>
+              {allCurators.map((curator, index) => (
+                <option key={index} value={curator}>
+                  {curator}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              value={whitelistFilter}
+              onChange={(e) => setWhitelistFilter(e.target.value)}
+            >
+              <option value="all">All Vaults</option>
+              <option value="whitelisted">Whitelisted Only</option>
+              <option value="not-whitelisted">Not Whitelisted Only</option>
+            </FilterSelect>
+            <CheckboxFilterContainer
+              onClick={() => setShowHiddenVaults((prev) => !prev)}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setShowHiddenVaults((prev) => !prev);
+                }
               }}
             >
-              Show hidden vaults:
-            </label>
-            <input
-              type="checkbox"
-              checked={showHiddenVaults}
-              onChange={() => setShowHiddenVaults((prev) => !prev)}
-              style={{ cursor: "pointer" }}
-            />
-          </div>
-        </div>
+              <span>Show hidden vaults</span>
+              <CustomCheckbox checked={showHiddenVaults} />
+            </CheckboxFilterContainer>
+          </FilterRow>
+
+          {/* Third row: Hidden vaults filter and Timelock Range */}
+          <FilterRow>
+            <RangeSliderContainer>
+              <DualRangeSlider
+                minValue={minTimelock}
+                maxValue={maxTimelock}
+                onChange={([min, max]: [number, number]) => {
+                  setMinTimelock(min);
+                  setMaxTimelock(max);
+                }}
+                label={`Timelock Range: ${minTimelock} - ${maxTimelock} days`}
+              />
+            </RangeSliderContainer>
+          </FilterRow>
+        </FiltersContainer>
       </HeaderWrapper>
       {loading && (
         <p style={{ color: "white" }}>Loading needs beetwen 3 to 10 seconds</p>
@@ -535,6 +655,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
           background: "transparent",
           color: "#2973FF",
           marginTop: "30px",
+          fontSize: "0.8rem",
         }}
       >
         <div>Vault Name</div>
@@ -621,7 +742,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                 )}
               </div>
               <div>{getFlowCapsStatus(vault)}</div>
-              <div style={{ whiteSpace: "nowrap" }}>
+              <div style={{ whiteSpace: "nowrap", fontSize: "0.7rem" }}>
                 {vault.ownerSafeDetails.isSafe ? (
                   <AddressText
                     title={vault.owner}
@@ -671,6 +792,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
+                  fontSize: "0.7rem",
                 }}
               >
                 {vault.curator ===
