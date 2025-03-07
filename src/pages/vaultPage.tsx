@@ -12,7 +12,14 @@ import {
   TitleContainer,
   VaultsWrapper,
 } from "./wrappers";
-import { Copy, CopyCheck, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Copy,
+  CopyCheck,
+  ChevronDown,
+  ChevronUp,
+  EyeOff,
+  Eye,
+} from "lucide-react";
 
 // Add these styled components
 const SearchWrapper = styled.div`
@@ -162,6 +169,24 @@ const BlinkingAddressText = styled(AddressText)`
   }
 `;
 
+// Add this new styled component for the hide/show button
+const HideButton = styled.button`
+  background: transparent;
+  border: none;
+  color: #a0a0a0;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+`;
+
 const formatUsdWithStyle = (amount: string, color?: string) => {
   const [dollars, cents] = amount.split(".");
   return (
@@ -184,11 +209,26 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
   const [warningFilter, setWarningFilter] = useState<string>("");
   const [curatorFilter, setCuratorFilter] = useState<string>("");
   const [versionFilter, setVersionFilter] = useState<string>("");
-  const [whitelistFilter, setWhitelistFilter] = useState<string>("whitelisted");
+  const [whitelistFilter, setWhitelistFilter] = useState<string>("all");
+  const [hiddenVaults, setHiddenVaults] = useState<string[]>([]);
+  const [showHiddenVaults, setShowHiddenVaults] = useState<boolean>(false);
 
   const [expandedVault, setExpandedVault] = useState<string | null>(null);
 
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+
+  // Load hidden vaults from localStorage on initial render
+  useEffect(() => {
+    const savedHiddenVaults = localStorage.getItem("hiddenVaults");
+    if (savedHiddenVaults) {
+      setHiddenVaults(JSON.parse(savedHiddenVaults));
+    }
+  }, []);
+
+  // Save hidden vaults to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("hiddenVaults", JSON.stringify(hiddenVaults));
+  }, [hiddenVaults]);
 
   const handleCopy = async (address: string) => {
     await navigator.clipboard.writeText(address);
@@ -198,13 +238,28 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
 
   const fetchData = async (
     network: "ethereum" | "base",
-    isWhitelistedOnly: boolean = true
+    whitelistOption: string
   ) => {
     setLoading(true);
     setError(null);
     try {
       const networkId = getNetworkId(network);
-      const data = await getVaultDisplayData(networkId, isWhitelistedOnly);
+      let data: VaultData[] = [];
+
+      if (whitelistOption === "all") {
+        // Fetch both whitelisted and non-whitelisted vaults
+        const [whitelistedVaults, nonWhitelistedVaults] = await Promise.all([
+          getVaultDisplayData(networkId, true), // Whitelisted vaults
+          getVaultDisplayData(networkId, false), // Non-whitelisted vaults
+        ]);
+        // Combine the results
+        data = [...whitelistedVaults, ...nonWhitelistedVaults];
+      } else {
+        // Either "whitelisted" or "not-whitelisted"
+        const isWhitelistedOnly = whitelistOption === "whitelisted";
+        data = await getVaultDisplayData(networkId, isWhitelistedOnly);
+      }
+
       // Filter out any malformed vault data
       const validVaults = data.filter((vault) => {
         try {
@@ -233,16 +288,27 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
+
   useEffect(() => {
     setVaults([]);
     setError(null);
-    const isWhitelistedOnly = whitelistFilter === "whitelisted";
-    fetchData(network, isWhitelistedOnly);
+    fetchData(network, whitelistFilter);
   }, [network, whitelistFilter]);
 
   const allCurators = vaults
     .flatMap((vault) => vault.curators)
     .filter((value, index, self) => self.indexOf(value) === index);
+
+  const toggleHideVault = (vaultAddress: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setHiddenVaults((prevHiddenVaults) => {
+      if (prevHiddenVaults.includes(vaultAddress)) {
+        return prevHiddenVaults.filter((addr) => addr !== vaultAddress);
+      } else {
+        return [...prevHiddenVaults, vaultAddress];
+      }
+    });
+  };
 
   const filterByWarning = (vault: VaultData) => {
     switch (warningFilter) {
@@ -290,6 +356,14 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
           return !vault.isV1_1;
         default:
           return true;
+      }
+    })
+    .filter((vault) => {
+      // Only show hidden vaults when the toggle is on
+      if (showHiddenVaults) {
+        return true;
+      } else {
+        return !hiddenVaults.includes(vault.vault.address);
       }
     });
 
@@ -423,9 +497,33 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
             value={whitelistFilter}
             onChange={(e) => setWhitelistFilter(e.target.value)}
           >
+            <option value="all">All Vaults</option>
             <option value="whitelisted">Whitelisted Only</option>
             <option value="not-whitelisted">Not Whitelisted Only</option>
           </FilterSelect>
+          <div
+            style={{
+              marginLeft: "10px",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <label
+              style={{
+                color: "white",
+                marginRight: "5px",
+                fontSize: "0.875rem",
+              }}
+            >
+              Show hidden vaults:
+            </label>
+            <input
+              type="checkbox"
+              checked={showHiddenVaults}
+              onChange={() => setShowHiddenVaults((prev) => !prev)}
+              style={{ cursor: "pointer" }}
+            />
+          </div>
         </div>
       </HeaderWrapper>
       {loading && (
@@ -454,12 +552,27 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
         {filteredVaults.map((vault) => (
           <React.Fragment key={vault.vault.address}>
             <VaultRow onClick={() => toggleExpand(vault.vault.address)}>
-              <div>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <HideButton
+                  onClick={(e) => toggleHideVault(vault.vault.address, e)}
+                  title={
+                    hiddenVaults.includes(vault.vault.address)
+                      ? "Show this vault"
+                      : "Hide this vault"
+                  }
+                >
+                  {hiddenVaults.includes(vault.vault.address) ? (
+                    <EyeOff size={16} />
+                  ) : (
+                    <Eye size={16} />
+                  )}
+                </HideButton>
                 <VaultNameLink
                   href={vault.vault.link.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
+                  style={{ marginLeft: "8px" }}
                 >
                   {vault.vault.link.name}
                 </VaultNameLink>
