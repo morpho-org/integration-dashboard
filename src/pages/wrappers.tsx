@@ -23,6 +23,7 @@ export const VaultsWrapper = styled.div`
   display: flex;
   flex-direction: column;
   gap: 10px;
+  font-size: 0.8rem;
 `;
 
 export const TitleContainer = styled.div`
