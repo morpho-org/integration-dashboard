@@ -10,22 +10,20 @@ import ManualReallocationPage from "./pages/manualReallocationPage";
 const App: React.FC = () => {
   const [network, setNetwork] = useState<"ethereum" | "base">("ethereum");
 
-  const handleNetworkSwitch = () => {
-    setNetwork((prevNetwork) =>
-      prevNetwork === "ethereum" ? "base" : "ethereum"
-    );
+  const handleNetworkSwitch = (selectedNetwork: "ethereum" | "base") => {
+    setNetwork(selectedNetwork);
   };
 
   return (
-    <div className="w-full p-2 bg-[#222529]">
-      <div className="w-full h-14 px-4 justify-between items-center">
+    <div className="w-full p-1 bg-[#222529]">
+      <div className="w-full h-15 px-4 justify-between items-center">
         <NavBar
           currentNetwork={network}
           onNetworkSwitch={handleNetworkSwitch}
         />
       </div>
       <div
-        className="p-6 rounded-t-lg min-h-screen"
+        className="p-3 rounded-t-lg min-h-screen"
         style={{
           background:
             "linear-gradient(180deg, rgba(21, 24, 26, 0.00) 63.77%, rgba(255, 255, 255, 0.04) 89.72%), var(--Background-Base, #15181A)",

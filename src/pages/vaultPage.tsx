@@ -495,7 +495,9 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
     <PageWrapper>
       <HeaderWrapper>
         <TitleContainer>
-          <h1 style={{ color: "white", fontWeight: "300" }}>Morpho Vaults</h1>
+          <h1 style={{ color: "white", fontWeight: "300" }}>
+            Morpho Vaults - {network}
+          </h1>
           <h2 style={{ color: "white", fontWeight: "200" }}>
             Number of vaults: {filteredVaults.length}
           </h2>
