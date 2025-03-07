@@ -8,7 +8,7 @@ const NavBarWrapper = styled.div`
   justify-content: space-between;
   align-items: center;
   background-color: #191d200f;
-  padding: 10px 20px;
+  padding: 10px 10px;
   color: #2470ff;
 `;
 
@@ -33,7 +33,6 @@ const NavLink = styled(Link)<{ $isActive: boolean }>`
   font-weight: 500;
   height: 100%;
   transition: all 0.3s;
-
   &:hover {
     background-color: ${(props) => (props.$isActive ? "#2973FF" : "#3a3f45")};
   }
@@ -45,7 +44,7 @@ export const NetworkSelector = styled.div`
   background-color: #2c2f33;
   border-radius: 9999px;
   height: 45px;
-  margin-left: auto;
+  /* Remove margin-left:auto here */
 `;
 
 export const NetworkButton = styled.button<{ $isActive: boolean }>`
@@ -56,14 +55,12 @@ export const NetworkButton = styled.button<{ $isActive: boolean }>`
   background-color: ${(props) => (props.$isActive ? "#2973FF" : "transparent")};
   border-radius: 9999px;
   padding: 8px 16px;
-  text-decoration: none;
   font-size: 0.875rem;
   font-weight: 500;
   height: 100%;
   transition: all 0.3s;
   border: none;
   cursor: pointer;
-
   &:hover {
     background-color: ${(props) => (props.$isActive ? "#2973FF" : "#3a3f45")};
   }
@@ -71,6 +68,13 @@ export const NetworkButton = styled.button<{ $isActive: boolean }>`
 
 export const ethLogo = "https://cdn.morpho.org/assets/chains/eth.svg";
 export const baseLogo = "https://cdn.morpho.org/assets/chains/base.png";
+
+const NetworkContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: auto;
+`;
 
 type NetworkOption = {
   value: "ethereum" | "base";
@@ -113,9 +117,7 @@ type NavBarProps = {
 
 const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
   const location = useLocation();
-
   const chainId = useChainId();
-
   const defaultNetwork =
     chainId === 8453 ? "base" : chainId === 1 ? "ethereum" : "ethereum";
   const [selectedNetwork, setSelectedNetwork] = useState<NetworkOption>(
@@ -157,17 +159,22 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
           </NavLink>
         ))}
       </NavLinks>
-      <NetworkSelector>
-        {networkOptions.map((option) => (
-          <NetworkButton
-            key={option.value}
-            $isActive={selectedNetwork.value === option.value}
-            onClick={() => handleNetworkChange(option.value)}
-          >
-            {option.label}
-          </NetworkButton>
-        ))}
-      </NetworkSelector>
+      <NetworkContainer>
+        <NetworkSelector>
+          {networkOptions.map((option) => (
+            <NetworkButton
+              key={option.value}
+              $isActive={selectedNetwork.value === option.value}
+              onClick={() => handleNetworkChange(option.value)}
+            >
+              {option.label}
+            </NetworkButton>
+          ))}
+        </NetworkSelector>
+        <div className="text-xs text-gray-400 mt-1 italic">
+          Default is latest connected chain
+        </div>
+      </NetworkContainer>
     </NavBarWrapper>
   );
 };
