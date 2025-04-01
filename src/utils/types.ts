@@ -66,6 +66,8 @@ export type MarketChainData = {
   borrowRate: bigint;
   rateAtTarget: bigint;
   apys: Apys;
+  utilization?: bigint;
+  apyAtTarget?: bigint;
 };
 
 export type MarketState = {

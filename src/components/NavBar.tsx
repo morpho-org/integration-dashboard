@@ -138,12 +138,12 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
   };
 
   const navItems = [
+    { path: "/manual-reallocation", label: "Manual Reallocation" },
     { path: "/", label: "Vaults" },
     { path: "/market-warnings", label: "Markets With Warnings" },
     { path: "/markets-without-strategy", label: "Strategyless Markets" },
     { path: "/out-of-bounds-markets", label: "Out of Range Markets" },
     { path: "/blocking-flow-caps", label: "Blocking Flow Caps" },
-    { path: "/manual-reallocation", label: "Manual Reallocation" },
   ];
 
   return (

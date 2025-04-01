@@ -37,6 +37,8 @@ export const fetchMarketParamsAndData = async (
     marketState,
     borrowRate: config.borrowRate,
     rateAtTarget: config.rateAtTarget ?? 0n,
+    utilization: config.utilization ?? 0n,
+    apyAtTarget: config.apyAtTarget ?? 0n,
     apys: {
       borrowApy: config.borrowApy,
       supplyApy: config.supplyApy,

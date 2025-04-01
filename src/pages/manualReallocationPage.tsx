@@ -3,6 +3,7 @@ import {
   compareAndReallocate,
   ReallocationResult,
   WithdrawalDetails,
+  fetchMarketAPYs,
 } from "../core/publicAllocator"; // Update with correct path
 import { ChainId, MarketId, MarketParams } from "@morpho-org/blue-sdk";
 import { formatUnits, parseUnits } from "viem";
@@ -133,6 +134,16 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     collateralAsset: any;
   } | null>(null);
 
+  // Add new state for market APY data
+  const [marketAPYData, setMarketAPYData] = useState<{
+    currentUtilization: number;
+    targetUtilization: number;
+    borrowableToTarget: bigint;
+    apyAtTarget: number;
+    totalSupplyAssets: bigint;
+    totalBorrowAssets: bigint;
+  } | null>(null);
+
   // Update chainId when network prop changes
   useEffect(() => {
     setResult(undefined);
@@ -194,11 +205,68 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     }
   }, [result]);
 
+  // Add effect to fetch market APY data when marketId changes
+  useEffect(() => {
+    async function fetchAPYData() {
+      if (!inputs.marketId || !chainId) {
+        // Reset marketAPYData if we don't have marketId or chainId
+        setMarketAPYData(null);
+        return;
+      }
+
+      try {
+        setInputLoading(true);
+        const data = await fetchMarketAPYs(
+          inputs.marketId as MarketId,
+          Number(chainId)
+        );
+
+        // Only set the data if it exists and contains the expected properties
+        if (data && data.marketAPYs) {
+          setMarketAPYData(data.marketAPYs);
+        } else {
+          // Reset the state if we got invalid data
+          setMarketAPYData(null);
+        }
+      } catch (err) {
+        console.error("Error fetching market APY data:", err);
+        // Reset the state on error
+        setMarketAPYData(null);
+      } finally {
+        setInputLoading(false);
+      }
+    }
+
+    // Debounce the fetch to avoid too many calls while typing
+    const timer = setTimeout(() => {
+      fetchAPYData();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [inputs.marketId, chainId]);
+
+  // Add effect to reset market data when network changes
+  useEffect(() => {
+    // Reset market-related data when network/chainId changes
+    setMarketAPYData(null);
+    setMarketAsset(null);
+  }, [chainId, network]);
+
+  // We should also reset the marketAPYData when the marketId input changes without waiting for the debounce
+  useEffect(() => {
+    // Immediately clear market data when input changes
+    setMarketAPYData(null);
+  }, [inputs.marketId]);
+
   // Update input change handler
   const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
-    if (name === "requestedLiquidityNative") {
+    if (name === "marketId") {
+      // Immediately reset market APY data when market ID changes
+      setMarketAPYData(null);
+      setInputs((prev) => ({ ...prev, [name]: value }));
+    } else if (name === "requestedLiquidityNative") {
       const numericValue = value.replace(/[^\d]/g, "");
       setInputs((prev) => ({
         ...prev,
@@ -345,6 +413,126 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                   className="w-full p-2 rounded bg-gray-800 text-xs"
                 />
               </div>
+
+              {/* Display Market APY Info */}
+              {inputLoading ? (
+                <div className="flex items-center justify-center p-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                </div>
+              ) : marketAPYData ? (
+                <div className="p-3 bg-gray-800/50 rounded-lg text-sm">
+                  <h4 className="text-blue-400 text-sm mb-2 font-medium">
+                    Market Metrics
+                    <span className="text-xs text-gray-400 ml-2">
+                      (Chain ID: {chainId})
+                    </span>
+                  </h4>
+
+                  {/* Check if market exists */}
+                  {marketAPYData.currentUtilization === 0 &&
+                  marketAPYData.apyAtTarget === 0 ? (
+                    /* Show warning message only when market likely doesn't exist */
+                    <div className="p-2 bg-yellow-400/10 text-yellow-400 text-xs rounded">
+                      ⚠️ This market does not exist on Chain ID: {chainId}. Try
+                      switching networks.
+                    </div>
+                  ) : (
+                    /* Only display metrics when the market exists */
+                    <>
+                      <div className="flex justify-between mb-1 text-xs ">
+                        <span className="text-gray-400">
+                          Current Utilization
+                        </span>
+                        <span className="text-white">
+                          {marketAPYData.currentUtilization.toFixed(2)}%
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between mb-1 text-xs ">
+                        <span className="text-gray-400">
+                          Target Utilization
+                        </span>
+                        <span className="text-white">
+                          {marketAPYData.targetUtilization}%
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between mb-1 text-xs ">
+                        <span className="text-gray-400">
+                          Borrow APY at Target
+                        </span>
+                        <span className="text-green-400">
+                          {marketAPYData.apyAtTarget.toFixed(2)}%
+                        </span>
+                      </div>
+
+                      <div className="mt-2 border-t border-gray-700 pt-2 text-xs ">
+                        <div className="flex justify-between mb-1">
+                          <span className="text-gray-400">
+                            Borrowable until target
+                          </span>
+                          <span className="text-green-400 text-xs">
+                            {marketAsset
+                              ? Number(
+                                  formatUnits(
+                                    marketAPYData.borrowableToTarget,
+                                    marketAsset?.loanAsset?.decimals || 18
+                                  )
+                                ).toLocaleString()
+                              : Number(
+                                  formatUnits(
+                                    marketAPYData.borrowableToTarget,
+                                    18
+                                  )
+                                ).toLocaleString()}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between mb-1 text-xs ">
+                          <span className="text-gray-400">≈ USD Value:</span>
+                          <span className="text-green-400">
+                            {marketAsset
+                              ? formatUsdAmount(
+                                  Number(
+                                    formatUnits(
+                                      marketAPYData.borrowableToTarget,
+                                      marketAsset?.loanAsset?.decimals || 18
+                                    )
+                                  ) * marketAsset.loanAsset.priceUsd,
+                                  2
+                                )
+                              : "Loading..."}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            if (marketAsset) {
+                              const borrowableAmount = Number(
+                                formatUnits(
+                                  marketAPYData.borrowableToTarget,
+                                  marketAsset.loanAsset.decimals || 18
+                                )
+                              ).toFixed(0);
+
+                              setInputs((prev) => ({
+                                ...prev,
+                                requestedLiquidityNative: borrowableAmount,
+                                requestedLiquidityType: "native",
+                                requestedLiquidityUsd: "",
+                              }));
+                            }
+                          }}
+                          className="mt-2 w-full bg-blue-500/30 text-white text-xs p-2 rounded hover:bg-blue-600/30"
+                        >
+                          Use Target Amount
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : null}
+
               {/* Borrow Request Liquidity Inputs */}
               <div>
                 <label className="block text-sm font-medium mb-1">
