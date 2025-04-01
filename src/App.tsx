@@ -30,6 +30,10 @@ const App: React.FC = () => {
         }}
       >
         <Routes>
+          <Route
+            path="/manual-reallocation"
+            element={<ManualReallocationPage network={network} />}
+          />{" "}
           <Route path="/" element={<VaultPage network={network} />} />
           <Route
             path="/out-of-bounds-markets"
@@ -46,10 +50,6 @@ const App: React.FC = () => {
           <Route
             path="/blocking-flow-caps"
             element={<BlockingFlowCapsPage network={network} />}
-          />{" "}
-          <Route
-            path="/manual-reallocation"
-            element={<ManualReallocationPage network={network} />}
           />{" "}
         </Routes>
       </div>

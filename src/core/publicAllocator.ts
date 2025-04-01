@@ -1,6 +1,6 @@
 // WIP work, do not change this file.
 
-import { Address, createClient, http, parseEther } from "viem";
+import { Address, createClient, http, parseEther, PublicClient } from "viem";
 import {
   getChainAddresses,
   Market,
@@ -21,6 +21,9 @@ import {
   type SimulationState,
   produceImmutable,
 } from "@morpho-org/simulation-sdk";
+import { fetchMarketParamsAndData } from "../fetchers/chainFetcher";
+import { initializeClient } from "../utils/client";
+import { formatUnits } from "viem";
 /**
  * The default target utilization above which the shared liquidity algorithm is triggered (scaled by WAD).
  */
@@ -677,4 +680,55 @@ export async function compareAndReallocate(
     console.error("Error in compareAndReallocate:", error);
     throw error;
   }
+}
+
+export async function fetchMarketAPYs(marketId: MarketId, chainId: number) {
+  const [{ client: clientMainnet }, { client: clientBase }] = await Promise.all(
+    [initializeClient(1), initializeClient(8453)]
+  );
+
+  let client: PublicClient;
+  if (chainId === 1) {
+    client = clientMainnet;
+  } else if (chainId === 8453) {
+    client = clientBase;
+  } else {
+    throw new Error(`Unsupported chain ID: ${chainId}`);
+  }
+
+  const { marketChainData } = await fetchMarketParamsAndData(client, marketId);
+
+  // Calculate current utilization
+  const currentUtilization = Number(
+    formatUnits(marketChainData.utilization ?? 0n, 16)
+  );
+
+  // Get target utilization (typically 90%)
+  const targetUtilization = 90; // 90% is the common target utilization
+
+  // Calculate borrowable amount to reach target utilization
+  const totalSupplyAssets = marketChainData.marketState.totalSupplyAssets;
+  const totalBorrowAssets = marketChainData.marketState.totalBorrowAssets;
+
+  // Formula: borrowable = (target_util * total_supply - current_borrow)
+  const borrowableToTarget =
+    (BigInt(targetUtilization) * totalSupplyAssets) / BigInt(100) -
+    totalBorrowAssets;
+
+  // Get rate at target (APY at target utilization)
+  const apyAtTarget = Number(
+    formatUnits(marketChainData.apyAtTarget ?? 0n, 16)
+  );
+
+  return {
+    marketChainData,
+    marketAPYs: {
+      currentUtilization,
+      targetUtilization,
+      borrowableToTarget,
+      apyAtTarget,
+      totalSupplyAssets,
+      totalBorrowAssets,
+    },
+  };
 }
