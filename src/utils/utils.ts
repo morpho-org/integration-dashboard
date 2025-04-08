@@ -1,4 +1,5 @@
 import { encodeAbiParameters, keccak256 } from "viem";
+import { pow10 } from "./maths";
 import {
   Apys,
   Asset,
@@ -9,11 +10,14 @@ import {
   VaultReallocationData,
   Withdrawal,
 } from "./types";
-import { pow10 } from "./maths";
 
 export const isApyOutOfRange = (apys: Apys, range: Range) => {
   return apys.supplyApy < range.lowerBound || apys.borrowApy > range.upperBound;
 };
+
+export function getCurrentTimestamp(): number {
+  return Math.floor(Date.now() / 1000);
+}
 
 export const isUtilizationOutOfRange = (utilization: bigint, range: Range) => {
   return utilization < range.lowerBound || utilization > range.upperBound;
