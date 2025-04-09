@@ -2414,22 +2414,27 @@
     semver "^7.5.4"
     uuid "^9.0.1"
 
-"@morpho-org/blue-sdk-viem@^2.2.0":
-  version "2.2.0"
-  resolved "https://registry.yarnpkg.com/@morpho-org/blue-sdk-viem/-/blue-sdk-viem-2.2.0.tgz#0ac7291ea2ea390956b1c1b1bcddd095ff521e8d"
-  integrity sha512-I7s/W6s5CSPkQUqqahB37L2oRMnsmGdL3wG8fTDbxJsedGXBMiAacZAdISLFyZTu72TtLcC/u0Jk3XOSCG8yfw==
+"@morpho-org/blue-sdk-viem@^3.0.0-next.5":
+  version "3.0.0-next.5"
+  resolved "https://registry.yarnpkg.com/@morpho-org/blue-sdk-viem/-/blue-sdk-viem-3.0.0-next.5.tgz#562a27882efc39285a803a7a7fd44343f1fa66be"
+  integrity sha512-SxQV/pP24cvKtICWzk1a6L3R3oVY/AL8gXD0JP4vr19F5jwBpWz0GH5wGfExTNBMK7ZsmVIRhm9V16gPuEPZ4Q==
 
-"@morpho-org/blue-sdk@^2.3.0":
-  version "2.3.0"
-  resolved "https://registry.yarnpkg.com/@morpho-org/blue-sdk/-/blue-sdk-2.3.0.tgz#64156f8167b10af0d5d97ed52b460ef5c21231f9"
-  integrity sha512-NcgvErqRsPIqD9LoGmy7TmAwD3TJAl3SKlew6qlp6qrTIN1dYHAFeYBr1DdJjHQUf75AA1aw3Z9Mt6WdsykdjA==
+"@morpho-org/blue-sdk@^3.0.0-next.14":
+  version "3.0.0-next.14"
+  resolved "https://registry.yarnpkg.com/@morpho-org/blue-sdk/-/blue-sdk-3.0.0-next.14.tgz#da5b3b0471d6d9784312f2224f42e9e44a52275d"
+  integrity sha512-GpsBVbnCVuHsFrZZser6FKpaggHHJAGRMamSyRU57JN0b78UYD/xtMVr3Y6Pbl5iYltFh22GVv708r6SPITgoA==
   dependencies:
     "@noble/hashes" "^1.6.1"
 
-"@morpho-org/liquidity-sdk-viem@1.1.0":
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/@morpho-org/liquidity-sdk-viem/-/liquidity-sdk-viem-1.1.0.tgz#cfef0c46f4d83a9093b836f7980545d9c0d1132b"
-  integrity sha512-/av5G8NuyNxt6QEG98TLypEwPAaE9aHirERG+I9yidCvm7s8dISMZQ0N/4JZMVyP2rwTLDNmofpa/GEIQtkGJQ==
+"@morpho-org/bundler-sdk-viem@^3.0.0-next.12":
+  version "3.0.0-next.12"
+  resolved "https://registry.yarnpkg.com/@morpho-org/bundler-sdk-viem/-/bundler-sdk-viem-3.0.0-next.12.tgz#13f251ce62029de04cb87b5648c6dfbfd2579af6"
+  integrity sha512-9RHYCWTzqZddnBN7exG0Fs7zYj2mHViD9ImMOUplEoZzZNzUXEEO5tqJkFwUTeb9YRVgwHoJb4fEe+VS8bqPwQ==
+
+"@morpho-org/liquidity-sdk-viem@^2.0.0-next.12":
+  version "2.0.0-next.12"
+  resolved "https://registry.yarnpkg.com/@morpho-org/liquidity-sdk-viem/-/liquidity-sdk-viem-2.0.0-next.12.tgz#6ede1c594cc19eccadeb4cfda6b2450da557e9d0"
+  integrity sha512-yOWaerlEV5Y3Lck6yQIqfHHmM6EQDBY8yORMMXAPyBEcN5s+p0nhLjsqnevs/sIcEQ03ci9cXFQyflC+vYfXAA==
 
 "@morpho-org/morpho-blue-bundlers@^1.1.2":
   version "1.1.2"
@@ -2440,15 +2445,15 @@
     evm-maths "^6.0.0"
     lodash "^4.17.21"
 
-"@morpho-org/morpho-ts@^2.0.0":
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/@morpho-org/morpho-ts/-/morpho-ts-2.0.0.tgz#188b6555c390537362fc65e71b816218610bfcac"
-  integrity sha512-4wvo+42FPHdgM4VLCzmp7NyNmyDs56uGvv9gOCoo2KTMzbq7Bj1SrnTjhjHPq4NPUozwcDnCmtPkEbifdRGtFQ==
+"@morpho-org/morpho-ts@^2.3.0-next.0":
+  version "2.3.0-next.0"
+  resolved "https://registry.yarnpkg.com/@morpho-org/morpho-ts/-/morpho-ts-2.3.0-next.0.tgz#5a01d5ad5936baea0fec71928ad1d835355c53c2"
+  integrity sha512-49/I0nALYnXEuJzIbJ1Mooq0kuTfU2GiM0En0AsgTYWZXWaxTZ/UV6CiXJ2FLAwcc1qWsFOL1Nx+ymuhF/9gag==
 
-"@morpho-org/simulation-sdk@^2.1.2":
-  version "2.1.2"
-  resolved "https://registry.yarnpkg.com/@morpho-org/simulation-sdk/-/simulation-sdk-2.1.2.tgz#a76e51990189abf5a7c7aff5331b3ab024cc705b"
-  integrity sha512-fJmUexDGbovf5A4FOY8ZJO9Yayo1h2/OhPFRdrSSVl/RB7acF1+4pZiqkMerChPmkR7hfEQutgI3jlSGCOx5cQ==
+"@morpho-org/simulation-sdk@^3.0.0-next.5":
+  version "3.0.0-next.5"
+  resolved "https://registry.yarnpkg.com/@morpho-org/simulation-sdk/-/simulation-sdk-3.0.0-next.5.tgz#cfc99614dfb1387ca5924ea62280c703f4a2af7e"
+  integrity sha512-Dt5wmYznMxMOU0BTtlIAlmWVJYB0jrQHrs0zGqGE80YxpnEF2cUJ2GZPHzbPbbH+dc4ikJV0jXcwRq04unjEDg==
   dependencies:
     mutative "^1.1.0"
 

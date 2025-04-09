@@ -1,13 +1,13 @@
-import { useState } from "react";
-import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseEther } from "viem";
-import { BaseBundlerV2__factory } from "@morpho-org/morpho-blue-bundlers/types";
-import { BundlerAction } from "@morpho-org/morpho-blue-bundlers/pkg";
 import {
   getChainAddresses,
   MarketId,
   MarketParams,
 } from "@morpho-org/blue-sdk";
+import { BundlerAction } from "@morpho-org/morpho-blue-bundlers/pkg";
+import { BaseBundlerV2__factory } from "@morpho-org/morpho-blue-bundlers/types";
+import { useState } from "react";
+import { parseEther } from "viem";
+import { useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { WithdrawalDetails } from "../core/publicAllocator";
 
 type TransactionSenderV2Props = {
@@ -60,7 +60,7 @@ export default function TransactionSenderV2({
         });
 
         const action = BundlerAction.metaMorphoReallocateTo(
-          config.publicAllocator,
+          config.publicAllocator as `0x${string}`,
           vaultAddress,
           0n, // No fee for now
           reducedWithdrawals, // Use the reduced withdrawals

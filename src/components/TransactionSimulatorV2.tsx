@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
-import { useSimulateContract } from "wagmi";
-import { parseEther } from "viem";
-import { BaseBundlerV2__factory } from "@morpho-org/morpho-blue-bundlers/types";
-import { BundlerAction } from "@morpho-org/morpho-blue-bundlers/pkg";
 import {
   getChainAddresses,
   MarketId,
   MarketParams,
 } from "@morpho-org/blue-sdk";
+import { BundlerAction } from "@morpho-org/morpho-blue-bundlers/pkg";
+import { BaseBundlerV2__factory } from "@morpho-org/morpho-blue-bundlers/types";
+import { useEffect, useState } from "react";
+import { parseEther } from "viem";
+import { useSimulateContract } from "wagmi";
 import { WithdrawalDetails } from "../core/publicAllocator";
 
 type TransactionSimulatorV2Props = {
@@ -36,13 +36,6 @@ export default function TransactionSimulatorV2({
     .filter(([, withdrawals]) => withdrawals.some((w) => w.amount > 0n))
     .map(([vaultAddress]) => vaultAddress);
 
-  console.log("filteredVaults in simulator:", filteredVaults);
-  console.log(
-    "withdrawalsPerVault with amount above 0 in simulator:",
-    Object.values(withdrawalsPerVault).filter((withdrawals) =>
-      withdrawals.some((w) => w.amount > 0n)
-    )
-  );
   const multicallActions = filteredVaults.map((vaultAddress) => {
     const vaultWithdrawals = withdrawalsPerVault[vaultAddress];
     // Sort withdrawals by market id for consistency
@@ -59,7 +52,7 @@ export default function TransactionSimulatorV2({
     });
 
     const action = BundlerAction.metaMorphoReallocateTo(
-      config.publicAllocator,
+      config.publicAllocator as `0x${string}`,
       vaultAddress,
       0n, // No fee for now
       reducedWithdrawals, // Use the reduced withdrawals

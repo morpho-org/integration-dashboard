@@ -413,3 +413,47 @@ export type OutOfBoundsMarket = {
   amountToReachTarget: bigint;
   aboveRange: boolean;
 };
+
+export interface DefiLlamaResponse {
+  coins: {
+    [key: string]: {
+      decimals: number;
+      symbol: string;
+      price: number;
+      timestamp: number;
+      confidence: number;
+    };
+  };
+}
+
+export interface AssetPriceInfoDL {
+  decimals: number;
+  symbol: string;
+  price: number;
+  timestamp: number;
+  confidence: number;
+}
+
+export interface MarketTarget {
+  id: string;
+  uniqueKey: string;
+  targetBorrowUtilization: string;
+  targetWithdrawUtilization: string;
+}
+
+export interface ApiTargetsResponse {
+  data: {
+    markets: {
+      items: MarketTarget[];
+    };
+    vaults?: {
+      items: {
+        id: string;
+        address: string;
+        publicAllocatorConfig: {
+          fee: string;
+        };
+      }[];
+    };
+  };
+}
