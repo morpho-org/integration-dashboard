@@ -182,9 +182,12 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
       ) : (
         <>
           {/* SVG Chart */}
-          <div className="relative h-56 mt-4" ref={chartRef}>
+          <div
+            className="relative h-56 mt-4 max-w-[800px] mx-auto"
+            ref={chartRef}
+          >
             {/* Legend in top left */}
-            <div className="absolute top-0 left-0 z-10 text-xs text-gray-400 bg-gray-900 bg-opacity-70 px-2 py-1 rounded  ml-4">
+            <div className="absolute top-0 left-0 z-10 text-xs text-gray-400 bg-gray-900 bg-opacity-70 px-2 py-1 rounded ml-4">
               <div className="flex items-center">
                 <span className="w-3 h-0.5 bg-blue-500 mr-1"></span>
                 <span>
