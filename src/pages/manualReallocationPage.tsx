@@ -1,13 +1,13 @@
 import { ChainId, MarketId, MarketParams } from "@morpho-org/blue-sdk";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { formatUnits, parseUnits } from "viem";
 import { useChainId, useSwitchChain } from "wagmi";
 import MarketMetricsChart from "../components/MarketMetricsChart";
 import TransactionSenderV2 from "../components/TransactionSenderV2";
 import TransactionSimulatorV2 from "../components/TransactionSimulatorV2";
 import {
-  compareAndReallocate,
+  fetchMarketSimulationBorrow,
   fetchMarketSimulationSeries,
   ReallocationResult,
   WithdrawalDetails,
@@ -112,6 +112,10 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     requestedLiquidityUsd: "",
     requestedLiquidityType: "native", // default to native
   });
+
+  // Add state for button animation
+  const [showComputePrompt, setShowComputePrompt] = useState(false);
+  const computeButtonRef = useRef<HTMLButtonElement>(null);
 
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
@@ -285,7 +289,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     if (marketAsset && simulationSeries) {
       const availableAmount = Number(
         formatUnits(
-          simulationSeries.initialLiquidity,
+          (simulationSeries.initialLiquidity * 999n) / 1000n,
           marketAsset.loanAsset.decimals || 18
         )
       ).toFixed(0);
@@ -296,6 +300,24 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
         requestedLiquidityType: "native",
         requestedLiquidityUsd: "",
       }));
+
+      // Add visual cue to guide user to click compute button
+      setShowComputePrompt(true);
+
+      // Animate the compute button
+      if (computeButtonRef.current) {
+        computeButtonRef.current.classList.add("pulse-animation");
+        setTimeout(() => {
+          if (computeButtonRef.current) {
+            computeButtonRef.current.classList.remove("pulse-animation");
+          }
+        }, 1500);
+      }
+
+      // Auto-hide the prompt after 5 seconds
+      setTimeout(() => {
+        setShowComputePrompt(false);
+      }, 5000);
     }
   };
 
@@ -323,7 +345,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
         throw new Error("Invalid liquidity type");
       }
 
-      const res = await compareAndReallocate(
+      const res = await fetchMarketSimulationBorrow(
         inputs.marketId as MarketId,
         Number(chainId) as ChainId,
         liquidityValue
@@ -382,7 +404,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
             <span className="mr-2">
               {result.reason.type === "success" ? "✓" : "✗"}
             </span>
-            {result.reason.message}
+            {"check logs for more details"}
           </div>
         )}
         <div className="flex justify-end mb-4">
@@ -437,14 +459,25 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
               </div>
 
               <button
+                ref={computeButtonRef}
                 onClick={handleSubmit}
                 disabled={loading}
-                className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:bg-gray-300"
+                className={`w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:bg-gray-300 relative ${
+                  showComputePrompt
+                    ? "ring-2 ring-yellow-400 ring-opacity-75"
+                    : ""
+                }`}
               >
                 {loading
                   ? "Computing..."
                   : "Compute Reallocation (not exactly as FE yet)"}
               </button>
+
+              {showComputePrompt && (
+                <div className="text-yellow-400 text-sm text-center animate-fade-in">
+                  ⚠️ Click "Compute Reallocation" to see the results
+                </div>
+              )}
 
               {result && result.apiMetrics && (
                 <div className="mt-4 p-3 bg-gray-800 rounded-lg text-sm">
@@ -493,9 +526,17 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
         {/* Right side with two sections - Market Metrics and Results */}
         <div className="w-3/4">
           {/* Market Metrics section (always visible) */}
-          <SimpleCard title="Market Metrics" initialCollapsed={false}>
+          <SimpleCard
+            title="Market Graph with Borrow Simulation"
+            initialCollapsed={false}
+          >
             <div className="p-3 bg-gray-800/50 rounded-lg text-sm">
-              {!simulationSeries || simulationSeries.error ? (
+              {inputLoading ? (
+                <div className="p-2 bg-blue-400/10 text-blue-400 text-xs rounded flex items-center">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-400 mr-2"></div>
+                  Loading market graph...
+                </div>
+              ) : !simulationSeries || simulationSeries.error ? (
                 <div className="p-2 bg-yellow-400/10 text-yellow-400 text-xs rounded">
                   ⚠️{" "}
                   {
@@ -1016,48 +1057,35 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                 )}
                                 <span className="text-red-400 ml-2">
                                   {formatUsdWithStyle(
-                                    formatUsdAmount(
-                                      Number(
-                                        formatUnits(
+                                    (Number(
+                                      formatUnits(
+                                        result.simulation.targetMarket
+                                          .postReallocation.liquidity -
                                           result.simulation.targetMarket
-                                            .postReallocation.liquidity -
+                                            .preReallocation.liquidity,
+                                        result.apiMetrics.decimals
+                                      )
+                                    ) > 0
+                                      ? "+"
+                                      : "") +
+                                      formatUsdAmount(
+                                        Number(
+                                          formatUnits(
                                             result.simulation.targetMarket
-                                              .preReallocation.liquidity,
-                                          result.apiMetrics.decimals
-                                        )
-                                      ) * result.apiMetrics.priceUsd,
-                                      2
-                                    ),
+                                              .postReallocation.liquidity -
+                                              result.simulation.targetMarket
+                                                .preReallocation.liquidity,
+                                            result.apiMetrics.decimals
+                                          )
+                                        ) * result.apiMetrics.priceUsd,
+                                        2
+                                      ),
                                     "text-red-400",
                                     true
                                   )}
                                 </span>
                               </div>
-                              <div>
-                                {formatBorrowApyWithStyle(
-                                  Number(
-                                    formatUnits(
-                                      result.simulation.targetMarket
-                                        .postReallocation.borrowApy,
-                                      16
-                                    )
-                                  ).toFixed(2)
-                                )}
-                                <span className="text-red-400 ml-2">
-                                  {formatBorrowApyWithStyle(
-                                    Number(
-                                      formatUnits(
-                                        result.simulation.targetMarket
-                                          .postReallocation.borrowApy -
-                                          result.simulation.targetMarket
-                                            .preReallocation.borrowApy,
-                                        16
-                                      )
-                                    ).toFixed(2),
-                                    "text-red-400"
-                                  )}
-                                </span>
-                              </div>
+                              <div>{"-"}</div>
                               <div>
                                 {formatBorrowApyWithStyle(
                                   Number(
@@ -1069,7 +1097,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                   ).toFixed(2)
                                 )}
                                 <span className="text-red-400 ml-2">
-                                  {Number(
+                                  {(Number(
                                     formatUnits(
                                       result.simulation.targetMarket.postBorrow
                                         .utilization -
@@ -1077,7 +1105,18 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                           .preReallocation.utilization,
                                       16
                                     )
-                                  ).toFixed(2)}
+                                  ) > 0
+                                    ? "+"
+                                    : "") +
+                                    Number(
+                                      formatUnits(
+                                        result.simulation.targetMarket
+                                          .postBorrow.utilization -
+                                          result.simulation.targetMarket
+                                            .preReallocation.utilization,
+                                        16
+                                      )
+                                    ).toFixed(2)}
                                   %
                                 </span>
                               </div>
@@ -1098,18 +1137,29 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                 )}
                                 <span className="text-red-400 ml-2">
                                   {formatUsdWithStyle(
-                                    formatUsdAmount(
-                                      Number(
-                                        formatUnits(
+                                    (Number(
+                                      formatUnits(
+                                        result.simulation.targetMarket
+                                          .postBorrow.liquidity -
                                           result.simulation.targetMarket
-                                            .postBorrow.liquidity -
+                                            .preReallocation.liquidity,
+                                        result.apiMetrics.decimals
+                                      )
+                                    ) > 0
+                                      ? "+"
+                                      : "") +
+                                      formatUsdAmount(
+                                        Number(
+                                          formatUnits(
                                             result.simulation.targetMarket
-                                              .preReallocation.liquidity,
-                                          result.apiMetrics.decimals
-                                        )
-                                      ) * result.apiMetrics.priceUsd,
-                                      2
-                                    ),
+                                              .postBorrow.liquidity -
+                                              result.simulation.targetMarket
+                                                .preReallocation.liquidity,
+                                            result.apiMetrics.decimals
+                                          )
+                                        ) * result.apiMetrics.priceUsd,
+                                        2
+                                      ),
                                     "text-red-400",
                                     true
                                   )}
@@ -1127,7 +1177,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                 )}
                                 <span className="text-red-400 ml-2">
                                   {formatBorrowApyWithStyle(
-                                    Number(
+                                    (Number(
                                       formatUnits(
                                         result.simulation.targetMarket
                                           .postBorrow.borrowApy -
@@ -1135,7 +1185,18 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                             .preReallocation.borrowApy,
                                         16
                                       )
-                                    ).toFixed(2),
+                                    ) > 0
+                                      ? "+"
+                                      : "") +
+                                      Number(
+                                        formatUnits(
+                                          result.simulation.targetMarket
+                                            .postBorrow.borrowApy -
+                                            result.simulation.targetMarket
+                                              .preReallocation.borrowApy,
+                                          16
+                                        )
+                                      ).toFixed(2),
                                     "text-red-400"
                                   )}
                                 </span>
@@ -1151,7 +1212,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                   ).toFixed(2)
                                 )}
                                 <span className="text-red-400 ml-2">
-                                  {Number(
+                                  {(Number(
                                     formatUnits(
                                       result.simulation.targetMarket.postBorrow
                                         .utilization -
@@ -1159,7 +1220,18 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                           .preReallocation.utilization,
                                       16
                                     )
-                                  ).toFixed(2)}
+                                  ) > 0
+                                    ? "+"
+                                    : "") +
+                                    Number(
+                                      formatUnits(
+                                        result.simulation.targetMarket
+                                          .postBorrow.utilization -
+                                          result.simulation.targetMarket
+                                            .preReallocation.utilization,
+                                        16
+                                      )
+                                    ).toFixed(2)}
                                   %
                                 </span>
                               </div>
@@ -1356,7 +1428,33 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                                     16
                                                   )
                                                 ).toFixed(2)}
-                                                %
+                                                %{" "}
+                                                {Number(
+                                                  formatUnits(
+                                                    simulationData
+                                                      .postReallocation
+                                                      .borrowApy -
+                                                      simulationData
+                                                        .preReallocation
+                                                        .borrowApy,
+                                                    16
+                                                  )
+                                                ) > 0
+                                                  ? "+"
+                                                  : ""}
+                                                (
+                                                {Number(
+                                                  formatUnits(
+                                                    simulationData
+                                                      .postReallocation
+                                                      .borrowApy -
+                                                      simulationData
+                                                        .preReallocation
+                                                        .borrowApy,
+                                                    16
+                                                  )
+                                                ).toFixed(2)}
+                                                %)
                                               </span>
                                             ) : (
                                               <span className="text-white"></span>
@@ -1399,7 +1497,33 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                                     16
                                                   )
                                                 ).toFixed(2)}
-                                                %
+                                                %{" "}
+                                                {Number(
+                                                  formatUnits(
+                                                    simulationData
+                                                      .postReallocation
+                                                      .utilization -
+                                                      simulationData
+                                                        .preReallocation
+                                                        .utilization,
+                                                    16
+                                                  )
+                                                ) > 0
+                                                  ? "+"
+                                                  : ""}
+                                                (
+                                                {Number(
+                                                  formatUnits(
+                                                    simulationData
+                                                      .postReallocation
+                                                      .utilization -
+                                                      simulationData
+                                                        .preReallocation
+                                                        .utilization,
+                                                    16
+                                                  )
+                                                ).toFixed(2)}
+                                                %)
                                               </span>
                                             ) : (
                                               <span>
@@ -1696,6 +1820,39 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
           )}
         </div>
       </div>
+
+      {/* Add the CSS animation */}
+      <style>{`
+        @keyframes pulse {
+          0% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+          }
+          
+          50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+          }
+          
+          100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+          }
+        }
+        
+        .pulse-animation {
+          animation: pulse 0.75s 2;
+        }
+        
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        .animate-fade-in {
+          animation: fadeIn 0.3s ease-in-out;
+        }
+      `}</style>
     </div>
   );
 };

@@ -451,11 +451,11 @@ function simulateMarketStates(
   };
 }
 
+// legacy function. Keeping for few weeks starting 9 April 2025 for reference.
 export async function compareAndReallocate(
   marketId: MarketId,
   chainId: number,
-  requestedLiquidity: bigint,
-  modifiedWithdrawals?: ProcessedWithdrawals
+  requestedLiquidity: bigint
 ): Promise<ReallocationResult> {
   const result: ReallocationResult = {
     requestedLiquidity,
@@ -575,29 +575,19 @@ export async function compareAndReallocate(
           );
         }
 
-        if (modifiedWithdrawals) {
-          result.reallocation = {
-            withdrawals: modifiedWithdrawals,
-            liquidityNeededFromReallocation: requiredAssets,
-            reallocatableLiquidity: modifiedWithdrawals.totalReallocated,
-            isLiquidityFullyMatched: true,
-            liquidityShortfall: 0n,
-          };
-        } else {
-          result.reallocation = {
-            withdrawals: {
-              withdrawalsPerVault,
-              totalReallocated,
-            },
-            liquidityNeededFromReallocation: requiredAssets,
-            reallocatableLiquidity: totalReallocated,
-            isLiquidityFullyMatched,
-            liquidityShortfall: isLiquidityFullyMatched
-              ? 0n
-              : scaledRequestedLiquidity -
-                (result.currentMarketLiquidity + totalReallocated),
-          };
-        }
+        result.reallocation = {
+          withdrawals: {
+            withdrawalsPerVault,
+            totalReallocated,
+          },
+          liquidityNeededFromReallocation: requiredAssets,
+          reallocatableLiquidity: totalReallocated,
+          isLiquidityFullyMatched,
+          liquidityShortfall: isLiquidityFullyMatched
+            ? 0n
+            : scaledRequestedLiquidity -
+              (result.currentMarketLiquidity + totalReallocated),
+        };
 
         // Generate raw transaction if we have reallocations
         if (result.reallocation.withdrawals.totalReallocated > 0n) {
@@ -690,6 +680,316 @@ export async function compareAndReallocate(
   } catch (error) {
     console.error("Error in compareAndReallocate:", error);
     throw error;
+  }
+}
+
+export async function fetchMarketSimulationBorrow(
+  marketId: MarketId,
+  chainId: number,
+  requestedLiquidity: bigint
+): Promise<ReallocationResult> {
+  const result: ReallocationResult = {
+    requestedLiquidity,
+    currentMarketLiquidity: 0n,
+    apiMetrics: {
+      utilization: 0n,
+      maxBorrowWithoutReallocation: 0n,
+      currentMarketLiquidity: 0n,
+      reallocatableLiquidity: 0n,
+      decimals: 0,
+      priceUsd: 0,
+      symbol: "",
+      loanAsset: { address: "", symbol: "" },
+      collateralAsset: { address: "", symbol: "" },
+      lltv: 0n,
+      publicAllocatorSharedLiquidity: [],
+    },
+  };
+
+  try {
+    const userAddress: Address = "0x7f7A70b5B584C4033CAfD52219a496Df9AFb1af7";
+
+    // Initialize client, loader and fetch market targets
+    const { client, loader } = await initializeClientAndLoader(chainId);
+    const {
+      supplyTargetUtilization,
+      maxWithdrawalUtilization,
+      reallocatableVaults,
+    } = await fetchMarketTargets(chainId);
+
+    // Fetch API metrics and market data
+    const [apiMetrics, market] = await Promise.all([
+      fetchMarketMetricsFromAPI(marketId, chainId),
+      Market.fetch(marketId, client),
+    ]);
+
+    result.apiMetrics = apiMetrics;
+    result.currentMarketLiquidity = market.liquidity;
+
+    // Check if we can fetch market data
+    const { rpcData } = await fetchMarketData(loader, marketId);
+
+    if (!rpcData || !rpcData.startState) {
+      result.reason = {
+        type: "error",
+        message: "Market data unavailable",
+      };
+      return result;
+    }
+
+    const startState = rpcData.startState;
+    const initialMarket = startState.getMarket(marketId);
+
+    // Validate that the market exists and has required data
+    if (!initialMarket || !initialMarket.params) {
+      result.reason = {
+        type: "error",
+        message: "Invalid market data",
+      };
+      return result;
+    }
+
+    const { morpho } = getChainAddresses(chainId);
+
+    // Initialize user position for this market
+    if (!startState.users[userAddress]) {
+      startState.users[userAddress] = {
+        address: userAddress,
+        isBundlerAuthorized: false,
+        morphoNonce: 0n,
+      };
+    }
+
+    // Initialize user position for this market
+    if (!startState.positions[userAddress]) {
+      startState.positions[userAddress] = {};
+    }
+
+    // Add an empty position for this market
+    startState.positions[userAddress][marketId] = {
+      supplyShares: 0n,
+      borrowShares: 0n,
+      collateral: 0n,
+      user: userAddress,
+      marketId: marketId,
+    };
+
+    // Prepare user holdings for simulation
+    if (!startState.holdings[userAddress]) {
+      startState.holdings[userAddress] = {};
+    }
+
+    // Add collateral token to user's holdings
+    startState.holdings[userAddress][initialMarket.params.collateralToken] = {
+      balance: maxUint256 / 2n,
+      user: userAddress,
+      token: initialMarket.params.collateralToken,
+      erc20Allowances: {
+        morpho: maxUint256,
+        permit2: 0n,
+        "bundler3.generalAdapter1": maxUint256,
+      },
+      permit2BundlerAllowance: {
+        amount: 0n,
+        expiration: 0n,
+        nonce: 0n,
+      },
+    };
+
+    // Get bundler addresses
+    const bundlerAddresses = getChainAddresses(chainId);
+    const bundlerGeneralAdapter = bundlerAddresses.bundler3.generalAdapter1;
+
+    // Initialize bundler adapter holding for the collateral token
+    if (!startState.holdings[bundlerGeneralAdapter]) {
+      startState.holdings[bundlerGeneralAdapter] = {};
+    }
+
+    // Add the collateral token to the bundler's holdings
+    startState.holdings[bundlerGeneralAdapter][
+      initialMarket.params.collateralToken
+    ] = {
+      balance: maxUint256, // Very large balance
+      user: bundlerGeneralAdapter,
+      token: initialMarket.params.collateralToken,
+      erc20Allowances: {
+        morpho: maxUint256,
+        permit2: maxUint256,
+        "bundler3.generalAdapter1": maxUint256,
+      },
+      permit2BundlerAllowance: {
+        amount: maxUint256,
+        expiration: BigInt(2 ** 48 - 1), // Far future
+        nonce: 0n,
+      },
+    };
+
+    // If loan token is different from collateral token, add it to bundler's holdings
+    if (
+      initialMarket.params.loanToken !== initialMarket.params.collateralToken
+    ) {
+      startState.holdings[bundlerGeneralAdapter][
+        initialMarket.params.loanToken
+      ] = {
+        balance: maxUint256, // Very large balance
+        user: bundlerGeneralAdapter,
+        token: initialMarket.params.loanToken,
+        erc20Allowances: {
+          morpho: maxUint256,
+          permit2: maxUint256,
+          "bundler3.generalAdapter1": maxUint256,
+        },
+        permit2BundlerAllowance: {
+          amount: maxUint256,
+          expiration: BigInt(2 ** 48 - 1), // Far future
+          nonce: 0n,
+        },
+      };
+    }
+
+    // Scale the requested liquidity with the correct decimals
+    const scaledRequestedLiquidity =
+      requestedLiquidity * BigInt(10 ** apiMetrics.decimals);
+
+    // Create operations for this borrowAmount
+    const operations: InputBundlerOperation[] = [
+      {
+        type: "Blue_SupplyCollateral",
+        sender: userAddress,
+        address: morpho,
+        args: {
+          id: marketId,
+          assets: maxUint256 / 2n,
+          onBehalf: userAddress,
+        },
+      },
+      {
+        type: "Blue_Borrow",
+        sender: userAddress,
+        address: morpho,
+        args: {
+          id: marketId,
+          assets: scaledRequestedLiquidity,
+          onBehalf: userAddress,
+          receiver: userAddress,
+          slippage: DEFAULT_SLIPPAGE_TOLERANCE,
+        },
+      },
+    ];
+
+    // The key part: Populate the bundle with public allocator options
+    const populatedBundle = populateBundle(operations, startState, {
+      publicAllocatorOptions: {
+        enabled: true,
+        defaultSupplyTargetUtilization: DEFAULT_SUPPLY_TARGET_UTILIZATION,
+        supplyTargetUtilization,
+        maxWithdrawalUtilization,
+        reallocatableVaults,
+      },
+    });
+
+    // Extract any MetaMorpho_PublicReallocate operations
+    const publicReallocateOps = populatedBundle.operations.filter(
+      (op) => op.type === "MetaMorpho_PublicReallocate"
+    );
+    const reallocatedAmountFromBundle = publicReallocateOps.reduce(
+      (acc, op) =>
+        acc +
+        op.args.withdrawals.reduce(
+          (sum, withdrawal) => sum + withdrawal.assets,
+          0n
+        ),
+      0n
+    );
+
+    const utilizationPostReallocation =
+      initialMarket.utilization +
+      reallocatedAmountFromBundle / initialMarket.liquidity;
+
+    // Get final state
+    const finalState = getLast(populatedBundle.steps);
+
+    const simulatedFinalMarket = finalState.getMarket(marketId);
+
+    // Build sourceMarkets based on publicReallocateOps
+    const sourceMarkets: { [marketId: string]: MarketSimulationResult } = {};
+
+    // Process each public reallocation operation
+    for (const reallocateOp of publicReallocateOps) {
+      // Extract withdrawals from the operation
+      const { withdrawals } = reallocateOp.args;
+
+      // Process each withdrawal which corresponds to a source market
+      for (const withdrawal of withdrawals) {
+        const sourceMarketId = withdrawal.id;
+        const reallocatedAmount = withdrawal.assets;
+
+        // Get initial state for the source market
+        const sourceMarketInitial = startState.getMarket(sourceMarketId);
+
+        // Get final state for the source market
+        const sourceMarketFinal = finalState.getMarket(sourceMarketId);
+
+        // Add to sourceMarkets object
+        sourceMarkets[sourceMarketId] = {
+          preReallocation: {
+            liquidity: sourceMarketInitial.liquidity,
+            borrowApy: sourceMarketInitial.borrowApy,
+            utilization: sourceMarketInitial.utilization,
+          },
+          postReallocation: {
+            liquidity: sourceMarketFinal.liquidity,
+            borrowApy: sourceMarketFinal.borrowApy,
+            reallocatedAmount,
+            utilization: sourceMarketFinal.utilization,
+          },
+        };
+      }
+    }
+
+    // Add simulation results
+    result.simulation = {
+      targetMarket: {
+        preReallocation: {
+          liquidity: initialMarket.liquidity,
+          borrowApy: initialMarket.borrowApy,
+          utilization: initialMarket.utilization,
+        },
+        postReallocation: {
+          liquidity: initialMarket.liquidity + reallocatedAmountFromBundle,
+          borrowApy: 0n,
+          reallocatedAmount: reallocatedAmountFromBundle,
+          utilization: utilizationPostReallocation,
+        },
+        postBorrow: {
+          liquidity: simulatedFinalMarket.liquidity,
+          borrowApy: simulatedFinalMarket.borrowApy,
+          borrowAmount: scaledRequestedLiquidity,
+          utilization: simulatedFinalMarket.utilization,
+        },
+      },
+      sourceMarkets,
+    };
+
+    result.reason = {
+      type: "success",
+      message:
+        publicReallocateOps.length > 0
+          ? "Successfully simulated with reallocation"
+          : "Successfully simulated without reallocation",
+    };
+
+    return result;
+  } catch (error) {
+    console.error("Error in fetchMarketSimulationBorrow:", error);
+    return {
+      ...result,
+      reason: {
+        type: "error",
+        message:
+          error instanceof Error ? error.message : "Unknown error occurred",
+      },
+    };
   }
 }
 
@@ -806,7 +1106,6 @@ export async function fetchMarketSimulationSeries(
     const bundlerAddresses = getChainAddresses(chainId);
     const bundlerGeneralAdapter = bundlerAddresses.bundler3.generalAdapter1; // Hard-coding for now based on error
 
-    console.log(bundlerGeneralAdapter);
     // Initialize bundler adapter holding for the collateral token
     if (!startState.holdings[bundlerGeneralAdapter]) {
       startState.holdings[bundlerGeneralAdapter] = {};
@@ -864,7 +1163,6 @@ export async function fetchMarketSimulationSeries(
         0n
       );
 
-    console.log(maxLiquidity);
     // Store results
     const utilizationSeries: number[] = [];
     const apySeries: number[] = [];

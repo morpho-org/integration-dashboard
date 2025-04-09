@@ -36,13 +36,6 @@ export default function TransactionSimulatorV2({
     .filter(([, withdrawals]) => withdrawals.some((w) => w.amount > 0n))
     .map(([vaultAddress]) => vaultAddress);
 
-  console.log("filteredVaults in simulator:", filteredVaults);
-  console.log(
-    "withdrawalsPerVault with amount above 0 in simulator:",
-    Object.values(withdrawalsPerVault).filter((withdrawals) =>
-      withdrawals.some((w) => w.amount > 0n)
-    )
-  );
   const multicallActions = filteredVaults.map((vaultAddress) => {
     const vaultWithdrawals = withdrawalsPerVault[vaultAddress];
     // Sort withdrawals by market id for consistency
