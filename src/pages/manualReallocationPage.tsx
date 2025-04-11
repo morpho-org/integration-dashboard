@@ -538,10 +538,11 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                 </div>
               ) : !simulationSeries || simulationSeries.error ? (
                 <div className="p-2 bg-yellow-400/10 text-yellow-400 text-xs rounded">
-                  ⚠️{" "}
-                  {
-                    "This market does not exist on the current chain. Try switching networks."
-                  }
+                  ⚠️ This market does not exist on the current chain. Try:
+                  <ul className="list-disc pl-4 mt-1">
+                    <li>1. Connect wallet</li>
+                    <li>2. Switching networks</li>
+                  </ul>
                 </div>
               ) : simulationSeries.utilizationSeries.every((u) => u === 0) ? (
                 <div className="p-2 bg-yellow-400/10 text-yellow-400 text-xs rounded">

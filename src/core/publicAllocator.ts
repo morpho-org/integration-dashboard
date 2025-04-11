@@ -1162,7 +1162,6 @@ export async function fetchMarketSimulationSeries(
         (sum, withdrawal) => sum + withdrawal.assets,
         0n
       );
-
     // Store results
     const utilizationSeries: number[] = [];
     const apySeries: number[] = [];
