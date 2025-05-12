@@ -39,11 +39,12 @@ const LinkItem = styled.li`
   }
 `;
 
-const WarningMessage = styled.div`
+const StatusMessage = styled.div<{ isWarning: boolean }>`
   display: inline-block;
   padding: 2px 6px;
-  background-color: "#7f1d1d";
+  background-color: ${({ isWarning }) => (isWarning ? "#7f1d1d" : "#15803d")};
   border-radius: 4px;
+  color: white;
 `;
 
 const TitleWrapper = styled.div<{ isWarning: boolean }>`
@@ -61,12 +62,24 @@ const SupplyQueueBubble: React.FC<SupplyQueueBubbleProps> = ({
   expanded,
   onClick,
 }) => {
-  const wrongIdlePosition = warnings?.idlePositionSupplyQueue ?? false;
-
   const handleClick = (event: React.MouseEvent) => {
     event.stopPropagation();
     if (onClick) onClick();
   };
+
+  // Get idle market in supply queue
+  const idleMarketInSupplyQueue = supplyQueue.find((market) => market.idle);
+  const isIdleMarketAlone = supplyQueue.length === 1 && idleMarketInSupplyQueue;
+  const hasIdleMarket = !!idleMarketInSupplyQueue;
+  const isWarning = !isIdleMarketAlone;
+
+  // Determine message to display
+  let statusMessage = "Ok";
+  if (!hasIdleMarket) {
+    statusMessage = "No Idle in supply queue";
+  } else if (!isIdleMarketAlone) {
+    statusMessage = "Multiple Markets";
+  }
 
   return (
     <StyledBubble
@@ -74,7 +87,7 @@ const SupplyQueueBubble: React.FC<SupplyQueueBubbleProps> = ({
       onClick={handleClick}
       backgroundColor={"#6B7280"}
     >
-      <TitleWrapper isWarning={wrongIdlePosition}>
+      <TitleWrapper isWarning={isWarning}>
         <h3 style={{ color: "white", margin: 0 }}>{"Supply Queue"}</h3>
       </TitleWrapper>
       {expanded && (
@@ -89,24 +102,12 @@ const SupplyQueueBubble: React.FC<SupplyQueueBubbleProps> = ({
                   onClick={handleLinkClick}
                 >
                   {index + 1}. {market.link.name}
+                  {market.idle ? " (Idle)" : ""}
                 </a>
               </LinkItem>
             ))}
           </LinkList>
-          {wrongIdlePosition && (
-            <WarningMessage>
-              <div
-                style={{
-                  color: "white",
-                  backgroundColor: "#7f1d1d",
-                  padding: "2px 6px",
-                  borderRadius: "4px",
-                }}
-              >
-                Idle market is not the last element of the list.
-              </div>
-            </WarningMessage>
-          )}
+          <StatusMessage isWarning={isWarning}>{statusMessage}</StatusMessage>
         </>
       )}
     </StyledBubble>

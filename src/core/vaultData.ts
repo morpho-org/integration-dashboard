@@ -192,17 +192,29 @@ const generateWarnings = (
 
   let idleSupplyQueueWarningReason: string | undefined;
   let idlePositionSupplyQueue = false;
+  let supplyQueueStatus = "OK";
 
-  if (vault.supplyQueue.length > 0) {
-    if (idleMarketId && !idleMarketInSupplyQueue) {
+  // Handle supply queue warnings
+  const len = vault.supplyQueue.length;
+
+  if (len === 0) {
+    // Empty supply queue
+    supplyQueueStatus = "Empty";
+    idlePositionSupplyQueue = true;
+  } else {
+    // Supply queue has elements
+    const isIdleMarketAlone = len === 1 && idleMarketInSupplyQueue;
+
+    if (!idleMarketInSupplyQueue) {
+      // No idle market in supply queue
       idlePositionSupplyQueue = true;
       idleSupplyQueueWarningReason = "deprecated";
-    } else if (
-      idleMarketId &&
-      !vault.supplyQueue[vault.supplyQueue.length - 1].idle
-    ) {
+      supplyQueueStatus = "No Idle market in supply queue";
+    } else if (!isIdleMarketAlone) {
+      // Idle market is present but not alone
       idlePositionSupplyQueue = true;
       idleSupplyQueueWarningReason = "wrong_order";
+      supplyQueueStatus = "Idle market not alone";
     }
   }
 
@@ -210,9 +222,10 @@ const generateWarnings = (
     missingFlowCaps: !markets.every((market) => !market.missing),
     allCapsTo0: markets.every((market) => market.missing),
     idlePositionWithdrawQueue:
-      vault.withdrawQueue.length === 0 ? false : !vault.withdrawQueue[0].idle,
+      vault.withdrawQueue.length > 0 && !vault.withdrawQueue[0].idle,
     idlePositionSupplyQueue,
     idleSupplyQueueWarningReason,
+    supplyQueueStatus,
   };
 };
 

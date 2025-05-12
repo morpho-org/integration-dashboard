@@ -721,18 +721,18 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
                 )}
               </div>
               <div>
-                {vault.warnings?.idlePositionSupplyQueue ? (
-                  vault.warnings.idleSupplyQueueWarningReason ===
-                  "deprecated" ? (
-                    <WarningText>Vault deprecated</WarningText>
-                  ) : vault.warnings.idleSupplyQueueWarningReason ===
-                    "wrong_order" ? (
-                    <YellowText>Wrong order</YellowText>
-                  ) : (
-                    <WarningText>Warning</WarningText>
-                  )
-                ) : (
+                {vault.warnings?.supplyQueueStatus === "OK" ? (
                   "OK"
+                ) : vault.warnings?.supplyQueueStatus ===
+                    "No Idle in supply queue" ||
+                  vault.warnings?.supplyQueueStatus === "Empty" ? (
+                  <WarningText>{vault.warnings.supplyQueueStatus}</WarningText>
+                ) : vault.warnings?.supplyQueueStatus === "Multiple Markets" ? (
+                  <YellowText>{vault.warnings.supplyQueueStatus}</YellowText>
+                ) : (
+                  <WarningText>
+                    {vault.warnings?.supplyQueueStatus || "Unknown"}
+                  </WarningText>
                 )}
               </div>
               <div>

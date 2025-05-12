@@ -358,6 +358,7 @@ export type VaultWarnings = {
   idlePositionSupplyQueue?: boolean;
   idleSupplyQueueWarningReason?: string;
   allCapsTo0?: boolean;
+  supplyQueueStatus?: string;
 };
 
 export type VaultWithBlockingFlowCaps = {
