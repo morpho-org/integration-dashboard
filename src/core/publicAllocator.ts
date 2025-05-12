@@ -617,7 +617,7 @@ export async function compareAndReallocate(
           });
 
           result.rawTransaction = {
-            to: config.bundler as `0x${string}`,
+            to: config.bundler3.bundler3 as `0x${string}`,
             data: BaseBundlerV2__factory.createInterface().encodeFunctionData(
               "multicall",
               [multicallActions]
