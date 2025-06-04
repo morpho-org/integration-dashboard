@@ -72,7 +72,7 @@ const SupplyFilterSelect = styled.select`
 `;
 
 type OutOfBoundsMarketsPageProps = {
-  network: "ethereum" | "base";
+  network: "ethereum" | "base" | "polygon" | "unichain";
 };
 
 const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
@@ -122,7 +122,6 @@ const OutOfBoundsMarketsPage: React.FC<OutOfBoundsMarketsPageProps> = ({
 
   return (
     <PageWrapper>
-      <ConnectButton />
       <HeaderWrapper>
         <TitleContainer>
           <h1 style={{ color: "white", fontWeight: "300" }}>

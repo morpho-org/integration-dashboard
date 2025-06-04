@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import { Link, useLocation } from "react-router-dom";
-import { useChainId } from "wagmi";
+import { useChainId, useSwitchChain } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 const NavBarWrapper = styled.div`
   display: flex;
@@ -18,6 +19,7 @@ const NavLinks = styled.div`
   background-color: #2c2f33;
   border-radius: 9999px;
   height: 45px;
+  white-space: nowrap;
 `;
 
 const NavLink = styled(Link)<{ $isActive: boolean }>`
@@ -68,74 +70,54 @@ export const NetworkButton = styled.button<{ $isActive: boolean }>`
 
 export const ethLogo = "https://cdn.morpho.org/assets/chains/eth.svg";
 export const baseLogo = "https://cdn.morpho.org/assets/chains/base.png";
+export const polygonLogo = "https://cdn.morpho.org/assets/chains/polygon.svg";
+export const unichainLogo = "https://cdn.morpho.org/assets/chains/unichain.svg";
 
 const NetworkContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   margin-left: auto;
+  max-height: 45px;
 `;
 
-type NetworkOption = {
-  value: "ethereum" | "base";
-  label: JSX.Element;
-};
-
-const networkOptions: NetworkOption[] = [
-  {
-    value: "ethereum",
-    label: (
-      <div style={{ display: "flex", alignItems: "center" }}>
-        <img
-          src={ethLogo}
-          alt="Ethereum"
-          style={{ width: 20, height: 20, marginRight: 10 }}
-        />
-        Ethereum
-      </div>
-    ),
-  },
-  {
-    value: "base",
-    label: (
-      <div style={{ display: "flex", alignItems: "center" }}>
-        <img
-          src={baseLogo}
-          alt="Base"
-          style={{ width: 20, height: 20, marginRight: 10 }}
-        />
-        Base
-      </div>
-    ),
-  },
-];
 
 type NavBarProps = {
-  currentNetwork: "ethereum" | "base";
-  onNetworkSwitch: (network: "ethereum" | "base") => void;
+  currentNetwork: "ethereum" | "base" | "polygon" | "unichain";
+  onNetworkSwitch: (network: "ethereum" | "base" | "polygon" | "unichain") => void;
 };
 
 const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
   const location = useLocation();
   const chainId = useChainId();
-  const defaultNetwork =
-    chainId === 8453 ? "base" : chainId === 1 ? "ethereum" : "ethereum";
-  const [selectedNetwork, setSelectedNetwork] = useState<NetworkOption>(
-    networkOptions.find((option) => option.value === defaultNetwork) ||
-      networkOptions[0]
-  );
-
-  const handleNetworkChange = async (network: "ethereum" | "base") => {
-    const option = networkOptions.find((opt) => opt.value === network);
-    if (option) {
-      try {
-        setSelectedNetwork(option);
-        onNetworkSwitch(network);
-      } catch (error) {
-        console.error("Failed to switch network:", error);
-      }
+  const { switchChain } = useSwitchChain();
+  const [isSwitching, setIsSwitching] = useState(false);
+  
+  // Map chainId to network name
+  const getNetworkFromChainId = (chainId: number): "ethereum" | "base" | "polygon" | "unichain" => {
+    switch (chainId) {
+      case 1: return "ethereum";
+      case 8453: return "base";
+      case 137: return "polygon";
+      case 130: return "unichain";
+      default: return "ethereum";
     }
   };
+
+  // Use connected wallet's chainId as the current network
+  const connectedNetwork = getNetworkFromChainId(chainId);
+  
+  // Update parent when chainId changes (with debouncing to prevent loops)
+  React.useEffect(() => {
+    if (!isSwitching && connectedNetwork !== currentNetwork) {
+      // Add a small delay to prevent rapid switching
+      const timeoutId = setTimeout(() => {
+        onNetworkSwitch(connectedNetwork);
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [connectedNetwork, currentNetwork, onNetworkSwitch, isSwitching]);
 
   const navItems = [
     { path: "/manual-reallocation", label: "Manual Reallocation" },
@@ -160,19 +142,8 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
         ))}
       </NavLinks>
       <NetworkContainer>
-        <NetworkSelector>
-          {networkOptions.map((option) => (
-            <NetworkButton
-              key={option.value}
-              $isActive={selectedNetwork.value === option.value}
-              onClick={() => handleNetworkChange(option.value)}
-            >
-              {option.label}
-            </NetworkButton>
-          ))}
-        </NetworkSelector>
-        <div className="text-xs text-gray-400 mt-1 italic">
-          Default is latest connected chain
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <ConnectButton />
         </div>
       </NetworkContainer>
     </NavBarWrapper>

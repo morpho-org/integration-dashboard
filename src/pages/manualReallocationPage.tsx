@@ -1,5 +1,4 @@
 import { ChainId, MarketId, MarketParams } from "@morpho-org/blue-sdk";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import React, { useEffect, useState, useRef } from "react";
 import { formatUnits, parseUnits } from "viem";
 import { useChainId, useSwitchChain } from "wagmi";
@@ -13,11 +12,13 @@ import {
   WithdrawalDetails,
 } from "../core/publicAllocator"; // Update with correct path
 import { fetchMarketAssets } from "../fetchers/apiFetchers"; // Import the fetchMarketAssets function
+import { fetchMarketParams } from "../fetchers/marketIdFetcher"; // Import fetchMarketParams
 import {
   formatMarketLink,
   formatUsdAmount,
   formatVaultLink,
   getMarketName,
+  getNetworkName,
 } from "../utils/utils";
 
 // SimpleCard component remains unchanged
@@ -70,7 +71,7 @@ const SimpleAlert = ({
 
 // Add Props interface to fix TypeScript error
 interface ManualReallocationPageProps {
-  network: "ethereum" | "base";
+  network: "ethereum" | "base" | "polygon" | "unichain";
 }
 
 // Helper functions remain unchanged
@@ -120,12 +121,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
 
-  // Add useEffect to handle network switching
-  useEffect(() => {
-    if (switchChain && chainId !== (network === "ethereum" ? 1 : 8453)) {
-      switchChain({ chainId: network === "ethereum" ? 1 : 8453 });
-    }
-  }, [network, chainId, switchChain]);
+  // Network switching is now handled by NavBar - removed this useEffect to prevent conflicts
 
   const [loading, setLoading] = useState(false);
   const [inputLoading, setInputLoading] = useState(false);
@@ -134,6 +130,12 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
   const [modifiedAmounts, setModifiedAmounts] = useState<{
     [key: string]: string;
   }>({});
+
+  // Add state for market ID validation
+  const [marketIdError, setMarketIdError] = useState<string | null>(null);
+  const [marketIdSuggestedNetwork, setMarketIdSuggestedNetwork] = useState<number | null>(null);
+  const [isLoadingMarketId, setIsLoadingMarketId] = useState<boolean>(false);
+  const [marketIdTouched, setMarketIdTouched] = useState<boolean>(false);
 
   // New state to hold market asset data fetched from the API.
   const [marketAsset, setMarketAsset] = useState<{
@@ -249,11 +251,96 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     setMarketAsset(null);
   }, [chainId, network]);
 
+  // Simulate paste event for default market ID on component mount
+  useEffect(() => {
+    // Only trigger on initial load if we have the default market ID
+    if (inputs.marketId && !marketIdTouched) {
+      console.log("Auto-validating default market ID:", inputs.marketId);
+      setMarketIdTouched(true);
+      
+      // If it looks like a valid market ID, trigger validation
+      if (inputs.marketId.startsWith('0x') && inputs.marketId.length === 66) {
+        setIsLoadingMarketId(true);
+      }
+    }
+  }, []); // Empty dependency array - only run on mount
+
+  // Add market ID validation effect
+  useEffect(() => {
+    // Skip if market ID is not properly formatted or hasn't been touched by user
+    if (!inputs.marketId || !inputs.marketId.startsWith('0x') || inputs.marketId.length !== 66 || !marketIdTouched) {
+      setMarketIdError(null);
+      setMarketIdSuggestedNetwork(null);
+      return;
+    }
+    
+    const validateMarketId = async () => {
+      setIsLoadingMarketId(true);
+      setMarketIdError(null);
+      setMarketIdSuggestedNetwork(null);
+      
+      try {
+        const result = await fetchMarketParams(inputs.marketId, Number(chainId));
+        
+        if (result.error) {
+          setMarketIdError(result.error);
+          if (result.networkSuggestion) {
+            setMarketIdSuggestedNetwork(result.networkSuggestion);
+          }
+          return;
+        }
+        
+        if (result.params) {
+          // Market found and validated successfully
+          console.log("Market parameters found:", result.params);
+          // Clear any previous errors
+          setMarketIdError(null);
+          setMarketIdSuggestedNetwork(null);
+        }
+      } catch (error) {
+        console.error("Error validating market ID:", error);
+        setMarketIdError("Error validating market ID. Please try again.");
+      } finally {
+        setIsLoadingMarketId(false);
+      }
+    };
+    
+    validateMarketId();
+  }, [inputs.marketId, chainId, marketIdTouched]);
+
+  // Helper function to handle network switching
+  const handleSwitchNetwork = (networkId: number) => {
+    if (switchChain && networkId) {
+      // Store current market ID before switching
+      const currentMarketId = inputs.marketId;
+      
+      // Show loading state
+      setIsLoadingMarketId(true);
+      
+      // Switch wallet network (navbar will handle the rest)
+      switchChain({ chainId: networkId });
+      
+      // Re-validate market ID after network switch
+      setTimeout(() => {
+        if (currentMarketId && currentMarketId.startsWith('0x') && currentMarketId.length === 66) {
+          setMarketIdTouched(true);
+        } else {
+          setIsLoadingMarketId(false);
+        }
+      }, 100);
+    }
+  };
+
   // Update input change handler
   const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
     if (name === "marketId") {
+      // Reset validation states when market ID changes
+      setMarketIdError(null);
+      setMarketIdSuggestedNetwork(null);
+      setMarketIdTouched(true);
+      
       // Immediately reset market APY data when market ID changes
       setInputs((prev) => ({ ...prev, [name]: value }));
     } else if (name === "requestedLiquidityNative") {
@@ -282,6 +369,32 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     setTimeout(() => {
       setInputLoading(false);
     }, 500);
+  };
+
+  // Add paste handler for market ID
+  const handleMarketIdPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    
+    // Reset states when pasting new market ID
+    setResult(undefined);
+    setError(null);
+    setMarketIdError(null);
+    setMarketIdSuggestedNetwork(null);
+    
+    // Get pasted text and clean it
+    const pastedText = e.clipboardData.getData('text').trim();
+    console.log("Pasted market ID:", pastedText);
+    
+    // Set the value and mark as touched
+    setInputs((prev) => ({ ...prev, marketId: pastedText }));
+    setMarketIdTouched(true);
+    
+    // If it looks like a valid market ID, trigger validation
+    if (pastedText && pastedText.startsWith('0x') && pastedText.length === 66) {
+      setIsLoadingMarketId(true);
+    } else if (pastedText.length > 0) {
+      setMarketIdError("Invalid market ID format. Should be 0x followed by 64 hex characters.");
+    }
   };
 
   // Handler for "Use Max Available Amount" button
@@ -407,9 +520,6 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
             {"check logs for more details"}
           </div>
         )}
-        <div className="flex justify-end mb-4">
-          <ConnectButton />
-        </div>
       </div>
 
       <div className="flex gap-6">
@@ -426,8 +536,52 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                   name="marketId"
                   value={inputs.marketId}
                   onChange={handleInputChange}
-                  className="w-full p-2 rounded bg-gray-800 text-xs"
+                  onPaste={handleMarketIdPaste}
+                  placeholder="Paste market ID (0x...)"
+                  className={`w-full p-2 rounded bg-gray-800 text-xs ${
+                    marketIdError || (inputs.marketId && inputs.marketId.length > 0 && (!inputs.marketId.startsWith('0x') || inputs.marketId.length !== 66)) 
+                      ? "border-2 border-red-500" 
+                      : ""
+                  }`}
                 />
+                {/* Market ID validation feedback */}
+                {inputs.marketId && inputs.marketId.length > 0 && (!inputs.marketId.startsWith('0x') || inputs.marketId.length !== 66) && (
+                  <div className="text-red-400 text-xs mt-1">
+                    Invalid format! Must be 0x + 64 hex characters
+                  </div>
+                )}
+                {isLoadingMarketId && (
+                  <div className="text-gray-400 text-xs mt-1">
+                    Validating market ID...
+                  </div>
+                )}
+                {marketIdError && (
+                  <div className="mt-2">
+                    {marketIdError === "Market not found on the current network." && marketIdSuggestedNetwork ? (
+                      <div className="bg-gray-700 p-3 rounded-lg border border-blue-400">
+                        <div className="flex items-center mb-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-400 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                          <span className="text-white text-xs">
+                            Market found on {getNetworkName(marketIdSuggestedNetwork)}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleSwitchNetwork(marketIdSuggestedNetwork)}
+                          className="w-full py-2 px-3 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded transition-colors duration-200 flex items-center justify-center"
+                        >
+                          <span className="mr-1">Switch to</span>
+                          {getNetworkName(marketIdSuggestedNetwork)}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-red-400 text-xs">
+                        {marketIdError}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Borrow Request Liquidity Inputs */}
@@ -1859,3 +2013,4 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
 };
 
 export default ManualReallocationPage;
+

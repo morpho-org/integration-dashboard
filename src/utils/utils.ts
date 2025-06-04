@@ -10,6 +10,7 @@ import {
   VaultReallocationData,
   Withdrawal,
 } from "./types";
+import { base, mainnet, polygon, unichain } from "viem/chains";
 
 export const isApyOutOfRange = (apys: Apys, range: Range) => {
   return apys.supplyApy < range.lowerBound || apys.borrowApy > range.upperBound;
@@ -49,8 +50,12 @@ export const getNetworkDBBlockingFlowCapsKey = (network: string): string => {
       return "mainnetBlockingFlowCaps";
     case "base":
       return "baseBlockingFlowCaps";
+    case "polygon":
+      return "polygonBlockingFlowCaps";
+    case "unichain":
+      return "unichainBlockingFlowCaps";
     default:
-      throw new Error("Invalid network");
+      throw new Error(`Invalid network: ${network}`);
   }
 };
 
@@ -60,16 +65,24 @@ export const getNetworkId = (network: string): number => {
       return 1;
     case "base":
       return 8453;
+    case "polygon":
+      return 137;
+    case "unichain":
+      return 130;
   }
   throw new Error("Invalid chainId");
 };
 
-const getNetworkName = (networkId: number): string => {
+export const getNetworkName = (networkId: number): string => {
   switch (networkId) {
     case 1:
       return "ethereum";
     case 8453:
       return "base";
+    case 137:
+      return "polygon";
+    case 130:
+      return "unichain";
   }
   throw new Error("Invalid chainId");
 };
@@ -190,4 +203,12 @@ export const extractIdFromUrl = (url: string) => {
 
 export const handleLinkClick = (event: React.MouseEvent) => {
   event.stopPropagation();
+};
+
+
+export const chainMapping = {
+  1: mainnet,
+  130: unichain,
+  137: polygon,
+  8453: base,
 };

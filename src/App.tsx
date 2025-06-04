@@ -8,9 +8,9 @@ import MarketsWithoutStrategyPage from "./pages/marketWithoutStrategyPage";
 import BlockingFlowCapsPage from "./pages/blockingFlowCapsPage";
 import ManualReallocationPage from "./pages/manualReallocationPage";
 const App: React.FC = () => {
-  const [network, setNetwork] = useState<"ethereum" | "base">("ethereum");
+  const [network, setNetwork] = useState<"ethereum" | "base" | "polygon" | "unichain">("ethereum");
 
-  const handleNetworkSwitch = (selectedNetwork: "ethereum" | "base") => {
+  const handleNetworkSwitch = (selectedNetwork: "ethereum" | "base" | "polygon" | "unichain") => {
     setNetwork(selectedNetwork);
   };
 

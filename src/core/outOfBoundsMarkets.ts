@@ -42,8 +42,8 @@ const fetchMarketDataWithRetry = async (
 export const getOutOfBoundsMarkets = async (
   networkId: number
 ): Promise<OutOfBoundsMarket[]> => {
-  const [{ client: clientMainnet }, { client: clientBase }] = await Promise.all(
-    [initializeClient(1), initializeClient(8453)]
+  const [{ client: clientMainnet }, { client: clientBase }, { client: clientPolygon }, { client: clientUnichain }] = await Promise.all(
+    [initializeClient(1), initializeClient(8453), initializeClient(137), initializeClient(130)]
   );
 
   let client: PublicClient;
@@ -51,6 +51,10 @@ export const getOutOfBoundsMarkets = async (
     client = clientMainnet;
   } else if (networkId === 8453) {
     client = clientBase;
+  } else if (networkId === 137) {
+    client = clientPolygon;
+  } else if (networkId === 130) {
+    client = clientUnichain;
   }
 
   const strategies = await fetchStrategies(networkId);

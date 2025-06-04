@@ -36,7 +36,7 @@ const FilterButton = styled.button<{ $isActive: boolean }>`
 `;
 
 type MarketWarningsPageProps = {
-  network: "ethereum" | "base";
+  network: "ethereum" | "base" | "polygon" | "unichain";
 };
 
 const MarketWarningsPage: React.FC<MarketWarningsPageProps> = ({ network }) => {

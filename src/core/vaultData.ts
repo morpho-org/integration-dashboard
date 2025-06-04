@@ -46,8 +46,8 @@ export const getVaultDisplayData = async (
         .filter((vault) => !vault.whitelisted);
 
   // Initialize clients in parallel
-  const [{ client: clientMainnet }, { client: clientBase }] = await Promise.all(
-    [initializeClient(1), initializeClient(8453)]
+  const [{ client: clientMainnet }, { client: clientBase }, { client: clientPolygon }, { client: clientUnichain }] = await Promise.all(
+    [initializeClient(1), initializeClient(8453), initializeClient(137), initializeClient(130)]
   );
 
   let client: PublicClient;
@@ -55,6 +55,10 @@ export const getVaultDisplayData = async (
     client = clientMainnet;
   } else if (networkId === 8453) {
     client = clientBase;
+  } else if (networkId === 137) {
+    client = clientPolygon;
+  } else if (networkId === 130) {
+    client = clientUnichain;
   }
 
   // Fetch vault data in batches
