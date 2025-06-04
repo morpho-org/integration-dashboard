@@ -32,7 +32,7 @@ import {
   maxUint256,
   parseEther,
 } from "viem";
-import { base, mainnet } from "viem/chains";
+import { base, mainnet, polygon, unichain } from "viem/chains";
 import { fetchMarketTargets } from "../fetchers/fetchApiTargets";
 /**
  * The default target utilization above which the shared liquidity algorithm is triggered (scaled by WAD).
@@ -216,13 +216,17 @@ async function initializeClientAndLoader(chainId: number) {
       ? process.env.REACT_APP_RPC_URL_MAINNET
       : chainId === 8453
       ? process.env.REACT_APP_RPC_URL_BASE
+      : chainId === 137
+      ? process.env.REACT_APP_RPC_URL_POLYGON
+      : chainId === 130
+      ? process.env.REACT_APP_RPC_URL_UNICHAIN
       : undefined;
 
   if (!rpcUrl)
     throw new Error(`No RPC URL configured for chain ID: ${chainId}`);
 
   const client = createClient({
-    chain: chainId === 1 ? mainnet : chainId === 8453 ? base : mainnet,
+    chain: chainId === 1 ? mainnet : chainId === 8453 ? base : chainId === 137 ? polygon : chainId === 130 ? unichain : mainnet,
     transport: http(rpcUrl, {
       retryCount: 3,
       retryDelay: 1000,

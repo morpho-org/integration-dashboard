@@ -74,7 +74,7 @@ const CuratorFilterSelect = styled.select`
 `;
 
 type BlockingFlowCapsPageProps = {
-  network: "ethereum" | "base";
+  network: "ethereum" | "base" | "polygon" | "unichain";
 };
 
 const BlockingFlowCapsPage: React.FC<BlockingFlowCapsPageProps> = ({
@@ -86,7 +86,7 @@ const BlockingFlowCapsPage: React.FC<BlockingFlowCapsPageProps> = ({
   const [filter, setFilter] = useState<string>("");
   const [curatorFilter, setCuratorFilter] = useState<string>("");
 
-  const fetchData = async (network: "ethereum" | "base") => {
+  const fetchData = async (network: "ethereum" | "base" | "polygon" | "unichain") => {
     setLoading(true);
     setError(null);
     try {
@@ -239,8 +239,8 @@ const removeOpenFlowCaps = async (
   blockingFlowCaps: BlockingFlowCaps[],
   networkId: number
 ) => {
-  const [{ client: clientMainnet }, { client: clientBase }] = await Promise.all(
-    [initializeClient(1), initializeClient(8453)]
+  const [{ client: clientMainnet }, { client: clientBase }, { client: clientPolygon }, { client: clientUnichain }] = await Promise.all(
+    [initializeClient(1), initializeClient(8453), initializeClient(137), initializeClient(130)]
   );
 
   let client: PublicClient;
@@ -248,6 +248,10 @@ const removeOpenFlowCaps = async (
     client = clientMainnet;
   } else if (networkId === 8453) {
     client = clientBase;
+  } else if (networkId === 137) {
+    client = clientPolygon;
+  } else if (networkId === 130) {
+    client = clientUnichain;
   }
 
   return await Promise.all(

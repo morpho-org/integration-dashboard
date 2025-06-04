@@ -297,7 +297,7 @@ const formatUsdWithStyle = (amount: string, color?: string) => {
 };
 
 type VaultPageProps = {
-  network: "ethereum" | "base";
+  network: "ethereum" | "base" | "polygon" | "unichain";
 };
 
 const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
@@ -338,7 +338,7 @@ const VaultPage: React.FC<VaultPageProps> = ({ network }) => {
   };
 
   const fetchData = async (
-    network: "ethereum" | "base",
+    network: "ethereum" | "base" | "polygon" | "unichain",
     whitelistOption: string
   ) => {
     setLoading(true);

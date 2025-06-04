@@ -7,7 +7,7 @@ import MarketWithoutStrategyBubble from "../components/MarketWithoutStrategyBubb
 import styled from "styled-components";
 
 type MarketsWithoutStrategyPageProps = {
-  network: "ethereum" | "base";
+  network: "ethereum" | "base" | "polygon" | "unichain";
 };
 
 const SearchWrapper = styled.div`

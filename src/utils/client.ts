@@ -1,5 +1,5 @@
 import { createPublicClient, http, PublicClient } from "viem";
-import { base, mainnet } from "viem/chains";
+import { base, mainnet, polygon, unichain } from "viem/chains";
 
 export async function initializeClient(chainId: number) {
   const rpcUrl =
@@ -7,6 +7,10 @@ export async function initializeClient(chainId: number) {
       ? process.env.REACT_APP_RPC_URL_MAINNET
       : chainId === 8453
       ? process.env.REACT_APP_RPC_URL_BASE
+      : chainId === 137
+      ? process.env.REACT_APP_RPC_URL_POLYGON
+      : chainId === 130
+      ? process.env.REACT_APP_RPC_URL_UNICHAIN
       : undefined;
 
   if (!rpcUrl)
@@ -14,7 +18,16 @@ export async function initializeClient(chainId: number) {
 
   // Create a public client with the necessary actions
   const client = createPublicClient({
-    chain: chainId === 1 ? mainnet : chainId === 8453 ? base : mainnet,
+    chain:
+      chainId === 1
+        ? mainnet
+        : chainId === 8453
+        ? base
+        : chainId === 137
+        ? polygon
+        : chainId === 130
+        ? unichain
+        : mainnet,
     transport: http(rpcUrl, {
       batch: {
         batchSize: 100,

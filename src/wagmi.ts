@@ -1,5 +1,5 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { base, mainnet, sepolia } from "wagmi/chains";
+import { base, mainnet, sepolia, polygon, unichain } from "wagmi/chains";
 
 export const config = getDefaultConfig({
   appName: "RainbowKit demo",
@@ -7,6 +7,8 @@ export const config = getDefaultConfig({
   chains: [
     mainnet,
     base,
+    polygon,
+    unichain,
     ...(process.env.REACT_APP_ENABLE_TESTNETS === "true" ? [sepolia] : []),
   ],
 });
