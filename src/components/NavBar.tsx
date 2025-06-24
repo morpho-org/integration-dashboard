@@ -1,84 +1,31 @@
-import React, { useState } from "react";
+import React from "react";
 import styled from "styled-components";
-import { Link, useLocation } from "react-router-dom";
-import { useChainId, useSwitchChain } from "wagmi";
+import { useChainId } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 const NavBarWrapper = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #191d200f;
-  padding: 10px 10px;
+  background-color: #5792FF;
+  padding: 6px 12px;
   color: #2470ff;
+  border-radius: 8px;
 `;
 
-const NavLinks = styled.div`
-  display: flex;
-  align-items: center;
-  background-color: #2c2f33;
-  border-radius: 9999px;
-  height: 45px;
-  white-space: nowrap;
+const Title = styled.h1`
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
 `;
-
-const NavLink = styled(Link)<{ $isActive: boolean }>`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: ${(props) => (props.$isActive ? "#ffffff" : "#a0a0a0")};
-  background-color: ${(props) => (props.$isActive ? "#2973FF" : "transparent")};
-  border-radius: 9999px;
-  padding: 8px 16px;
-  text-decoration: none;
-  font-size: 0.875rem;
-  font-weight: 500;
-  height: 100%;
-  transition: all 0.3s;
-  &:hover {
-    background-color: ${(props) => (props.$isActive ? "#2973FF" : "#3a3f45")};
-  }
-`;
-
-export const NetworkSelector = styled.div`
-  display: flex;
-  align-items: center;
-  background-color: #2c2f33;
-  border-radius: 9999px;
-  height: 45px;
-  /* Remove margin-left:auto here */
-`;
-
-export const NetworkButton = styled.button<{ $isActive: boolean }>`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: ${(props) => (props.$isActive ? "#ffffff" : "#a0a0a0")};
-  background-color: ${(props) => (props.$isActive ? "#2973FF" : "transparent")};
-  border-radius: 9999px;
-  padding: 8px 16px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  height: 100%;
-  transition: all 0.3s;
-  border: none;
-  cursor: pointer;
-  &:hover {
-    background-color: ${(props) => (props.$isActive ? "#2973FF" : "#3a3f45")};
-  }
-`;
-
-export const ethLogo = "https://cdn.morpho.org/assets/chains/eth.svg";
-export const baseLogo = "https://cdn.morpho.org/assets/chains/base.png";
-export const polygonLogo = "https://cdn.morpho.org/assets/chains/polygon.svg";
-export const unichainLogo = "https://cdn.morpho.org/assets/chains/unichain.svg";
 
 const NetworkContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   margin-left: auto;
-  max-height: 45px;
+  max-height: 32px;
 `;
 
 
@@ -88,10 +35,7 @@ type NavBarProps = {
 };
 
 const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
-  const location = useLocation();
   const chainId = useChainId();
-  const { switchChain } = useSwitchChain();
-  const [isSwitching, setIsSwitching] = useState(false);
   
   // Map chainId to network name
   const getNetworkFromChainId = (chainId: number): "ethereum" | "base" | "polygon" | "unichain" => {
@@ -109,7 +53,7 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
   
   // Update parent when chainId changes (with debouncing to prevent loops)
   React.useEffect(() => {
-    if (!isSwitching && connectedNetwork !== currentNetwork) {
+    if (connectedNetwork !== currentNetwork) {
       // Add a small delay to prevent rapid switching
       const timeoutId = setTimeout(() => {
         onNetworkSwitch(connectedNetwork);
@@ -117,33 +61,175 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [connectedNetwork, currentNetwork, onNetworkSwitch, isSwitching]);
-
-  const navItems = [
-    { path: "/manual-reallocation", label: "Manual Reallocation" },
-    { path: "/", label: "Vaults" },
-    { path: "/market-warnings", label: "Markets With Warnings" },
-    { path: "/markets-without-strategy", label: "Strategyless Markets" },
-    { path: "/out-of-bounds-markets", label: "Out of Range Markets" },
-    { path: "/blocking-flow-caps", label: "Blocking Flow Caps" },
-  ];
+  }, [connectedNetwork, currentNetwork, onNetworkSwitch]);
 
   return (
     <NavBarWrapper>
-      <NavLinks>
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            $isActive={location.pathname === item.path}
-          >
-            {item.label}
-          </NavLink>
-        ))}
-      </NavLinks>
+      <Title>Manual Reallocation</Title>
       <NetworkContainer>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <ConnectButton />
+          <ConnectButton.Custom>
+            {({
+              account,
+              chain,
+              openAccountModal,
+              openChainModal,
+              openConnectModal,
+              mounted,
+            }) => {
+              const ready = mounted;
+              const connected = ready && account && chain;
+
+              return (
+                <div
+                  {...(!ready && {
+                    'aria-hidden': true,
+                    style: {
+                      opacity: 0,
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                    },
+                  })}
+                >
+                  {(() => {
+                    if (!connected) {
+                      return (
+                        <button
+                          onClick={openConnectModal}
+                          type="button"
+                          style={{
+                            background: 'white',
+                            border: '2px solid #e2e8f0',
+                            borderRadius: '8px',
+                            padding: '8px 16px',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            color: '#1a202c',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseEnter={(e) => {
+                            const target = e.target as HTMLButtonElement;
+                            target.style.backgroundColor = '#f7fafc';
+                            target.style.borderColor = '#cbd5e0';
+                          }}
+                          onMouseLeave={(e) => {
+                            const target = e.target as HTMLButtonElement;
+                            target.style.backgroundColor = 'white';
+                            target.style.borderColor = '#e2e8f0';
+                          }}
+                        >
+                          Connect Wallet
+                        </button>
+                      );
+                    }
+
+                    if (chain.unsupported) {
+                      return (
+                        <button
+                          onClick={openChainModal}
+                          type="button"
+                          style={{
+                            background: '#fed7d7',
+                            border: '2px solid #fc8181',
+                            borderRadius: '8px',
+                            padding: '8px 16px',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            color: '#742a2a',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Wrong network
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <button
+                          onClick={openChainModal}
+                          style={{
+                            background: 'white',
+                            border: '2px solid #e2e8f0',
+                            borderRadius: '8px',
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            color: '#4a5568',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseEnter={(e) => {
+                            const target = e.target as HTMLButtonElement;
+                            target.style.backgroundColor = '#f7fafc';
+                          }}
+                          onMouseLeave={(e) => {
+                            const target = e.target as HTMLButtonElement;
+                            target.style.backgroundColor = 'white';
+                          }}
+                          type="button"
+                        >
+                          {chain.hasIcon && (
+                            <div
+                              style={{
+                                background: chain.iconBackground,
+                                width: 16,
+                                height: 16,
+                                borderRadius: 999,
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {chain.iconUrl && (
+                                <img
+                                  alt={chain.name ?? 'Chain icon'}
+                                  src={chain.iconUrl}
+                                  style={{ width: 16, height: 16 }}
+                                />
+                              )}
+                            </div>
+                          )}
+                          {(chain.name || '').length > 8 ? (chain.name || '').substring(0, 8) + '...' : (chain.name || 'Unknown')}
+                        </button>
+
+                        <button
+                          onClick={openAccountModal}
+                          type="button"
+                          style={{
+                            background: 'white',
+                            border: '2px solid #e2e8f0',
+                            borderRadius: '8px',
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            color: '#4a5568',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseEnter={(e) => {
+                            const target = e.target as HTMLButtonElement;
+                            target.style.backgroundColor = '#f7fafc';
+                          }}
+                          onMouseLeave={(e) => {
+                            const target = e.target as HTMLButtonElement;
+                            target.style.backgroundColor = 'white';
+                          }}
+                        >
+                          {account.displayName.length > 10 
+                            ? `${account.displayName.substring(0, 6)}...${account.displayName.substring(account.displayName.length - 4)}`
+                            : account.displayName
+                          }
+                        </button>
+                      </div>
+                    );
+                  })()}
+                </div>
+              );
+            }}
+          </ConnectButton.Custom>
         </div>
       </NetworkContainer>
     </NavBarWrapper>

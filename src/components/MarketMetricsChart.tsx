@@ -1,7 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { formatUnits } from "viem";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { ChartConfig, ChartContainer } from "./ui/chart";
+import { TrendingUp, Activity } from "lucide-react";
 import { fetchAssetPriceDL } from "../fetchers/fetchDLPrice";
-import { formatUsdAmount } from "../utils/utils"; // Make sure to update the import path if needed
+import { formatUsdAmount } from "../utils/utils";
 
 interface MarketMetricsChartProps {
   simulationSeries: {
@@ -19,19 +23,20 @@ interface MarketMetricsChartProps {
   loading: boolean;
 }
 
+const chartConfig = {
+  apy: {
+    label: "Borrow APY",
+    color: "#5792FF",
+    icon: Activity,
+  },
+} satisfies ChartConfig;
+
 const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
   simulationSeries,
   marketAsset,
   onUseMaxAvailable,
   loading,
 }) => {
-  const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState<{
-    x: number;
-    y: number;
-  }>({ x: 0, y: 0 });
-  const chartRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
   const [assetPrice, setAssetPrice] = useState<number | null>(null);
   const [isLoadingPrice, setIsLoadingPrice] = useState<boolean>(false);
 
@@ -66,43 +71,17 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
 
   if (loading || isLoadingPrice) {
     return (
-      <div className="flex items-center justify-center p-2">
-        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-      </div>
+      <Card>
+        <CardContent className="flex items-center justify-center p-6">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (!simulationSeries) {
     return null;
   }
-
-  // Normalize percentages to ensure first point is at x=0 and last point is at x=100
-  const normalizedPercentages = [...simulationSeries.percentages];
-  if (normalizedPercentages[0] !== 0) {
-    normalizedPercentages[0] = 0;
-  }
-  if (normalizedPercentages[normalizedPercentages.length - 1] !== 100) {
-    normalizedPercentages[normalizedPercentages.length - 1] = 100;
-  }
-
-  // Find the actual indices for our x-axis labels to ensure correct alignment
-  const percentageMarkers = [0, 25, 50, 75, 100];
-  const markerIndices = percentageMarkers.map((p) => {
-    if (p === 0) return 0;
-    if (p === 100) return simulationSeries.percentages.length - 1;
-
-    // Find closest index to the marker percentage
-    let closestIndex = 0;
-    let minDistance = Number.MAX_VALUE;
-    for (let i = 0; i < normalizedPercentages.length; i++) {
-      const distance = Math.abs(normalizedPercentages[i] - p);
-      if (distance < minDistance) {
-        minDistance = distance;
-        closestIndex = i;
-      }
-    }
-    return closestIndex;
-  });
 
   // Get effective price (use DefiLlama price as fallback)
   const effectivePrice = marketAsset?.loanAsset.priceUsd || assetPrice || 0;
@@ -120,364 +99,299 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
       : `${nativeAmount.toFixed(2)} ${marketAsset.loanAsset.symbol || ""}`;
   };
 
-  // Handle mouse movement over the chart area
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!svgRef.current || !chartRef.current || !simulationSeries) return;
+  // Calculate total liquidity in USD for X-axis labels
+  const totalLiquidityUsd = marketAsset && simulationSeries.initialLiquidity
+    ? Number(formatUnits(simulationSeries.initialLiquidity, marketAsset.loanAsset.decimals || 18)) * effectivePrice
+    : 0;
 
-    const svgRect = svgRef.current.getBoundingClientRect();
-    const chartRect = chartRef.current.getBoundingClientRect();
-
-    // Calculate mouse position relative to SVG
-    const mouseX = e.clientX - svgRect.left;
-    const relativeX = (mouseX / svgRect.width) * 100; // Convert to viewBox coordinates (0-100)
-
-    // Find the closest point based on x-coordinate
-    let closestPointIndex = 0;
-    let minDistance = Number.MAX_VALUE;
-
-    normalizedPercentages.forEach((p, i) => {
-      const distance = Math.abs(p - relativeX);
-      if (distance < minDistance) {
-        minDistance = distance;
-        closestPointIndex = i;
+  // Create comprehensive chart data for every 1% (for hover) and mark 10% intervals (for display)
+  const createStandardizedData = () => {
+    const standardData = [];
+    for (let i = 0; i <= 100; i += 1) { // Every 1% for smooth hover
+      // Find closest data point or interpolate
+      const closestIndex = simulationSeries.percentages.findIndex(p => Math.abs(p - i) < 0.5);
+      
+      if (closestIndex !== -1) {
+        // Use existing data point
+        standardData.push({
+          percentage: i,
+          percentageLabel: `${i}%`,
+          apy: simulationSeries.apySeries[closestIndex],
+          utilization: simulationSeries.utilizationSeries[closestIndex],
+          borrowAmount: simulationSeries.borrowAmounts[closestIndex],
+          borrowAmountFormatted: getFormattedBorrowAmount(simulationSeries.borrowAmounts[closestIndex]),
+          usdValue: formatUsdAmount((i / 100) * totalLiquidityUsd, 0),
+          showDot: i % 10 === 0, // Only show dots at 10% intervals
+          showTick: i % 10 === 0 // Only show X-axis ticks at 10% intervals
+        });
+      } else {
+        // Interpolate between closest points
+        const lowerIndex = simulationSeries.percentages.findIndex(p => p > i) - 1;
+        const upperIndex = lowerIndex + 1;
+        
+        if (lowerIndex >= 0 && upperIndex < simulationSeries.percentages.length) {
+          const lowerPerc = simulationSeries.percentages[lowerIndex];
+          const upperPerc = simulationSeries.percentages[upperIndex];
+          const ratio = (i - lowerPerc) / (upperPerc - lowerPerc);
+          
+          const interpolatedApy = simulationSeries.apySeries[lowerIndex] + 
+            (simulationSeries.apySeries[upperIndex] - simulationSeries.apySeries[lowerIndex]) * ratio;
+          const interpolatedUtilization = simulationSeries.utilizationSeries[lowerIndex] + 
+            (simulationSeries.utilizationSeries[upperIndex] - simulationSeries.utilizationSeries[lowerIndex]) * ratio;
+          
+          // Calculate interpolated borrow amount
+          const lowerAmount = Number(formatUnits(simulationSeries.borrowAmounts[lowerIndex], marketAsset?.loanAsset.decimals || 18));
+          const upperAmount = Number(formatUnits(simulationSeries.borrowAmounts[upperIndex], marketAsset?.loanAsset.decimals || 18));
+          const interpolatedAmount = lowerAmount + (upperAmount - lowerAmount) * ratio;
+          const interpolatedAmountBigInt = BigInt(Math.round(interpolatedAmount * Math.pow(10, marketAsset?.loanAsset.decimals || 18)));
+          
+          standardData.push({
+            percentage: i,
+            percentageLabel: `${i}%`,
+            apy: interpolatedApy,
+            utilization: interpolatedUtilization,
+            borrowAmount: interpolatedAmountBigInt,
+            borrowAmountFormatted: getFormattedBorrowAmount(interpolatedAmountBigInt),
+            usdValue: formatUsdAmount((i / 100) * totalLiquidityUsd, 0),
+            showDot: i % 10 === 0,
+            showTick: i % 10 === 0
+          });
+        } else {
+          // Use edge case values
+          const edgeIndex = lowerIndex < 0 ? 0 : simulationSeries.percentages.length - 1;
+          standardData.push({
+            percentage: i,
+            percentageLabel: `${i}%`,
+            apy: simulationSeries.apySeries[edgeIndex],
+            utilization: simulationSeries.utilizationSeries[edgeIndex],
+            borrowAmount: simulationSeries.borrowAmounts[edgeIndex],
+            borrowAmountFormatted: getFormattedBorrowAmount(simulationSeries.borrowAmounts[edgeIndex]),
+            usdValue: formatUsdAmount((i / 100) * totalLiquidityUsd, 0),
+            showDot: i % 10 === 0,
+            showTick: i % 10 === 0
+          });
+        }
       }
-    });
-
-    // Set the hovered point
-    setHoveredPoint(closestPointIndex);
-
-    // Calculate tooltip position in pixels
-    const x = (normalizedPercentages[closestPointIndex] / 100) * svgRect.width;
-    const y =
-      ((viewBoxHeight -
-        (simulationSeries.apySeries[closestPointIndex] / maxYScale) *
-          viewBoxHeight) /
-        viewBoxHeight) *
-      (chartRect.height - 24);
-
-    setTooltipPosition({ x, y });
+    }
+    return standardData;
   };
 
-  // Handle mouse leave from the chart area
-  const handleMouseLeave = () => {
-    setHoveredPoint(null);
+  const chartData = createStandardizedData();
+
+  const maxApy = Math.max(...simulationSeries.apySeries);
+  const maxAvailableLiquidity = marketAsset && simulationSeries.initialLiquidity
+    ? hasPriceData
+      ? formatUsdAmount(
+          Number(
+            formatUnits(
+              simulationSeries.initialLiquidity,
+              marketAsset.loanAsset.decimals || 18
+            )
+          ) * effectivePrice,
+          2
+        )
+      : `${Number(
+          formatUnits(
+            simulationSeries.initialLiquidity,
+            marketAsset.loanAsset.decimals || 18
+          )
+        ).toFixed(2)} ${marketAsset.loanAsset.symbol || ""}`
+    : "Loading...";
+
+  // Custom X-axis tick component with percentage and USD values (only for 10% intervals)
+  const CustomXAxisTick = ({ x, y, payload }: any) => {
+    const data = chartData.find(d => d.percentage === payload.value && d.showTick);
+    if (!data) return null;
+
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text 
+          x={0} 
+          y={0} 
+          dy={14} 
+          textAnchor="middle" 
+          fill="#666" 
+          fontSize="11"
+          className="text-xs"
+        >
+          {data.percentageLabel}
+        </text>
+        <text 
+          x={0} 
+          y={0} 
+          dy={30} 
+          textAnchor="middle" 
+          fill="#888" 
+          fontSize="9"
+          className="text-xs"
+        >
+          {data.usdValue}
+        </text>
+      </g>
+    );
   };
 
-  const maxApyValue = Math.max(...simulationSeries.apySeries);
-  const maxYScale = Math.ceil(maxApyValue * 1.1);
-  const viewBoxHeight = Math.max(50, (maxYScale / 20) * 50);
+  // Custom tooltip component
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-background border border-border rounded-lg p-2 shadow-lg">
+          <p className="font-medium text-xs mb-1">{data.percentageLabel} of Available Liquidity</p>
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Borrow APY:</span>
+              <span className="font-medium" style={{ color: "#5792FF" }}>
+                {data.apy.toFixed(2)}%
+              </span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Amount:</span>
+              <span className="font-medium">{data.borrowAmountFormatted}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">USD Value:</span>
+              <span className="font-medium">{data.usdValue}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">Utilization:</span>
+              <span className="font-medium">{data.utilization.toFixed(2)}%</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  if (!hasPriceData) {
+    return (
+      <Card>
+        <CardContent className="p-4">
+          <div className="p-3 bg-yellow-100 text-yellow-800 text-sm rounded-lg">
+            ⚠️ Price data unavailable for this market on the current chain. Some USD values may not display correctly.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (simulationSeries.utilizationSeries.every((u) => u === 0)) {
+    return (
+      <Card>
+        <CardContent className="p-4">
+          <div className="p-3 bg-yellow-100 text-yellow-900 text-sm rounded-lg">
+            ⚠️ This market does not exist on the current chain. Try switching networks.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <div className="p-3 bg-gray-800/50 rounded-lg text-sm">
-      {!hasPriceData ? (
-        <div className="p-2 bg-yellow-400/10 text-yellow-400 text-xs rounded">
-          ⚠️ Price data unavailable for this market on the current chain. Some
-          USD values may not display correctly.
-        </div>
-      ) : simulationSeries.utilizationSeries.every((u) => u === 0) ? (
-        <div className="p-2 bg-yellow-400/10 text-yellow-400 text-xs rounded">
-          ⚠️ This market does not exist on the current chain. Try switching
-          networks.
-        </div>
-      ) : (
-        <>
-          {/* SVG Chart */}
-          <div
-            className="relative h-56 mt-4 max-w-[800px] mx-auto"
-            ref={chartRef}
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Activity className="h-5 w-5" />
+          Market Borrow Simulation
+        </CardTitle>
+        <CardDescription>
+          Borrow APY in function of the future borrow liquidity
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer config={chartConfig} className="h-[350px] w-full">
+          <AreaChart
+            data={chartData}
+            margin={{
+              top: 20,
+              right: 30,
+              left: 20,
+              bottom: 50,
+            }}
           >
-            {/* Legend in top left */}
-            <div className="absolute top-0 left-0 z-10 text-xs text-gray-400 bg-gray-900 bg-opacity-70 px-2 py-1 rounded ml-4">
-              <div className="flex items-center">
-                <span className="w-3 h-0.5 bg-blue-500 mr-1"></span>
-                <span>
-                  Borrow APY in function of the future borrow liquidity
-                </span>
-              </div>
-            </div>
-
-            {/* Hovered point info in bottom right */}
-            {hoveredPoint !== null && (
-              <div className="absolute bottom-8 right-0 z-10 text-xs text-gray-300 bg-gray-900 bg-opacity-70 px-2 py-1 rounded text-right">
-                <div>{normalizedPercentages[hoveredPoint].toFixed(2)}%</div>
-                <div className="text-blue-400">
-                  {simulationSeries.apySeries[hoveredPoint].toFixed(2)}% APY
-                </div>
-              </div>
-            )}
-
-            <svg
-              ref={svgRef}
-              className="w-full h-[calc(100%-24px)]"
-              viewBox={`0 0 100 ${viewBoxHeight}`}
-              preserveAspectRatio="none"
-              onMouseMove={handleMouseMove}
-              onMouseLeave={handleMouseLeave}
-            >
-              {/* Invisible overlay for mouse tracking */}
-              <rect
-                x="0"
-                y="0"
-                width="100"
-                height={viewBoxHeight}
-                fill="transparent"
-              />
-
-              {/* Grid lines */}
-              <line
-                x1="0"
-                y1={viewBoxHeight / 2}
-                x2="100"
-                y2={viewBoxHeight / 2}
-                stroke="#2D3748"
-                strokeWidth="0.3"
-              />
-              <line
-                x1="25"
-                y1="0"
-                x2="25"
-                y2={viewBoxHeight}
-                stroke="#2D3748"
-                strokeWidth="0.3"
-              />
-              <line
-                x1="50"
-                y1="0"
-                x2="50"
-                y2={viewBoxHeight}
-                stroke="#2D3748"
-                strokeWidth="0.3"
-              />
-              <line
-                x1="75"
-                y1="0"
-                x2="75"
-                y2={viewBoxHeight}
-                stroke="#2D3748"
-                strokeWidth="0.3"
-              />
-
-              {/* Axes */}
-              <line
-                x1="0"
-                y1={viewBoxHeight}
-                x2="100"
-                y2={viewBoxHeight}
-                stroke="#6B7280"
-                strokeWidth="0.3"
-              />
-              <line
-                x1="0"
-                y1="0"
-                x2="0"
-                y2={viewBoxHeight}
-                stroke="#6B7280"
-                strokeWidth="0.3"
-              />
-
-              {/* APY Line */}
-              <polyline
-                points={normalizedPercentages
-                  .map(
-                    (p, i) =>
-                      `${p} ${
-                        viewBoxHeight -
-                        (simulationSeries.apySeries[i] / maxYScale) *
-                          viewBoxHeight
-                      }`
-                  )
-                  .join(" ")}
-                fill="none"
-                stroke="#3B82F6"
-                strokeWidth="1"
-              />
-
-              {/* Data Points */}
-              {normalizedPercentages.map(
-                (p, i) =>
-                  // Only render every 5th point and the hovered point
-                  (i % 10 === 0 || hoveredPoint === i) && (
-                    <circle
-                      key={i}
-                      cx={p}
-                      cy={
-                        viewBoxHeight -
-                        (simulationSeries.apySeries[i] / maxYScale) *
-                          viewBoxHeight
-                      }
-                      r={hoveredPoint === i ? "1.1" : "0.8"}
-                      fill={hoveredPoint === i ? "#60A5FA" : "#3B82F6"}
-                    />
-                  )
-              )}
-
-              {/* Guide lines for hovered point */}
-              {hoveredPoint !== null && (
-                <>
-                  {/* Vertical guide line */}
-                  <line
-                    x1={normalizedPercentages[hoveredPoint]}
-                    y1={
-                      viewBoxHeight -
-                      (simulationSeries.apySeries[hoveredPoint] / maxYScale) *
-                        viewBoxHeight
-                    }
-                    x2={normalizedPercentages[hoveredPoint]}
-                    y2={viewBoxHeight}
-                    stroke="#6B7280"
-                    strokeWidth="0.3"
-                    strokeDasharray="1,1"
+            <defs>
+              <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#5792FF" stopOpacity={0.6} />
+                <stop offset="50%" stopColor="#5792FF" stopOpacity={0.3} />
+                <stop offset="100%" stopColor="#5792FF" stopOpacity={0.05} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <XAxis
+              dataKey="percentage"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              tick={<CustomXAxisTick />}
+              domain={[0, 100]}
+              ticks={[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]}
+              className="text-xs"
+            />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              tickFormatter={(value) => `${value}%`}
+              className="text-xs"
+            />
+            <Tooltip
+              content={<CustomTooltip />}
+              cursor={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1, strokeDasharray: "3 3" }}
+            />
+            <Area
+              dataKey="apy"
+              type="monotone"
+              fill="url(#blueGradient)"
+              stroke="#5792FF"
+              strokeWidth={2}
+              dot={(props: any) => {
+                const data = chartData.find(d => d.percentage === props.payload?.percentage);
+                if (!data?.showDot) {
+                  return <g />; // Return empty g element instead of null
+                }
+                return (
+                  <circle 
+                    cx={props.cx} 
+                    cy={props.cy} 
+                    r={4} 
+                    fill="#5792FF" 
+                    strokeWidth={2}
                   />
-                  {/* Horizontal guide line */}
-                  <line
-                    x1="0"
-                    y1={
-                      viewBoxHeight -
-                      (simulationSeries.apySeries[hoveredPoint] / maxYScale) *
-                        viewBoxHeight
-                    }
-                    x2={normalizedPercentages[hoveredPoint]}
-                    y2={
-                      viewBoxHeight -
-                      (simulationSeries.apySeries[hoveredPoint] / maxYScale) *
-                        viewBoxHeight
-                    }
-                    stroke="#6B7280"
-                    strokeWidth="0.3"
-                    strokeDasharray="1,1"
-                  />
-                </>
-              )}
-            </svg>
-
-            {/* Floating Tooltip outside of SVG */}
-            {hoveredPoint !== null && (
-              <div
-                className="absolute z-50 bg-black bg-opacity-90 text-white p-2 rounded border border-gray-600 shadow-lg text-xs"
-                style={{
-                  left: `${tooltipPosition.x}px`,
-                  top: `${tooltipPosition.y - 40}px`,
-                  transform: "translate(-50%, -80%)",
-                  width: "150px",
-                  pointerEvents: "none",
-                }}
-              >
-                <div>
-                  <strong>APY:</strong>{" "}
-                  {simulationSeries.apySeries[hoveredPoint].toFixed(2)}%
-                </div>
-                <div>
-                  <strong>Amount:</strong>{" "}
-                  {marketAsset && simulationSeries.borrowAmounts
-                    ? getFormattedBorrowAmount(
-                        simulationSeries.borrowAmounts[hoveredPoint]
-                      )
-                    : "..."}
-                </div>
-                <div>
-                  <strong>Util:</strong>{" "}
-                  {simulationSeries.utilizationSeries[hoveredPoint].toFixed(2)}%
-                </div>
-              </div>
-            )}
-
-            {/* X-Axis Labels */}
-            <div className="relative w-full h-8 mt-1">
-              {percentageMarkers.map((p, i) => (
-                <div
-                  key={p}
-                  className="absolute flex flex-col items-center transform -translate-x-1/2"
-                  style={{ left: `${p}%`, width: "auto" }}
-                >
-                  <span className="text-xs text-gray-400">{p}%</span>
-                  {marketAsset &&
-                    simulationSeries.borrowAmounts &&
-                    markerIndices[i] !== -1 && (
-                      <span className="text-xs text-blue-300 mt-1">
-                        {hasPriceData
-                          ? formatUsdAmount(
-                              Number(
-                                formatUnits(
-                                  simulationSeries.borrowAmounts[
-                                    markerIndices[i]
-                                  ],
-                                  marketAsset.loanAsset.decimals || 18
-                                )
-                              ) * effectivePrice,
-                              1
-                            )
-                          : `${Number(
-                              formatUnits(
-                                simulationSeries.borrowAmounts[
-                                  markerIndices[i]
-                                ],
-                                marketAsset.loanAsset.decimals || 18
-                              )
-                            ).toFixed(2)} ${
-                              marketAsset.loanAsset.symbol || ""
-                            }`}
-                      </span>
-                    )}
-                </div>
-              ))}
+                );
+              }}
+              activeDot={{ r: 6, strokeWidth: 0, fill: "#5792FF" }}
+            />
+          </AreaChart>
+        </ChartContainer>
+        
+        {/* Additional Metrics */}
+        <div className="mt-3 flex justify-center">
+          <div className="grid grid-cols-3 gap-6 text-xs">
+            <div className="text-center">
+              <div className="text-muted-foreground mb-1">Max Available Liquidity</div>
+              <div className="font-semibold text-green-600">{maxAvailableLiquidity}</div>
             </div>
-            {/* Y-Axis Labels */}
-            <div className="absolute left-0 top-0 h-[calc(100%-24px)] flex flex-col justify-between text-xs text-gray-400 -ml-6">
-              <span>{maxYScale}%</span>
-              <span>{maxYScale / 2}%</span>
-              <span>0%</span>
+            <div className="text-center">
+              <div className="text-muted-foreground mb-1">Max APY</div>
+              <div className="font-semibold text-green-600">{maxApy.toFixed(2)}%</div>
             </div>
-            <div className="text-center text-xs text-gray-400 mt-2">
-              % of Available Liquidity Borrowed
+            <div className="text-center">
+              <div className="text-muted-foreground mb-1">Current Utilization</div>
+              <div className="font-semibold">{simulationSeries.utilizationSeries[0].toFixed(2)}%</div>
             </div>
           </div>
-          {/* Additional Metrics */}
-          <div className="mt-20 text-xs text-gray-400">
-            <div className="flex justify-between">
-              <span>Max Available Liquidity:</span>
-              <span className="text-green-400">
-                {marketAsset && simulationSeries.initialLiquidity
-                  ? hasPriceData
-                    ? formatUsdAmount(
-                        Number(
-                          formatUnits(
-                            simulationSeries.initialLiquidity,
-                            marketAsset.loanAsset.decimals || 18
-                          )
-                        ) * effectivePrice,
-                        2
-                      )
-                    : `${Number(
-                        formatUnits(
-                          simulationSeries.initialLiquidity,
-                          marketAsset.loanAsset.decimals || 18
-                        )
-                      ).toFixed(2)} ${marketAsset.loanAsset.symbol || ""}`
-                  : "Loading..."}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Max APY:</span>
-              <span className="text-green-400">
-                {Math.max(...simulationSeries.apySeries).toFixed(2)}%
-              </span>
-            </div>
-            <div className="flex justify-between mb-1 text-xs">
-              <span className="text-gray-400">Current Utilization</span>
-              <span className="text-white">
-                {simulationSeries.utilizationSeries[0].toFixed(2)}%
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={onUseMaxAvailable}
-            className="mt-2 w-full bg-blue-500/30 text-white text-xs p-2 rounded hover:bg-blue-600/30"
-          >
-            Use Max Available Amount
-          </button>
-        </>
-      )}
-    </div>
+        </div>
+
+        <button
+          onClick={onUseMaxAvailable}
+          className="mt-4 w-full bg-[#5792FF] text-white text-sm py-2.5 px-4 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+        >
+          <TrendingUp className="h-4 w-4" />
+          Use Max Available Amount
+        </button>
+      </CardContent>
+    </Card>
   );
 };
 

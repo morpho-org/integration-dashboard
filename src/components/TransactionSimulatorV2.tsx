@@ -133,7 +133,7 @@ export default function TransactionSimulatorV2({
         <button
           onClick={handleSimulate}
           disabled={isSimulating}
-          className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+          className="px-4 py-2 bg-[#5792FF] text-white rounded hover:bg-blue-500/30 transition-colors disabled:opacity-50"
         >
           {isSimulating ? "Simulating..." : "Simulate Changes"}
         </button>
