@@ -101,12 +101,14 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
                             background: 'white',
                             border: '2px solid #e2e8f0',
                             borderRadius: '8px',
-                            padding: '8px 16px',
-                            fontSize: '14px',
+                            padding: '6px 10px',
+                            fontSize: '12px',
                             fontWeight: '500',
                             color: '#1a202c',
                             cursor: 'pointer',
                             transition: 'all 0.2s',
+                            display: 'flex',
+                            alignItems: 'center',
                           }}
                           onMouseEnter={(e) => {
                             const target = e.target as HTMLButtonElement;
