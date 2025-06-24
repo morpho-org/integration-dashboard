@@ -168,14 +168,14 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
   const viewBoxHeight = Math.max(50, (maxYScale / 20) * 50);
 
   return (
-    <div className="p-3 bg-gray-800/50 rounded-lg text-sm">
+    <div className="p-6 bg-[#F9FAFB] rounded-xl shadow-md text-sm text-gray-900">
       {!hasPriceData ? (
-        <div className="p-2 bg-yellow-400/10 text-yellow-400 text-xs rounded">
+        <div className="p-2 bg-yellow-100 text-yellow-800 text-xs rounded">
           ⚠️ Price data unavailable for this market on the current chain. Some
           USD values may not display correctly.
         </div>
       ) : simulationSeries.utilizationSeries.every((u) => u === 0) ? (
-        <div className="p-2 bg-yellow-400/10 text-yellow-400 text-xs rounded">
+        <div className="p-2 bg-yellow-100 text-yellow-900 text-xs rounded">
           ⚠️ This market does not exist on the current chain. Try switching
           networks.
         </div>
@@ -187,9 +187,9 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
             ref={chartRef}
           >
             {/* Legend in top left */}
-            <div className="absolute top-0 left-0 z-10 text-xs text-gray-400 bg-gray-900 bg-opacity-70 px-2 py-1 rounded ml-4">
+            <div className="absolute top-0 left-0 z-10 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded ml-4 shadow">
               <div className="flex items-center">
-                <span className="w-3 h-0.5 bg-blue-500 mr-1"></span>
+                <span className="w-3 h-0.5 bg-[#5792FF] mr-1"></span>
                 <span>
                   Borrow APY in function of the future borrow liquidity
                 </span>
@@ -288,7 +288,7 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
                   )
                   .join(" ")}
                 fill="none"
-                stroke="#3B82F6"
+                stroke="#5792FF"
                 strokeWidth="1"
               />
 
@@ -306,7 +306,7 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
                           viewBoxHeight
                       }
                       r={hoveredPoint === i ? "1.1" : "0.8"}
-                      fill={hoveredPoint === i ? "#60A5FA" : "#3B82F6"}
+                      fill={hoveredPoint === i ? "#60A5FA" : "#5792FF"}
                     />
                   )
               )}
@@ -389,11 +389,11 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
                   className="absolute flex flex-col items-center transform -translate-x-1/2"
                   style={{ left: `${p}%`, width: "auto" }}
                 >
-                  <span className="text-xs text-gray-400">{p}%</span>
+                  <span className="text-xs text-gray-900">{p}%</span>
                   {marketAsset &&
                     simulationSeries.borrowAmounts &&
                     markerIndices[i] !== -1 && (
-                      <span className="text-xs text-blue-300 mt-1">
+                      <span className="text-xs text-[#5792FF] mt-1">
                         {hasPriceData
                           ? formatUsdAmount(
                               Number(
@@ -422,17 +422,17 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
               ))}
             </div>
             {/* Y-Axis Labels */}
-            <div className="absolute left-0 top-0 h-[calc(100%-24px)] flex flex-col justify-between text-xs text-gray-400 -ml-6">
+            <div className="absolute left-0 top-0 h-[calc(100%-24px)] flex flex-col justify-between text-xs text-gray-600 -ml-6">
               <span>{maxYScale}%</span>
               <span>{maxYScale / 2}%</span>
               <span>0%</span>
             </div>
-            <div className="text-center text-xs text-gray-400 mt-2">
+            <div className="text-center text-xs text-gray-600 mt-2">
               % of Available Liquidity Borrowed
             </div>
           </div>
           {/* Additional Metrics */}
-          <div className="mt-20 text-xs text-gray-400">
+          <div className="mt-20 text-xs text-gray-600">
             <div className="flex justify-between">
               <span>Max Available Liquidity:</span>
               <span className="text-green-400">
@@ -463,7 +463,7 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
               </span>
             </div>
             <div className="flex justify-between mb-1 text-xs">
-              <span className="text-gray-400">Current Utilization</span>
+              <span className="text-gray-600">Current Utilization</span>
               <span className="text-white">
                 {simulationSeries.utilizationSeries[0].toFixed(2)}%
               </span>
@@ -471,7 +471,7 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
           </div>
           <button
             onClick={onUseMaxAvailable}
-            className="mt-2 w-full bg-blue-500/30 text-white text-xs p-2 rounded hover:bg-blue-600/30"
+            className="mt-2 w-full bg-[#5792FF] text-white text-xs p-2 rounded hover:bg-blue-600"
           >
             Use Max Available Amount
           </button>

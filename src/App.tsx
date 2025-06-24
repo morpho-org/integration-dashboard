@@ -10,7 +10,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="w-full p-1 bg-[#222529]">
+    <div className="w-full p-1 bg-[#F9FAFB]">
       <div className="w-full h-15 px-4 justify-between items-center">
         <NavBar
           currentNetwork={network}
@@ -21,7 +21,7 @@ const App: React.FC = () => {
         className="p-3 rounded-t-lg min-h-screen"
         style={{
           background:
-            "linear-gradient(180deg, rgba(21, 24, 26, 0.00) 63.77%, rgba(255, 255, 255, 0.04) 89.72%), var(--Background-Base, #15181A)",
+            "linear-gradient(180deg, rgba(21, 24, 26, 0.00) 63.77%, rgba(255, 255, 255, 0.04) 89.72%), var(--Background-Base, #F9FAFB)",
         }}
       >
         <Routes>

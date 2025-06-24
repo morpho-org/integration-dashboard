@@ -92,7 +92,7 @@ export default function TransactionSenderV2({
   return (
     <div>
       <button
-        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+        className="px-4 py-2 bg-[#5792FF] text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
         onClick={handleSendTransaction}
         disabled={isTransactionPending || isTransactionSent}
       >
