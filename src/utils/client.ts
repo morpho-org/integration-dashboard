@@ -37,7 +37,7 @@ export async function initializeClient(chainId: number) {
     }),
     batch: {
       multicall: {
-        batchSize: 2048,
+        batchSize: 1024,
         wait: 50,
       },
     },

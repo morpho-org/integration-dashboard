@@ -229,7 +229,7 @@ async function initializeClientAndLoader(chainId: number) {
     chain: chainId === 1 ? mainnet : chainId === 8453 ? base : chainId === 137 ? polygon : chainId === 130 ? unichain : mainnet,
     transport: http(rpcUrl, {
       retryCount: 3,
-      retryDelay: 1000,
+      retryDelay: 2000,
       timeout: 20000,
       batch: {
         // Only useful for Alchemy endpoints
@@ -239,8 +239,8 @@ async function initializeClientAndLoader(chainId: number) {
     }),
     batch: {
       multicall: {
-        batchSize: 2048,
-        wait: 50,
+        batchSize: 1024,
+        wait: 100,
       },
     },
   });
@@ -800,9 +800,38 @@ export async function fetchMarketSimulationBorrow(
       },
     };
 
+    // Add native token holding for user (needed for gas fees)
+    startState.holdings[userAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
+      balance: maxUint256,
+      user: userAddress,
+      token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      erc20Allowances: {
+        morpho: maxUint256,
+        permit2: maxUint256,
+        "bundler3.generalAdapter1": maxUint256,
+      },
+      permit2BundlerAllowance: {
+        amount: maxUint256,
+        expiration: BigInt(2 ** 48 - 1),
+        nonce: 0n,
+      },
+    };
+
     // Get bundler addresses
     const bundlerAddresses = getChainAddresses(chainId);
     const bundlerGeneralAdapter = bundlerAddresses.bundler3.generalAdapter1;
+    const bundlerBundler3 = bundlerAddresses.bundler3.bundler3;
+    
+    // Debug: Check if bundler addresses are properly defined
+    console.log(`🔍 [BUNDLER ADDRESSES DEBUG] bundlerAddresses:`, bundlerAddresses);
+    console.log(`🔍 [BUNDLER ADDRESSES DEBUG] bundlerGeneralAdapter:`, bundlerGeneralAdapter);
+    console.log(`🔍 [BUNDLER ADDRESSES DEBUG] bundlerBundler3:`, bundlerBundler3);
+    
+    // Safety check: ensure bundlerBundler3 is defined
+    if (!bundlerBundler3) {
+      console.error(`❌ [BUNDLER ERROR] bundlerBundler3 is undefined! bundlerAddresses:`, bundlerAddresses);
+      throw new Error(`bundlerBundler3 address is undefined for chainId ${chainId}`);
+    }
 
     // Initialize bundler adapter holding for the collateral token
     if (!startState.holdings[bundlerGeneralAdapter]) {
@@ -828,15 +857,97 @@ export async function fetchMarketSimulationBorrow(
       },
     };
 
-    // If loan token is different from collateral token, add it to bundler's holdings
-    if (
-      initialMarket.params.loanToken !== initialMarket.params.collateralToken
-    ) {
-      startState.holdings[bundlerGeneralAdapter][
-        initialMarket.params.loanToken
-      ] = {
-        balance: maxUint256, // Very large balance
-        user: bundlerGeneralAdapter,
+    // Add native token holding for bundler (needed for gas fees and operations)
+    startState.holdings[bundlerGeneralAdapter]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
+      balance: maxUint256,
+      user: bundlerGeneralAdapter,
+      token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      erc20Allowances: {
+        morpho: maxUint256,
+        permit2: maxUint256,
+        "bundler3.generalAdapter1": maxUint256,
+      },
+      permit2BundlerAllowance: {
+        amount: maxUint256,
+        expiration: BigInt(2 ** 48 - 1),
+        nonce: 0n,
+      },
+    };
+
+    // Initialize bundler3 holdings
+    if (!startState.holdings[bundlerBundler3]) {
+      startState.holdings[bundlerBundler3] = {};
+    }
+
+    // Add native token holding for bundler3 address itself
+    startState.holdings[bundlerBundler3]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
+      balance: maxUint256,
+      user: bundlerBundler3,
+      token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      erc20Allowances: {
+        morpho: maxUint256,
+        permit2: maxUint256,
+        "bundler3.generalAdapter1": maxUint256,
+      },
+      permit2BundlerAllowance: {
+        amount: maxUint256,
+        expiration: BigInt(2 ** 48 - 1),
+        nonce: 0n,
+      },
+    };
+
+    // Add loan token holding for bundler3 address
+    startState.holdings[bundlerBundler3][initialMarket.params.loanToken] = {
+      balance: maxUint256,
+      user: bundlerBundler3,
+      token: initialMarket.params.loanToken,
+      erc20Allowances: {
+        morpho: maxUint256,
+        permit2: maxUint256,
+        "bundler3.generalAdapter1": maxUint256,
+      },
+      permit2BundlerAllowance: {
+        amount: maxUint256,
+        expiration: BigInt(2 ** 48 - 1),
+        nonce: 0n,
+      },
+    };
+
+    // Add native token holdings for all vault addresses that might be involved in reallocation
+    const vaultAddresses = [...new Set(rpcData.withdrawals.map(w => w.vault))];
+    console.log(`🔍 [VAULT DEBUG] Found ${vaultAddresses.length} vault addresses for reallocation:`, vaultAddresses);
+    console.log(`🔍 [BUNDLER DEBUG] Bundler addresses:`, {
+      bundlerGeneralAdapter,
+      bundlerBundler3,
+      morpho: bundlerAddresses.morpho
+    });
+    
+    for (const vaultAddress of vaultAddresses) {
+      if (!startState.holdings[vaultAddress]) {
+        startState.holdings[vaultAddress] = {};
+      }
+      
+      // Add native token holding for each vault
+      startState.holdings[vaultAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
+        balance: maxUint256,
+        user: vaultAddress,
+        token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+        erc20Allowances: {
+          morpho: maxUint256,
+          permit2: maxUint256,
+          "bundler3.generalAdapter1": maxUint256,
+        },
+        permit2BundlerAllowance: {
+          amount: maxUint256,
+          expiration: BigInt(2 ** 48 - 1),
+          nonce: 0n,
+        },
+      };
+      
+      // Add loan token holding for each vault (needed for reallocation operations)
+      startState.holdings[vaultAddress][initialMarket.params.loanToken] = {
+        balance: maxUint256,
+        user: vaultAddress,
         token: initialMarket.params.loanToken,
         erc20Allowances: {
           morpho: maxUint256,
@@ -845,11 +956,15 @@ export async function fetchMarketSimulationBorrow(
         },
         permit2BundlerAllowance: {
           amount: maxUint256,
-          expiration: BigInt(2 ** 48 - 1), // Far future
+          expiration: BigInt(2 ** 48 - 1),
           nonce: 0n,
         },
       };
     }
+    
+    // Debug: Log all addresses that have holdings set up
+    const allAddressesWithHoldings = Object.keys(startState.holdings);
+    console.log(`🔍 [HOLDINGS DEBUG] All addresses with holdings:`, allAddressesWithHoldings);
 
     // Scale the requested liquidity with the correct decimals
     const scaledRequestedLiquidity =
@@ -1076,15 +1191,6 @@ export async function fetchMarketSimulationSeries(
       marketId: marketId,
     };
 
-    // Add an empty position for this market
-    startState.positions[userAddress][marketId] = {
-      supplyShares: 0n,
-      borrowShares: 0n,
-      collateral: 0n,
-      user: userAddress,
-      marketId: marketId,
-    };
-
     // Prepare user holdings for simulation
     if (!startState.holdings[userAddress]) {
       startState.holdings[userAddress] = {};
@@ -1106,9 +1212,38 @@ export async function fetchMarketSimulationSeries(
       },
     };
 
+    // Add native token holding for user (needed for gas fees)
+    startState.holdings[userAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
+      balance: maxUint256,
+      user: userAddress,
+      token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      erc20Allowances: {
+        morpho: maxUint256,
+        permit2: maxUint256,
+        "bundler3.generalAdapter1": maxUint256,
+      },
+      permit2BundlerAllowance: {
+        amount: maxUint256,
+        expiration: BigInt(2 ** 48 - 1),
+        nonce: 0n,
+      },
+    };
+
     // Get bundler addresses
     const bundlerAddresses = getChainAddresses(chainId);
-    const bundlerGeneralAdapter = bundlerAddresses.bundler3.generalAdapter1; // Hard-coding for now based on error
+    const bundlerGeneralAdapter = bundlerAddresses.bundler3.generalAdapter1;
+    const bundlerBundler3 = bundlerAddresses.bundler3.bundler3;
+    
+    // Debug: Check if bundler addresses are properly defined
+    console.log(`🔍 [BUNDLER ADDRESSES DEBUG] bundlerAddresses:`, bundlerAddresses);
+    console.log(`🔍 [BUNDLER ADDRESSES DEBUG] bundlerGeneralAdapter:`, bundlerGeneralAdapter);
+    console.log(`🔍 [BUNDLER ADDRESSES DEBUG] bundlerBundler3:`, bundlerBundler3);
+    
+    // Safety check: ensure bundlerBundler3 is defined
+    if (!bundlerBundler3) {
+      console.error(`❌ [BUNDLER ERROR] bundlerBundler3 is undefined! bundlerAddresses:`, bundlerAddresses);
+      throw new Error(`bundlerBundler3 address is undefined for chainId ${chainId}`);
+    }
 
     // Initialize bundler adapter holding for the collateral token
     if (!startState.holdings[bundlerGeneralAdapter]) {
@@ -1134,16 +1269,97 @@ export async function fetchMarketSimulationSeries(
       },
     };
 
-    // If this market involves a loan token that's different from the collateral token,
-    // we should add that to the bundler's holdings as well
-    if (
-      initialMarket.params.loanToken !== initialMarket.params.collateralToken
-    ) {
-      startState.holdings[bundlerGeneralAdapter][
-        initialMarket.params.loanToken
-      ] = {
-        balance: maxUint256, // Very large balance
-        user: bundlerGeneralAdapter,
+    // Add native token holding for bundler (needed for gas fees and operations)
+    startState.holdings[bundlerGeneralAdapter]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
+      balance: maxUint256,
+      user: bundlerGeneralAdapter,
+      token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      erc20Allowances: {
+        morpho: maxUint256,
+        permit2: maxUint256,
+        "bundler3.generalAdapter1": maxUint256,
+      },
+      permit2BundlerAllowance: {
+        amount: maxUint256,
+        expiration: BigInt(2 ** 48 - 1),
+        nonce: 0n,
+      },
+    };
+
+    // Initialize bundler3 holdings
+    if (!startState.holdings[bundlerBundler3]) {
+      startState.holdings[bundlerBundler3] = {};
+    }
+
+    // Add native token holding for bundler3 address itself
+    startState.holdings[bundlerBundler3]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
+      balance: maxUint256,
+      user: bundlerBundler3,
+      token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      erc20Allowances: {
+        morpho: maxUint256,
+        permit2: maxUint256,
+        "bundler3.generalAdapter1": maxUint256,
+      },
+      permit2BundlerAllowance: {
+        amount: maxUint256,
+        expiration: BigInt(2 ** 48 - 1),
+        nonce: 0n,
+      },
+    };
+
+    // Add loan token holding for bundler3 address
+    startState.holdings[bundlerBundler3][initialMarket.params.loanToken] = {
+      balance: maxUint256,
+      user: bundlerBundler3,
+      token: initialMarket.params.loanToken,
+      erc20Allowances: {
+        morpho: maxUint256,
+        permit2: maxUint256,
+        "bundler3.generalAdapter1": maxUint256,
+      },
+      permit2BundlerAllowance: {
+        amount: maxUint256,
+        expiration: BigInt(2 ** 48 - 1),
+        nonce: 0n,
+      },
+    };
+
+    // Add native token holdings for all vault addresses that might be involved in reallocation
+    const vaultAddresses = [...new Set(rpcData.withdrawals.map(w => w.vault))];
+    console.log(`🔍 [VAULT DEBUG] Found ${vaultAddresses.length} vault addresses for reallocation:`, vaultAddresses);
+    console.log(`🔍 [BUNDLER DEBUG] Bundler addresses:`, {
+      bundlerGeneralAdapter,
+      bundlerBundler3,
+      morpho: bundlerAddresses.morpho
+    });
+    
+    for (const vaultAddress of vaultAddresses) {
+      if (!startState.holdings[vaultAddress]) {
+        startState.holdings[vaultAddress] = {};
+      }
+      
+      // Add native token holding for each vault
+      startState.holdings[vaultAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
+        balance: maxUint256,
+        user: vaultAddress,
+        token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+        erc20Allowances: {
+          morpho: maxUint256,
+          permit2: maxUint256,
+          "bundler3.generalAdapter1": maxUint256,
+        },
+        permit2BundlerAllowance: {
+          amount: maxUint256,
+          expiration: BigInt(2 ** 48 - 1),
+          nonce: 0n,
+        },
+      };
+      
+      // Add loan token holding for each vault (needed for reallocation operations)
+      startState.holdings[vaultAddress][initialMarket.params.loanToken] = {
+        balance: maxUint256,
+        user: vaultAddress,
         token: initialMarket.params.loanToken,
         erc20Allowances: {
           morpho: maxUint256,
@@ -1152,14 +1368,18 @@ export async function fetchMarketSimulationSeries(
         },
         permit2BundlerAllowance: {
           amount: maxUint256,
-          expiration: BigInt(2 ** 48 - 1), // Far future
+          expiration: BigInt(2 ** 48 - 1),
           nonce: 0n,
         },
       };
     }
+    
+    // Debug: Log all addresses that have holdings set up
+    const allAddressesWithHoldings = Object.keys(startState.holdings);
+    console.log(`🔍 [HOLDINGS DEBUG] All addresses with holdings:`, allAddressesWithHoldings);
 
-    // Define percentage steps with more granularity (every 1%)
-    const percentages = Array.from({ length: 101 }, (_, i) => i);
+    // Define percentage steps with more granularity (every 5% instead of 1% to reduce RPC calls)
+    const percentages = Array.from({ length: 21 }, (_, i) => i * 5); // 0, 5, 10, 15, ..., 100
     const maxLiquidity =
       initialMarket.liquidity +
       rpcData.withdrawals.reduce(
@@ -1178,6 +1398,11 @@ export async function fetchMarketSimulationSeries(
 
       // Skip if borrowAmount is 0
       if (borrowAmount === 0n && percentage > 0) continue;
+
+      // Add rate limiting to prevent hitting Alchemy's rate limits
+      if (percentage > 0) {
+        await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay between calls
+      }
 
       // Create operations for this borrowAmount
       const operations: InputBundlerOperation[] = [
@@ -1217,6 +1442,17 @@ export async function fetchMarketSimulationSeries(
           },
         });
 
+        // Debug: Log when we reach certain percentages
+        if (percentage % 10 === 0) {
+          console.log(`📊 [SIMULATION DEBUG] Simulating at ${percentage}% with borrow amount: ${borrowAmount.toString()}`);
+        }
+
+        // Debug: Check if reallocation operations were added by examining the steps
+        const hasReallocationSteps = steps.length > 2; // Basic operations + reallocation steps
+        if (hasReallocationSteps && percentage >= 15) {
+          console.log(`🔄 [REALLOCATION DEBUG] At ${percentage}%: Bundle has ${steps.length} steps (likely includes reallocation)`);
+        }
+
         // Get final state
         const finalState = getLast(steps);
         const simulatedMarket = finalState.getMarket(marketId);
@@ -1227,7 +1463,44 @@ export async function fetchMarketSimulationSeries(
         );
         apySeries.push(Number(formatUnits(simulatedMarket.borrowApy, 16)));
       } catch (error) {
-        console.error(`Error simulating at ${percentage}%:`, error);
+        console.error(`❌ [SIMULATION ERROR] Error simulating at ${percentage}%:`, error);
+        console.error(`❌ [SIMULATION ERROR] Borrow amount: ${borrowAmount.toString()}`);
+        console.error(`❌ [SIMULATION ERROR] Market liquidity: ${initialMarket.liquidity.toString()}`);
+        console.error(`❌ [SIMULATION ERROR] Available vaults:`, vaultAddresses);
+        
+        // Check if it's a rate limit error
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('compute units per second') || errorMessage.includes('rate limit')) {
+          console.warn(`⚠️ [RATE LIMIT] Hit rate limit at ${percentage}%. Waiting 2 seconds before continuing...`);
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+          
+          // Try one more time after waiting
+          try {
+            const { steps } = populateBundle(operations, startState, {
+              publicAllocatorOptions: {
+                enabled: true,
+                defaultSupplyTargetUtilization: DEFAULT_SUPPLY_TARGET_UTILIZATION,
+                supplyTargetUtilization,
+                maxWithdrawalUtilization,
+                reallocatableVaults,
+              },
+            });
+            
+            const finalState = getLast(steps);
+            const simulatedMarket = finalState.getMarket(marketId);
+            
+            utilizationSeries.push(
+              Number(formatUnits(simulatedMarket.utilization, 16))
+            );
+            apySeries.push(Number(formatUnits(simulatedMarket.borrowApy, 16)));
+            
+            console.log(`✅ [RETRY SUCCESS] Successfully retried simulation at ${percentage}%`);
+            continue; // Skip the fallback below
+          } catch (retryError) {
+            console.error(`❌ [RETRY FAILED] Retry also failed at ${percentage}%:`, retryError);
+          }
+        }
+        
         // Use previous values or defaults if simulation fails
         utilizationSeries.push(
           utilizationSeries[utilizationSeries.length - 1] || 0
