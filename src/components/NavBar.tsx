@@ -30,20 +30,21 @@ const NetworkContainer = styled.div`
 
 
 type NavBarProps = {
-  currentNetwork: "ethereum" | "base" | "polygon" | "unichain";
-  onNetworkSwitch: (network: "ethereum" | "base" | "polygon" | "unichain") => void;
+  currentNetwork: "ethereum" | "base" | "polygon" | "unichain" | "arbitrum";
+  onNetworkSwitch: (network: "ethereum" | "base" | "polygon" | "unichain"| "arbitrum") => void;
 };
 
 const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
   const chainId = useChainId();
   
   // Map chainId to network name
-  const getNetworkFromChainId = (chainId: number): "ethereum" | "base" | "polygon" | "unichain" => {
+  const getNetworkFromChainId = (chainId: number): "ethereum" | "base" | "polygon" | "unichain" | "arbitrum" => {
     switch (chainId) {
       case 1: return "ethereum";
       case 8453: return "base";
       case 137: return "polygon";
       case 130: return "unichain";
+      case 42161: return "arbitrum";
       default: return "ethereum";
     }
   };

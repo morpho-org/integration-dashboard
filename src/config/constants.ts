@@ -16,6 +16,7 @@ export const publicAllocatorAddress: Record<number, string> = {
   8453: "0xA090dD1a701408Df1d4d0B85b716c87565f90467",
   137: "0xfac15aff53ADd2ff80C2962127C434E8615Df0d3",
   130: "0xB0c9a107fA17c779B3378210A7a593e88938C7C9",
+  42161: "0x769583Af5e9D03589F159EbEC31Cc2c23E8C355E",
 };
 
 export const vaultBlacklist: Record<number, string[]> = {
@@ -31,6 +32,7 @@ export const FACTORY_ADDRESSES_V1_1 = {
   8453: "0xFf62A7c278C62eD665133147129245053Bbf5918", // base
   137: "0xa9c87daB340631C34BB738625C70499e29ddDC98", // polygon
   130: "0xe9EdE3929F43a7062a007C3e8652e4ACa610Bdc0", // unichain
+  42161: "0x878988f5f561081deEa117717052164ea1Ef0c82", // arbitrum
 };
 
 // THRESHOLDS

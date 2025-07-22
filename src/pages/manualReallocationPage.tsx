@@ -78,7 +78,7 @@ const SimpleAlert = ({
 );
 
 interface ManualReallocationPageProps {
-  network: "ethereum" | "base" | "polygon" | "unichain";
+  network: "ethereum" | "base" | "polygon" | "unichain" | "arbitrum";
 }
 
 // Helper functions using the new text sizes

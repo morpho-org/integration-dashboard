@@ -92,7 +92,7 @@ export default function TransactionSimulatorV2({
     error,
     isLoading,
   } = useSimulateContract({
-    address: config.bundler as `0x${string}`,
+    address: config.bundler3.bundler3 as `0x${string}`,
     abi: BaseBundlerV2__factory.abi,
     functionName: "multicall",
     args: [multicallActions],
@@ -127,13 +127,19 @@ export default function TransactionSimulatorV2({
     }
   };
 
+  const isArbitrum = networkId === 42161;
+
   return (
     <>
       <div className="flex items-center gap-2">
         <button
           onClick={handleSimulate}
-          disabled={isSimulating}
-          className="px-4 py-2 bg-[#5792FF] text-white rounded hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+          disabled={isSimulating || isArbitrum}
+          className={`px-4 py-2 rounded transition-colors ${
+            isArbitrum
+              ? "bg-gray-500 text-gray-300 cursor-not-allowed"
+              : "bg-[#5792FF] text-white hover:bg-blue-500/30 disabled:opacity-50"
+          }`}
         >
           {isSimulating ? "Simulating..." : "Simulate Changes"}
         </button>
