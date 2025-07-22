@@ -89,12 +89,18 @@ export default function TransactionSenderV2({
     }
   };
 
+  const isArbitrum = networkId === 42161;
+
   return (
     <div>
       <button
-        className="px-4 py-2 bg-[#5792FF] text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+        className={`px-4 py-2 rounded transition-colors ${
+          isArbitrum
+            ? "bg-gray-500 text-gray-300 cursor-not-allowed"
+            : "bg-[#5792FF] text-white hover:bg-blue-600 disabled:bg-gray-400"
+        }`}
         onClick={handleSendTransaction}
-        disabled={isTransactionPending || isTransactionSent}
+        disabled={isTransactionPending || isTransactionSent || isArbitrum}
       >
         {isTransactionPending ? "Sending..." : "Send Transaction"}
       </button>
