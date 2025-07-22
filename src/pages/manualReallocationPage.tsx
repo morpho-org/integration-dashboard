@@ -78,7 +78,7 @@ const SimpleAlert = ({
 );
 
 interface ManualReallocationPageProps {
-  network: "ethereum" | "base" | "polygon" | "unichain";
+  network: "ethereum" | "base" | "polygon" | "unichain" | "katana" | "arbitrum";
 }
 
 // Helper functions using the new text sizes
@@ -163,6 +163,8 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
         setMarketAsset(assets);
       } catch (err) {
         console.error("Error fetching market assets", err);
+        setMarketAsset(null); // Clear previous data on error
+        // You could also set an error state here for better UX
       }
     }
     if (inputs.marketId && chainId) {
@@ -610,6 +612,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                     marketAsset={marketAsset}
                     onUseMaxAvailable={handleUseMaxAvailable}
                     loading={inputLoading}
+                    chainId={Number(chainId)}
                   />
                 )}
               </div>

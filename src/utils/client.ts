@@ -1,5 +1,6 @@
 import { createPublicClient, http, PublicClient } from "viem";
-import { base, mainnet, polygon, unichain } from "viem/chains";
+import { base, mainnet, polygon, unichain, arbitrum } from "viem/chains";
+import { katana } from "../wagmi";
 
 export async function initializeClient(chainId: number) {
   const rpcUrl =
@@ -11,6 +12,10 @@ export async function initializeClient(chainId: number) {
       ? process.env.REACT_APP_RPC_URL_POLYGON
       : chainId === 130
       ? process.env.REACT_APP_RPC_URL_UNICHAIN
+      : chainId === 42161
+      ? process.env.REACT_APP_RPC_URL_ARBITRUM
+      : chainId === 747474
+      ? process.env.REACT_APP_RPC_URL_KATANA
       : undefined;
 
   if (!rpcUrl)
@@ -27,6 +32,10 @@ export async function initializeClient(chainId: number) {
         ? polygon
         : chainId === 130
         ? unichain
+        : chainId === 42161
+        ? arbitrum
+        : chainId === 747474
+        ? katana
         : mainnet,
     transport: http(rpcUrl, {
       batch: {

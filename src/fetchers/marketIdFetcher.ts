@@ -6,6 +6,32 @@ import { initializeClient } from "../utils/client";
 // List of chain IDs that are fully supported by the Blue SDK
 const SUPPORTED_CHAIN_IDS = [1, 8453]; // Ethereum and Base
 
+// Custom Morpho addresses for chains not supported by the Blue SDK
+const CUSTOM_MORPHO_ADDRESSES: { [key: number]: Address } = {
+  1135: "0x00cD58DEEbd7A2F1C55dAec715faF8aed5b27BF8", // Lisk
+  1868: "0xE75Fc5eA6e74B824954349Ca351eb4e671ADA53a", // Soneium
+  747474: "0xD50F2DffFd62f94Ee4AEd9ca05C61d0753268aBc", // Katana
+  3637: "0x8183d41556Be257fc7aAa4A48396168C8eF2bEAD", // Botanix
+  48900: "0xA902A365Fe10B4a94339B5A2Dc64F60c1486a5c8", // Zircuit
+  239: "0x918B9F2E4B44E20c6423105BB6cCEB71473aD35c", // TAC
+  999: "0x68e37dE8d93d3496ae143F2E900490f6280C57cD", // HyperEVM
+};
+
+// Custom function to get Morpho address that includes our custom addresses
+const getMorphoAddress = (chainId: number): Address | undefined => {
+  try {
+    // First try to get from Blue SDK
+    const sdkAddress = getChainAddresses(chainId)?.morpho;
+    if (sdkAddress) return sdkAddress as Address;
+    
+    // If not found in SDK, check our custom addresses
+    return CUSTOM_MORPHO_ADDRESSES[chainId];
+  } catch {
+    // If SDK throws, check our custom addresses
+    return CUSTOM_MORPHO_ADDRESSES[chainId];
+  }
+};
+
 export interface MarketParams {
   loanToken: Address;
   collateralToken: Address;
@@ -46,7 +72,7 @@ export const fetchMarketParams = async (
     // Check if the chain is supported by Morpho Blue
     let morphoAddress;
     try {
-      morphoAddress = getChainAddresses(chainId)?.morpho;
+      morphoAddress = getMorphoAddress(chainId);
       console.log("morphoAddress", morphoAddress);
     } catch (err) {
       console.error(`Error getting Morpho address for chain ${chainId}:`, err);
@@ -148,17 +174,23 @@ export const fetchMarketParams = async (
 };
 
 /**
- * Try to find the market on any of the fully supported networks
+ * Try to find the market on any of the supported networks (both SDK and custom)
  */
 async function findMarketOnSupportedNetworks(
   marketId: string
 ): Promise<number | null> {
-  for (const networkId of SUPPORTED_CHAIN_IDS) {
+  // Check both SDK supported chains and custom chains
+  const allSupportedChains = [
+    ...SUPPORTED_CHAIN_IDS,
+    ...Object.keys(CUSTOM_MORPHO_ADDRESSES).map(Number)
+  ];
+
+  for (const networkId of allSupportedChains) {
     try {
-      // Try to get the Morpho address
+      // Try to get the Morpho address using our custom function
       let morphoAddress;
       try {
-        morphoAddress = getChainAddresses(networkId)?.morpho;
+        morphoAddress = getMorphoAddress(networkId);
         if (!morphoAddress) continue;
       } catch (err) {
         console.error(`Error getting Morpho address for chain ${networkId}:`, err);

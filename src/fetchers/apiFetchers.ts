@@ -374,6 +374,14 @@ export const fetchMarketAssets = async (
   const data = await response.json();
   const market = data.data.markets.items[0];
 
+  if (!market) {
+    throw new Error(`Market with ID ${marketId} not found on chain ${chainId}`);
+  }
+
+  if (!market.loanAsset || !market.collateralAsset) {
+    throw new Error(`Incomplete market data for ${marketId} on chain ${chainId}`);
+  }
+
   return {
     loanAsset: market.loanAsset,
     collateralAsset: market.collateralAsset,

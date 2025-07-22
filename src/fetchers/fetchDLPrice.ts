@@ -17,10 +17,11 @@ export const SUPPORTED_CHAINS: { [key: number]: string } = {
   57073: "ink",
   534352: "scroll",
   21000000: "corn",
+  747474: "katana",
 };
 
 /**
- * Fetches the current price of an asset from DefiLlama
+ * Fetches the current price of an asset from DefiLlama using multiple fallback strategies
  * @param address The asset's contract address
  * @param chainId The chain ID where the asset is deployed
  * @returns Asset price information or null if not found
@@ -29,52 +30,83 @@ export async function fetchAssetPriceDL(
   address: string,
   chainId: number
 ): Promise<AssetPriceInfoDL | null> {
-  try {
-    // Get chain name from mapping
-    const chainName = SUPPORTED_CHAINS[chainId];
-    if (!chainName) {
-      console.warn(`Unsupported chain ID: ${chainId}`);
-      return null;
-    }
-
-    // Checksum address
-    const normalizedAddress = getAddress(address);
-
-    // Construct DefiLlama API URL
-    const url = `https://coins.llama.fi/prices/current/${chainName}:${normalizedAddress}?searchWidth=4h`;
-
-    // Fetch price data
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.warn(`HTTP error! status: ${response.status}`);
-      return null;
-    }
-
-    const data = (await response.json()) as DefiLlamaResponse;
-    const coinKey = `${chainName}:${normalizedAddress}`;
-    const coinData = data.coins[coinKey];
-
-    if (!coinData) {
-      console.warn(`No price data found for ${coinKey}`);
-      return null;
-    }
-
-    // Verify timestamp is recent (within last 24 hours)
-    const currentTimestamp = getCurrentTimestamp();
-    if (currentTimestamp - coinData.timestamp > 24 * 60 * 60) {
-      console.warn(`Price data for ${coinKey} is stale`);
-      return null;
-    }
-
-    return {
-      decimals: coinData.decimals,
-      symbol: coinData.symbol,
-      price: coinData.price,
-      timestamp: coinData.timestamp,
-      confidence: coinData.confidence,
-    };
-  } catch (error) {
-    console.error("Error fetching price from DefiLlama:", error);
-    return null;
+  const normalizedAddress = getAddress(address);
+  
+  // Strategy 1: Current chain
+  const chainName = SUPPORTED_CHAINS[chainId];
+  if (chainName) {
+    console.log(`Trying to fetch price for ${chainName}:${normalizedAddress}`);
+    const result = await tryFetchPrice(chainName, normalizedAddress);
+    if (result) return result;
   }
+
+  // Strategy 2: Try Ethereum mainnet as fallback (many tokens have prices there)
+  if (chainId !== 1) {
+    console.log(`Fallback: Trying Ethereum mainnet for ${normalizedAddress}`);
+    const result = await tryFetchPrice("ethereum", normalizedAddress);
+    if (result) return result;
+  }
+
+  // Strategy 3: Try other major chains as fallbacks
+  const fallbackChains = ["base", "arbitrum", "optimism", "polygon"];
+  for (const fallbackChain of fallbackChains) {
+    if (fallbackChain !== chainName && fallbackChain !== "ethereum") {
+      console.log(`Fallback: Trying ${fallbackChain} for ${normalizedAddress}`);
+      const result = await tryFetchPrice(fallbackChain, normalizedAddress);
+      if (result) return result;
+    }
+  }
+
+  console.warn(`No price data found for ${normalizedAddress} on any supported chain`);
+  return null;
+}
+
+/**
+ * Helper function to try fetching price from a specific chain
+ */
+async function tryFetchPrice(
+  chainName: string, 
+  normalizedAddress: string
+): Promise<AssetPriceInfoDL | null> {
+  try {
+    // Try with different search widths
+    const searchWidths = ["4h", "12h", "24h"];
+    
+    for (const searchWidth of searchWidths) {
+      const url = `https://coins.llama.fi/prices/current/${chainName}:${normalizedAddress}?searchWidth=${searchWidth}`;
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        continue;
+      }
+
+      const data = (await response.json()) as DefiLlamaResponse;
+      const coinKey = `${chainName}:${normalizedAddress}`;
+      const coinData = data.coins[coinKey];
+
+      if (!coinData) {
+        continue;
+      }
+
+      // Allow slightly stale data (within last 48 hours) for better coverage
+      const currentTimestamp = getCurrentTimestamp();
+      if (currentTimestamp - coinData.timestamp > 48 * 60 * 60) {
+        console.warn(`Price data for ${coinKey} is stale (${searchWidth} search)`);
+        continue;
+      }
+
+      console.log(`Found price for ${coinKey} with ${searchWidth} search: $${coinData.price}`);
+      return {
+        decimals: coinData.decimals,
+        symbol: coinData.symbol,
+        price: coinData.price,
+        timestamp: coinData.timestamp,
+        confidence: coinData.confidence,
+      };
+    }
+  } catch (error) {
+    console.error(`Error fetching price from ${chainName}:`, error);
+  }
+  
+  return null;
 }
