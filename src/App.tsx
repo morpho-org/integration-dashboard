@@ -3,9 +3,9 @@ import NavBar from "./components/NavBar";
 import { Route, Routes } from "react-router-dom";
 import ManualReallocationPage from "./pages/manualReallocationPage";
 const App: React.FC = () => {
-  const [network, setNetwork] = useState<"ethereum" | "base" | "polygon" | "unichain">("ethereum");
+  const [network, setNetwork] = useState<"ethereum" | "base" | "polygon" | "unichain" | "katana" | "arbitrum">("ethereum");
 
-  const handleNetworkSwitch = (selectedNetwork: "ethereum" | "base" | "polygon" | "unichain") => {
+  const handleNetworkSwitch = (selectedNetwork: "ethereum" | "base" | "polygon" | "unichain" | "katana" | "arbitrum") => {
     setNetwork(selectedNetwork);
   };
 

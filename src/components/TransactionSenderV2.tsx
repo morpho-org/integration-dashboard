@@ -1,8 +1,8 @@
 import {
-  getChainAddresses,
   MarketId,
   MarketParams,
 } from "@morpho-org/blue-sdk";
+import { getChainAddresses } from "../utils/chainAddresses";
 import { BundlerAction } from "@morpho-org/morpho-blue-bundlers/pkg";
 import { BaseBundlerV2__factory } from "@morpho-org/morpho-blue-bundlers/types";
 import { useState } from "react";
@@ -37,11 +37,34 @@ export default function TransactionSenderV2({
 
     try {
       const config = getChainAddresses(networkId);
-      if (!config) throw new Error(`Unsupported chain ID: ${networkId}`);
+      if (!config) {
+        console.error(`Unsupported chain ID: ${networkId}`);
+        alert(`Chain ID ${networkId} is not supported. Please switch to a supported network.`);
+        return;
+      }
+
+      // Check if we have required addresses
+      const bundlerAddress = config.bundler3?.bundler3 || config.bundler;
+      if (!bundlerAddress) {
+        console.error(`No bundler address found for chain ID: ${networkId}`);
+        alert(`No bundler contract found for this network. Transaction cannot proceed.`);
+        return;
+      }
+
+      if (!config.publicAllocator) {
+        console.error(`No public allocator address found for chain ID: ${networkId}`);
+        alert(`No public allocator contract found for this network. Transaction cannot proceed.`);
+        return;
+      }
 
       const filteredVaults = Object.entries(withdrawalsPerVault)
         .filter(([, withdrawals]) => withdrawals.some((w) => w.amount > 0n))
         .map(([vaultAddress]) => vaultAddress);
+
+      if (filteredVaults.length === 0) {
+        alert("No valid withdrawals to process.");
+        return;
+      }
 
       // Create multicall actions
       const multicallActions = filteredVaults.map((vaultAddress) => {
@@ -59,23 +82,28 @@ export default function TransactionSenderV2({
           return withdrawal;
         });
 
-        const action = BundlerAction.metaMorphoReallocateTo(
-          config.publicAllocator as `0x${string}`,
-          vaultAddress,
-          0n, // No fee for now
-          reducedWithdrawals, // Use the reduced withdrawals
-          MarketParams.get(marketId)
-        );
+        try {
+          const action = BundlerAction.metaMorphoReallocateTo(
+            config.publicAllocator as `0x${string}`,
+            vaultAddress,
+            0n, // No fee for now
+            reducedWithdrawals, // Use the reduced withdrawals
+            MarketParams.get(marketId)
+          );
 
-        // Ensure the action is a proper hex string
-        return action.startsWith("0x")
-          ? (action as `0x${string}`)
-          : (`0x${action}` as `0x${string}`);
+          // Ensure the action is a proper hex string
+          return action.startsWith("0x")
+            ? (action as `0x${string}`)
+            : (`0x${action}` as `0x${string}`);
+        } catch (actionError) {
+          console.error(`Failed to create bundler action for vault ${vaultAddress}:`, actionError);
+          throw new Error(`Failed to create transaction data for vault ${vaultAddress}`);
+        }
       });
 
       // Send the transaction
       const result = await writeContractAsync({
-        address: config.bundler as `0x${string}`,
+        address: bundlerAddress as `0x${string}`,
         abi: BaseBundlerV2__factory.abi,
         functionName: "multicall",
         args: [multicallActions],
@@ -86,6 +114,25 @@ export default function TransactionSenderV2({
       setIsTransactionSent(true);
     } catch (error) {
       console.error("Transaction failed:", error);
+      
+      // Provide user-friendly error messages
+      let errorMessage = "Transaction failed. Please try again.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes("User rejected")) {
+          errorMessage = "Transaction was rejected by user.";
+        } else if (error.message.includes("insufficient funds")) {
+          errorMessage = "Insufficient funds to complete the transaction.";
+        } else if (error.message.includes("network")) {
+          errorMessage = "Network error. Please check your connection and try again.";
+        } else if (error.message.includes("bundler")) {
+          errorMessage = "Contract configuration error. Please contact support.";
+        } else {
+          errorMessage = `Transaction failed: ${error.message}`;
+        }
+      }
+      
+      alert(errorMessage);
     }
   };
 

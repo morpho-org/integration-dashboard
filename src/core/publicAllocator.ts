@@ -2,12 +2,12 @@
 
 import {
   DEFAULT_SLIPPAGE_TOLERANCE,
-  getChainAddresses,
   Market,
   MarketId,
   MarketParams,
   MarketUtils,
   MathLib,
+  Holding,
 } from "@morpho-org/blue-sdk";
 import "@morpho-org/blue-sdk-viem/lib/augment";
 import {
@@ -32,8 +32,241 @@ import {
   maxUint256,
   parseEther,
 } from "viem";
-import { base, mainnet, polygon, unichain } from "viem/chains";
+import { arbitrum, base, mainnet, polygon, unichain } from "viem/chains";
 import { fetchMarketTargets } from "../fetchers/fetchApiTargets";
+import { katana } from "../wagmi";
+import { getChainAddresses } from "../utils/chainAddresses";
+
+// Enhanced error handling and bundler address validation
+interface BundlerAddresses {
+  bundler?: Address;
+  bundler3?: {
+    bundler3: Address;
+    generalAdapter1: Address;
+  };
+}
+
+interface ChainConfig {
+  morpho: Address;
+  publicAllocator: Address;
+  bundler?: Address;
+  bundler3?: {
+    bundler3: Address;
+    generalAdapter1: Address;
+  };
+}
+
+/**
+ * Validates bundler addresses and returns appropriate error if missing
+ */
+function validateBundlerAddresses(
+  chainId: number,
+  config: ChainConfig | null | undefined
+): { isValid: boolean; error?: string; bundlerAddresses?: BundlerAddresses } {
+  if (!config) {
+    return {
+      isValid: false,
+      error: `Chain ID ${chainId} is not supported. Please use a supported chain.`
+    };
+  }
+
+  // Check for bundler3 addresses (preferred)
+  if (config.bundler3?.bundler3 && config.bundler3?.generalAdapter1) {
+    return {
+      isValid: true,
+      bundlerAddresses: {
+        bundler3: config.bundler3
+      }
+    };
+  }
+
+  // Fallback to legacy bundler
+  if (config.bundler) {
+    return {
+      isValid: true,
+      bundlerAddresses: {
+        bundler: config.bundler
+      }
+    };
+  }
+
+  return {
+    isValid: false,
+    error: `No bundler contracts found for chain ID ${chainId}. This chain may not support bundled operations.`
+  };
+}
+
+/**
+ * Helper function to setup simulation state with proper bundler address handling
+ */
+async function setupSimulationState(
+  startState: SimulationState,
+  userAddress: Address,
+  initialMarket: any,
+  bundlerAddresses: BundlerAddresses,
+  withdrawals: any[],
+  morpho: Address
+): Promise<void> {
+  // Initialize user position
+  if (!startState.users[userAddress]) {
+    startState.users[userAddress] = {
+      address: userAddress,
+      isBundlerAuthorized: false,
+      morphoNonce: 0n,
+    };
+  }
+
+  if (!startState.positions[userAddress]) {
+    startState.positions[userAddress] = {};
+  }
+
+  startState.positions[userAddress][initialMarket.params.id] = {
+    supplyShares: 0n,
+    borrowShares: 0n,
+    collateral: 0n,
+    user: userAddress,
+    marketId: initialMarket.params.id,
+  };
+
+  // Setup user holdings
+  if (!startState.holdings[userAddress]) {
+    startState.holdings[userAddress] = {};
+  }
+
+  // Add collateral token holdings for user
+  startState.holdings[userAddress][initialMarket.params.collateralToken] = new Holding(
+    userAddress,
+    initialMarket.params.collateralToken,
+    maxUint256 / 2n,
+    {
+      morpho: maxUint256,
+      permit2: 0n,
+      "bundler3.generalAdapter1": maxUint256,
+    },
+    {
+      amount: 0n,
+      expiration: 0n,
+      nonce: 0n,
+    }
+  );
+
+  // Add native token holdings for user
+  startState.holdings[userAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = new Holding(
+    userAddress,
+    "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address,
+    maxUint256,
+    {
+      morpho: maxUint256,
+      permit2: maxUint256,
+      "bundler3.generalAdapter1": maxUint256,
+    },
+    {
+      amount: maxUint256,
+      expiration: BigInt(2 ** 48 - 1),
+      nonce: 0n,
+    }
+  );
+
+  // Setup bundler holdings based on available addresses
+  if (bundlerAddresses.bundler3) {
+    const { bundler3, generalAdapter1 } = bundlerAddresses.bundler3;
+    
+    // Setup bundler3 holdings
+    if (!startState.holdings[bundler3]) {
+      startState.holdings[bundler3] = {};
+    }
+    
+    if (!startState.holdings[generalAdapter1]) {
+      startState.holdings[generalAdapter1] = {};
+    }
+
+    // Add holdings for both bundler addresses
+    [bundler3, generalAdapter1].forEach(address => {
+      // Native token
+      startState.holdings[address]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = new Holding(
+        address,
+        "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address,
+        maxUint256,
+        {
+          morpho: maxUint256,
+          permit2: maxUint256,
+          "bundler3.generalAdapter1": maxUint256,
+        },
+        {
+          amount: maxUint256,
+          expiration: BigInt(2 ** 48 - 1),
+          nonce: 0n,
+        }
+      );
+
+      // Collateral token
+      startState.holdings[address][initialMarket.params.collateralToken] = new Holding(
+        address,
+        initialMarket.params.collateralToken,
+        maxUint256,
+        {
+          morpho: maxUint256,
+          permit2: maxUint256,
+          "bundler3.generalAdapter1": maxUint256,
+        },
+        {
+          amount: maxUint256,
+          expiration: BigInt(2 ** 48 - 1),
+          nonce: 0n,
+        }
+      );
+
+      // Loan token
+      startState.holdings[address][initialMarket.params.loanToken] = new Holding(
+        address,
+        initialMarket.params.loanToken,
+        maxUint256,
+        {
+          morpho: maxUint256,
+          permit2: maxUint256,
+          "bundler3.generalAdapter1": maxUint256,
+        },
+        {
+          amount: maxUint256,
+          expiration: BigInt(2 ** 48 - 1),
+          nonce: 0n,
+        }
+      );
+    });
+  }
+
+  // Setup vault holdings for reallocation
+  const vaultAddresses = [...new Set(withdrawals.map(w => w.vault))];
+  console.log(`🔍 [VAULT DEBUG] Found ${vaultAddresses.length} vault addresses for reallocation:`, vaultAddresses);
+  
+  for (const vaultAddress of vaultAddresses) {
+    if (!startState.holdings[vaultAddress]) {
+      startState.holdings[vaultAddress] = {};
+    }
+    
+    // Add necessary token holdings for each vault
+    ["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE", initialMarket.params.loanToken].forEach(token => {
+      startState.holdings[vaultAddress][token] = new Holding(
+        vaultAddress,
+        token as Address,
+        maxUint256,
+        {
+          morpho: maxUint256,
+          permit2: maxUint256,
+          "bundler3.generalAdapter1": maxUint256,
+        },
+        {
+          amount: maxUint256,
+          expiration: BigInt(2 ** 48 - 1),
+          nonce: 0n,
+        }
+      );
+    });
+  }
+
+  console.log(`✅ [SETUP COMPLETE] Simulation state setup completed with ${Object.keys(startState.holdings).length} addresses`);
+}
+
 /**
  * The default target utilization above which the shared liquidity algorithm is triggered (scaled by WAD).
  */
@@ -220,13 +453,17 @@ async function initializeClientAndLoader(chainId: number) {
       ? process.env.REACT_APP_RPC_URL_POLYGON
       : chainId === 130
       ? process.env.REACT_APP_RPC_URL_UNICHAIN
+      : chainId === 747474
+      ? process.env.REACT_APP_RPC_URL_KATANA
+      : chainId === 42161
+      ? process.env.REACT_APP_RPC_URL_ARBITRUM
       : undefined;
 
   if (!rpcUrl)
     throw new Error(`No RPC URL configured for chain ID: ${chainId}`);
 
   const client = createClient({
-    chain: chainId === 1 ? mainnet : chainId === 8453 ? base : chainId === 137 ? polygon : chainId === 130 ? unichain : mainnet,
+    chain: chainId === 1 ? mainnet : chainId === 8453 ? base : chainId === 137 ? polygon : chainId === 130 ? unichain : chainId === 747474 ? katana : chainId === 42161 ? arbitrum : mainnet,
     transport: http(rpcUrl, {
       retryCount: 3,
       retryDelay: 2000,
@@ -620,8 +857,18 @@ export async function compareAndReallocate(
             );
           });
 
+          const bundlerAddress = config.bundler3?.bundler3 || config.bundler;
+          if (!bundlerAddress) {
+            console.error(`No bundler address found for chain ID: ${chainId}`);
+            result.reason = {
+              type: "error",
+              message: `No bundler contract found for chain ID ${chainId}`,
+            };
+            return result;
+          }
+          
           result.rawTransaction = {
-            to: config.bundler3.bundler3 as `0x${string}`,
+            to: bundlerAddress as `0x${string}`,
             data: BaseBundlerV2__factory.createInterface().encodeFunctionData(
               "multicall",
               [multicallActions]
@@ -715,6 +962,23 @@ export async function fetchMarketSimulationBorrow(
 
     // Initialize client, loader and fetch market targets
     const { client, loader } = await initializeClientAndLoader(chainId);
+    
+    // Validate chain configuration early
+    const config = getChainAddresses(chainId);
+    const bundlerValidation = validateBundlerAddresses(chainId, config);
+    
+    if (!bundlerValidation.isValid) {
+      result.reason = {
+        type: "error",
+        message: bundlerValidation.error!
+      };
+      return result;
+    }
+
+    const { bundlerAddresses } = bundlerValidation;
+    const { morpho } = config!;
+
+    // Continue with existing logic...
     const {
       supplyTargetUtilization,
       maxWithdrawalUtilization,
@@ -748,223 +1012,20 @@ export async function fetchMarketSimulationBorrow(
     if (!initialMarket || !initialMarket.params) {
       result.reason = {
         type: "error",
-        message: "Invalid market data",
+        message: "Invalid market data - market may not exist on this chain",
       };
       return result;
     }
 
-    const { morpho } = getChainAddresses(chainId);
-
-    // Initialize user position for this market
-    if (!startState.users[userAddress]) {
-      startState.users[userAddress] = {
-        address: userAddress,
-        isBundlerAuthorized: false,
-        morphoNonce: 0n,
-      };
-    }
-
-    // Initialize user position for this market
-    if (!startState.positions[userAddress]) {
-      startState.positions[userAddress] = {};
-    }
-
-    // Add an empty position for this market
-    startState.positions[userAddress][marketId] = {
-      supplyShares: 0n,
-      borrowShares: 0n,
-      collateral: 0n,
-      user: userAddress,
-      marketId: marketId,
-    };
-
-    // Prepare user holdings for simulation
-    if (!startState.holdings[userAddress]) {
-      startState.holdings[userAddress] = {};
-    }
-
-    // Add collateral token to user's holdings
-    startState.holdings[userAddress][initialMarket.params.collateralToken] = {
-      balance: maxUint256 / 2n,
-      user: userAddress,
-      token: initialMarket.params.collateralToken,
-      erc20Allowances: {
-        morpho: maxUint256,
-        permit2: 0n,
-        "bundler3.generalAdapter1": maxUint256,
-      },
-      permit2BundlerAllowance: {
-        amount: 0n,
-        expiration: 0n,
-        nonce: 0n,
-      },
-    };
-
-    // Add native token holding for user (needed for gas fees)
-    startState.holdings[userAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
-      balance: maxUint256,
-      user: userAddress,
-      token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-      erc20Allowances: {
-        morpho: maxUint256,
-        permit2: maxUint256,
-        "bundler3.generalAdapter1": maxUint256,
-      },
-      permit2BundlerAllowance: {
-        amount: maxUint256,
-        expiration: BigInt(2 ** 48 - 1),
-        nonce: 0n,
-      },
-    };
-
-    // Get bundler addresses
-    const bundlerAddresses = getChainAddresses(chainId);
-    const bundlerGeneralAdapter = bundlerAddresses.bundler3.generalAdapter1;
-    const bundlerBundler3 = bundlerAddresses.bundler3.bundler3;
-    
-    // Debug: Check if bundler addresses are properly defined
-    console.log(`🔍 [BUNDLER ADDRESSES DEBUG] bundlerAddresses:`, bundlerAddresses);
-    console.log(`🔍 [BUNDLER ADDRESSES DEBUG] bundlerGeneralAdapter:`, bundlerGeneralAdapter);
-    console.log(`🔍 [BUNDLER ADDRESSES DEBUG] bundlerBundler3:`, bundlerBundler3);
-    
-    // Safety check: ensure bundlerBundler3 is defined
-    if (!bundlerBundler3) {
-      console.error(`❌ [BUNDLER ERROR] bundlerBundler3 is undefined! bundlerAddresses:`, bundlerAddresses);
-      throw new Error(`bundlerBundler3 address is undefined for chainId ${chainId}`);
-    }
-
-    // Initialize bundler adapter holding for the collateral token
-    if (!startState.holdings[bundlerGeneralAdapter]) {
-      startState.holdings[bundlerGeneralAdapter] = {};
-    }
-
-    // Add the collateral token to the bundler's holdings
-    startState.holdings[bundlerGeneralAdapter][
-      initialMarket.params.collateralToken
-    ] = {
-      balance: maxUint256, // Very large balance
-      user: bundlerGeneralAdapter,
-      token: initialMarket.params.collateralToken,
-      erc20Allowances: {
-        morpho: maxUint256,
-        permit2: maxUint256,
-        "bundler3.generalAdapter1": maxUint256,
-      },
-      permit2BundlerAllowance: {
-        amount: maxUint256,
-        expiration: BigInt(2 ** 48 - 1), // Far future
-        nonce: 0n,
-      },
-    };
-
-    // Add native token holding for bundler (needed for gas fees and operations)
-    startState.holdings[bundlerGeneralAdapter]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
-      balance: maxUint256,
-      user: bundlerGeneralAdapter,
-      token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-      erc20Allowances: {
-        morpho: maxUint256,
-        permit2: maxUint256,
-        "bundler3.generalAdapter1": maxUint256,
-      },
-      permit2BundlerAllowance: {
-        amount: maxUint256,
-        expiration: BigInt(2 ** 48 - 1),
-        nonce: 0n,
-      },
-    };
-
-    // Initialize bundler3 holdings
-    if (!startState.holdings[bundlerBundler3]) {
-      startState.holdings[bundlerBundler3] = {};
-    }
-
-    // Add native token holding for bundler3 address itself
-    startState.holdings[bundlerBundler3]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
-      balance: maxUint256,
-      user: bundlerBundler3,
-      token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-      erc20Allowances: {
-        morpho: maxUint256,
-        permit2: maxUint256,
-        "bundler3.generalAdapter1": maxUint256,
-      },
-      permit2BundlerAllowance: {
-        amount: maxUint256,
-        expiration: BigInt(2 ** 48 - 1),
-        nonce: 0n,
-      },
-    };
-
-    // Add loan token holding for bundler3 address
-    startState.holdings[bundlerBundler3][initialMarket.params.loanToken] = {
-      balance: maxUint256,
-      user: bundlerBundler3,
-      token: initialMarket.params.loanToken,
-      erc20Allowances: {
-        morpho: maxUint256,
-        permit2: maxUint256,
-        "bundler3.generalAdapter1": maxUint256,
-      },
-      permit2BundlerAllowance: {
-        amount: maxUint256,
-        expiration: BigInt(2 ** 48 - 1),
-        nonce: 0n,
-      },
-    };
-
-    // Add native token holdings for all vault addresses that might be involved in reallocation
-    const vaultAddresses = [...new Set(rpcData.withdrawals.map(w => w.vault))];
-    console.log(`🔍 [VAULT DEBUG] Found ${vaultAddresses.length} vault addresses for reallocation:`, vaultAddresses);
-    console.log(`🔍 [BUNDLER DEBUG] Bundler addresses:`, {
-      bundlerGeneralAdapter,
-      bundlerBundler3,
-      morpho: bundlerAddresses.morpho
-    });
-    
-    for (const vaultAddress of vaultAddresses) {
-      if (!startState.holdings[vaultAddress]) {
-        startState.holdings[vaultAddress] = {};
-      }
-      
-      // Add native token holding for each vault
-      startState.holdings[vaultAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
-        balance: maxUint256,
-        user: vaultAddress,
-        token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-        erc20Allowances: {
-          morpho: maxUint256,
-          permit2: maxUint256,
-          "bundler3.generalAdapter1": maxUint256,
-        },
-        permit2BundlerAllowance: {
-          amount: maxUint256,
-          expiration: BigInt(2 ** 48 - 1),
-          nonce: 0n,
-        },
-      };
-      
-      // Add loan token holding for each vault (needed for reallocation operations)
-      startState.holdings[vaultAddress][initialMarket.params.loanToken] = {
-        balance: maxUint256,
-        user: vaultAddress,
-        token: initialMarket.params.loanToken,
-        erc20Allowances: {
-          morpho: maxUint256,
-          permit2: maxUint256,
-          "bundler3.generalAdapter1": maxUint256,
-        },
-        permit2BundlerAllowance: {
-          amount: maxUint256,
-          expiration: BigInt(2 ** 48 - 1),
-          nonce: 0n,
-        },
-      };
-    }
-    
-    // Debug: Log all addresses that have holdings set up
-    const allAddressesWithHoldings = Object.keys(startState.holdings);
-    console.log(`🔍 [HOLDINGS DEBUG] All addresses with holdings:`, allAddressesWithHoldings);
+    // Setup simulation state with proper bundler address handling
+    await setupSimulationState(
+      startState,
+      userAddress,
+      initialMarket,
+      bundlerAddresses!,
+      rpcData.withdrawals,
+      morpho
+    );
 
     // Scale the requested liquidity with the correct decimals
     const scaledRequestedLiquidity =
@@ -975,7 +1036,6 @@ export async function fetchMarketSimulationBorrow(
       {
         type: "Blue_SupplyCollateral",
         sender: userAddress,
-        address: morpho,
         args: {
           id: marketId,
           assets: maxUint256 / 2n,
@@ -985,7 +1045,6 @@ export async function fetchMarketSimulationBorrow(
       {
         type: "Blue_Borrow",
         sender: userAddress,
-        address: morpho,
         args: {
           id: marketId,
           assets: scaledRequestedLiquidity,
@@ -1123,7 +1182,26 @@ export async function fetchMarketSimulationSeries(
   borrowAmounts: bigint[];
   error?: string;
 }> {
+  const errorResult = {
+    percentages: [],
+    initialLiquidity: BigInt(0),
+    utilizationSeries: [],
+    apySeries: [],
+    borrowAmounts: [],
+  };
+
   try {
+    // Validate chain configuration early
+    const config = getChainAddresses(chainId);
+    const bundlerValidation = validateBundlerAddresses(chainId, config);
+    
+    if (!bundlerValidation.isValid) {
+      return {
+        ...errorResult,
+        error: bundlerValidation.error!
+      };
+    }
+
     const userAddress: Address = "0x7f7A70b5B584C4033CAfD52219a496Df9AFb1af7";
     const [
       { loader },
@@ -1137,17 +1215,13 @@ export async function fetchMarketSimulationSeries(
       fetchMarketTargets(chainId),
     ]);
 
-    // First, check if we can fetch market data
+    // Check if we can fetch market data
     const { rpcData } = await fetchMarketData(loader, marketId);
 
     if (!rpcData || !rpcData.startState) {
       return {
-        percentages: [],
-        initialLiquidity: BigInt(0),
-        utilizationSeries: [],
-        apySeries: [],
-        borrowAmounts: [],
-        error: "Market does not exist or cannot be found on this chain",
+        ...errorResult,
+        error: "Market does not exist or cannot be found on this chain"
       };
     }
 
@@ -1157,226 +1231,23 @@ export async function fetchMarketSimulationSeries(
     // Validate that the market exists and has required data
     if (!initialMarket || !initialMarket.params) {
       return {
-        percentages: [],
-        initialLiquidity: BigInt(0),
-        utilizationSeries: [],
-        apySeries: [],
-        borrowAmounts: [],
-        error: "Invalid market data returned from chain",
+        ...errorResult,
+        error: "Invalid market data returned from chain"
       };
     }
 
-    const { morpho } = getChainAddresses(chainId);
+    const { bundlerAddresses } = bundlerValidation;
+    const { morpho } = config!;
 
-    // Initialize user position for this market (THIS IS THE KEY ADDITION)
-    if (!startState.users[userAddress]) {
-      startState.users[userAddress] = {
-        address: userAddress,
-        isBundlerAuthorized: false,
-        morphoNonce: 0n,
-      };
-    }
-
-    // Initialize user position for this market
-    if (!startState.positions[userAddress]) {
-      startState.positions[userAddress] = {};
-    }
-
-    // Add an empty position for this market
-    startState.positions[userAddress][marketId] = {
-      supplyShares: 0n,
-      borrowShares: 0n,
-      collateral: 0n,
-      user: userAddress,
-      marketId: marketId,
-    };
-
-    // Prepare user holdings for simulation
-    if (!startState.holdings[userAddress]) {
-      startState.holdings[userAddress] = {};
-    }
-
-    startState.holdings[userAddress][initialMarket.params.collateralToken] = {
-      balance: maxUint256 / 2n,
-      user: userAddress,
-      token: initialMarket.params.collateralToken,
-      erc20Allowances: {
-        morpho: maxUint256,
-        permit2: 0n,
-        "bundler3.generalAdapter1": maxUint256,
-      },
-      permit2BundlerAllowance: {
-        amount: 0n,
-        expiration: 0n,
-        nonce: 0n,
-      },
-    };
-
-    // Add native token holding for user (needed for gas fees)
-    startState.holdings[userAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
-      balance: maxUint256,
-      user: userAddress,
-      token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-      erc20Allowances: {
-        morpho: maxUint256,
-        permit2: maxUint256,
-        "bundler3.generalAdapter1": maxUint256,
-      },
-      permit2BundlerAllowance: {
-        amount: maxUint256,
-        expiration: BigInt(2 ** 48 - 1),
-        nonce: 0n,
-      },
-    };
-
-    // Get bundler addresses
-    const bundlerAddresses = getChainAddresses(chainId);
-    const bundlerGeneralAdapter = bundlerAddresses.bundler3.generalAdapter1;
-    const bundlerBundler3 = bundlerAddresses.bundler3.bundler3;
-    
-    // Debug: Check if bundler addresses are properly defined
-    console.log(`🔍 [BUNDLER ADDRESSES DEBUG] bundlerAddresses:`, bundlerAddresses);
-    console.log(`🔍 [BUNDLER ADDRESSES DEBUG] bundlerGeneralAdapter:`, bundlerGeneralAdapter);
-    console.log(`🔍 [BUNDLER ADDRESSES DEBUG] bundlerBundler3:`, bundlerBundler3);
-    
-    // Safety check: ensure bundlerBundler3 is defined
-    if (!bundlerBundler3) {
-      console.error(`❌ [BUNDLER ERROR] bundlerBundler3 is undefined! bundlerAddresses:`, bundlerAddresses);
-      throw new Error(`bundlerBundler3 address is undefined for chainId ${chainId}`);
-    }
-
-    // Initialize bundler adapter holding for the collateral token
-    if (!startState.holdings[bundlerGeneralAdapter]) {
-      startState.holdings[bundlerGeneralAdapter] = {};
-    }
-
-    // Add the collateral token to the bundler's holdings
-    startState.holdings[bundlerGeneralAdapter][
-      initialMarket.params.collateralToken
-    ] = {
-      balance: maxUint256, // Very large balance
-      user: bundlerGeneralAdapter,
-      token: initialMarket.params.collateralToken,
-      erc20Allowances: {
-        morpho: maxUint256,
-        permit2: maxUint256,
-        "bundler3.generalAdapter1": maxUint256,
-      },
-      permit2BundlerAllowance: {
-        amount: maxUint256,
-        expiration: BigInt(2 ** 48 - 1), // Far future
-        nonce: 0n,
-      },
-    };
-
-    // Add native token holding for bundler (needed for gas fees and operations)
-    startState.holdings[bundlerGeneralAdapter]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
-      balance: maxUint256,
-      user: bundlerGeneralAdapter,
-      token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-      erc20Allowances: {
-        morpho: maxUint256,
-        permit2: maxUint256,
-        "bundler3.generalAdapter1": maxUint256,
-      },
-      permit2BundlerAllowance: {
-        amount: maxUint256,
-        expiration: BigInt(2 ** 48 - 1),
-        nonce: 0n,
-      },
-    };
-
-    // Initialize bundler3 holdings
-    if (!startState.holdings[bundlerBundler3]) {
-      startState.holdings[bundlerBundler3] = {};
-    }
-
-    // Add native token holding for bundler3 address itself
-    startState.holdings[bundlerBundler3]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
-      balance: maxUint256,
-      user: bundlerBundler3,
-      token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-      erc20Allowances: {
-        morpho: maxUint256,
-        permit2: maxUint256,
-        "bundler3.generalAdapter1": maxUint256,
-      },
-      permit2BundlerAllowance: {
-        amount: maxUint256,
-        expiration: BigInt(2 ** 48 - 1),
-        nonce: 0n,
-      },
-    };
-
-    // Add loan token holding for bundler3 address
-    startState.holdings[bundlerBundler3][initialMarket.params.loanToken] = {
-      balance: maxUint256,
-      user: bundlerBundler3,
-      token: initialMarket.params.loanToken,
-      erc20Allowances: {
-        morpho: maxUint256,
-        permit2: maxUint256,
-        "bundler3.generalAdapter1": maxUint256,
-      },
-      permit2BundlerAllowance: {
-        amount: maxUint256,
-        expiration: BigInt(2 ** 48 - 1),
-        nonce: 0n,
-      },
-    };
-
-    // Add native token holdings for all vault addresses that might be involved in reallocation
-    const vaultAddresses = [...new Set(rpcData.withdrawals.map(w => w.vault))];
-    console.log(`🔍 [VAULT DEBUG] Found ${vaultAddresses.length} vault addresses for reallocation:`, vaultAddresses);
-    console.log(`🔍 [BUNDLER DEBUG] Bundler addresses:`, {
-      bundlerGeneralAdapter,
-      bundlerBundler3,
-      morpho: bundlerAddresses.morpho
-    });
-    
-    for (const vaultAddress of vaultAddresses) {
-      if (!startState.holdings[vaultAddress]) {
-        startState.holdings[vaultAddress] = {};
-      }
-      
-      // Add native token holding for each vault
-      startState.holdings[vaultAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = {
-        balance: maxUint256,
-        user: vaultAddress,
-        token: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-        erc20Allowances: {
-          morpho: maxUint256,
-          permit2: maxUint256,
-          "bundler3.generalAdapter1": maxUint256,
-        },
-        permit2BundlerAllowance: {
-          amount: maxUint256,
-          expiration: BigInt(2 ** 48 - 1),
-          nonce: 0n,
-        },
-      };
-      
-      // Add loan token holding for each vault (needed for reallocation operations)
-      startState.holdings[vaultAddress][initialMarket.params.loanToken] = {
-        balance: maxUint256,
-        user: vaultAddress,
-        token: initialMarket.params.loanToken,
-        erc20Allowances: {
-          morpho: maxUint256,
-          permit2: maxUint256,
-          "bundler3.generalAdapter1": maxUint256,
-        },
-        permit2BundlerAllowance: {
-          amount: maxUint256,
-          expiration: BigInt(2 ** 48 - 1),
-          nonce: 0n,
-        },
-      };
-    }
-    
-    // Debug: Log all addresses that have holdings set up
-    const allAddressesWithHoldings = Object.keys(startState.holdings);
-    console.log(`🔍 [HOLDINGS DEBUG] All addresses with holdings:`, allAddressesWithHoldings);
+    // Setup simulation state
+    await setupSimulationState(
+      startState,
+      userAddress,
+      initialMarket,
+      bundlerAddresses!,
+      rpcData.withdrawals,
+      morpho
+    );
 
     // Define percentage steps with more granularity (every 5% instead of 1% to reduce RPC calls)
     const percentages = Array.from({ length: 21 }, (_, i) => i * 5); // 0, 5, 10, 15, ..., 100
@@ -1409,7 +1280,6 @@ export async function fetchMarketSimulationSeries(
         {
           type: "Blue_SupplyCollateral",
           sender: userAddress,
-          address: morpho,
           args: {
             id: marketId,
             assets: maxUint256 / 2n,
@@ -1419,7 +1289,6 @@ export async function fetchMarketSimulationSeries(
         {
           type: "Blue_Borrow",
           sender: userAddress,
-          address: morpho,
           args: {
             id: marketId,
             assets: borrowAmount,
@@ -1466,7 +1335,7 @@ export async function fetchMarketSimulationSeries(
         console.error(`❌ [SIMULATION ERROR] Error simulating at ${percentage}%:`, error);
         console.error(`❌ [SIMULATION ERROR] Borrow amount: ${borrowAmount.toString()}`);
         console.error(`❌ [SIMULATION ERROR] Market liquidity: ${initialMarket.liquidity.toString()}`);
-        console.error(`❌ [SIMULATION ERROR] Available vaults:`, vaultAddresses);
+        console.error(`❌ [SIMULATION ERROR] Available withdrawals:`, rpcData.withdrawals.length);
         
         // Check if it's a rate limit error
         const errorMessage = error instanceof Error ? error.message : String(error);

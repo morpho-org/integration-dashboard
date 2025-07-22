@@ -21,6 +21,7 @@ interface MarketMetricsChartProps {
   } | null;
   onUseMaxAvailable: () => void;
   loading: boolean;
+  chainId: number;
 }
 
 const chartConfig = {
@@ -36,9 +37,13 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
   marketAsset,
   onUseMaxAvailable,
   loading,
+  chainId,
 }) => {
   const [assetPrice, setAssetPrice] = useState<number | null>(null);
   const [isLoadingPrice, setIsLoadingPrice] = useState<boolean>(false);
+  const [manualPrice, setManualPrice] = useState<string>("");
+  const [isManualPriceSet, setIsManualPriceSet] = useState<boolean>(false);
+  const [priceAttempts, setPriceAttempts] = useState<string[]>([]);
 
   // Fetch price from DefiLlama if marketAsset exists but priceUsd is null
   useEffect(() => {
@@ -46,9 +51,6 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
       if (marketAsset?.loanAsset && !marketAsset.loanAsset.priceUsd) {
         try {
           setIsLoadingPrice(true);
-          const chainId = (window as any).ethereum?.chainId
-            ? parseInt((window as any).ethereum.chainId, 16)
-            : 1; // Default to Ethereum mainnet
 
           const priceData = await fetchAssetPriceDL(
             marketAsset.loanAsset.address,
@@ -57,9 +59,15 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
 
           if (priceData) {
             setAssetPrice(priceData.price);
+          } else {
+            // Track which attempts were made (this would be enhanced by modifying fetchAssetPriceDL to return attempt details)
+            const chainName = chainId === 1 ? 'ethereum' : `chain-${chainId}`;
+            setPriceAttempts(prev => [...prev, chainName]);
           }
         } catch (error) {
           console.error("Failed to fetch price from DefiLlama:", error);
+          const chainName = chainId === 1 ? 'ethereum' : `chain-${chainId}`;
+          setPriceAttempts(prev => [...prev, `${chainName} (error)`]);
         } finally {
           setIsLoadingPrice(false);
         }
@@ -67,7 +75,7 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
     }
 
     fetchPrice();
-  }, [marketAsset]);
+  }, [marketAsset, chainId]);
 
   if (loading || isLoadingPrice) {
     return (
@@ -83,8 +91,9 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
     return null;
   }
 
-  // Get effective price (use DefiLlama price as fallback)
-  const effectivePrice = marketAsset?.loanAsset.priceUsd || assetPrice || 0;
+  // Get effective price (use manual price if set, then DefiLlama price as fallback)
+  const manualPriceValue = isManualPriceSet && parseFloat(manualPrice) > 0 ? parseFloat(manualPrice) : null;
+  const effectivePrice = marketAsset?.loanAsset.priceUsd || manualPriceValue || assetPrice || 0;
   const hasPriceData = effectivePrice > 0;
 
   // Utility to format the borrow amount nicely
@@ -120,7 +129,7 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
           utilization: simulationSeries.utilizationSeries[closestIndex],
           borrowAmount: simulationSeries.borrowAmounts[closestIndex],
           borrowAmountFormatted: getFormattedBorrowAmount(simulationSeries.borrowAmounts[closestIndex]),
-          usdValue: formatUsdAmount((i / 100) * totalLiquidityUsd, 0),
+          usdValue: formatUsdAmount((i / 100) * totalLiquidityUsd, 2),
           showDot: i % 10 === 0, // Only show dots at 10% intervals
           showTick: i % 10 === 0 // Only show X-axis ticks at 10% intervals
         });
@@ -152,7 +161,7 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
             utilization: interpolatedUtilization,
             borrowAmount: interpolatedAmountBigInt,
             borrowAmountFormatted: getFormattedBorrowAmount(interpolatedAmountBigInt),
-            usdValue: formatUsdAmount((i / 100) * totalLiquidityUsd, 0),
+            usdValue: formatUsdAmount((i / 100) * totalLiquidityUsd, 2),
             showDot: i % 10 === 0,
             showTick: i % 10 === 0
           });
@@ -166,7 +175,7 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
             utilization: simulationSeries.utilizationSeries[edgeIndex],
             borrowAmount: simulationSeries.borrowAmounts[edgeIndex],
             borrowAmountFormatted: getFormattedBorrowAmount(simulationSeries.borrowAmounts[edgeIndex]),
-            usdValue: formatUsdAmount((i / 100) * totalLiquidityUsd, 0),
+            usdValue: formatUsdAmount((i / 100) * totalLiquidityUsd, 2),
             showDot: i % 10 === 0,
             showTick: i % 10 === 0
           });
@@ -264,12 +273,73 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
     return null;
   };
 
-  if (!hasPriceData) {
+  const handleManualPriceSubmit = () => {
+    const price = parseFloat(manualPrice);
+    if (price > 0) {
+      setIsManualPriceSet(true);
+    }
+  };
+
+  const handleManualPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setManualPrice(e.target.value);
+  };
+
+  const handleManualPriceKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleManualPriceSubmit();
+    }
+  };
+
+  const clearManualPrice = () => {
+    setManualPrice("");
+    setIsManualPriceSet(false);
+  };
+
+  // Show price input UI when no price data is available
+  if (!hasPriceData && !isManualPriceSet) {
     return (
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-4">
           <div className="p-3 bg-yellow-100 text-yellow-800 text-sm rounded-lg">
-            ⚠️ Price data unavailable for this market on the current chain. Some USD values may not display correctly.
+            ⚠️ Price data unavailable for <strong>{marketAsset?.loanAsset.symbol || 'Unknown Token'}</strong> 
+            {marketAsset?.loanAsset.address && (
+              <span className="text-xs block mt-1 font-mono">
+                ({marketAsset.loanAsset.address.slice(0, 8)}...{marketAsset.loanAsset.address.slice(-6)})
+              </span>
+            )}
+            <br />Some USD values may not display correctly.
+            {priceAttempts.length > 0 && (
+              <div className="text-xs mt-2 text-yellow-700">
+                Tried: {priceAttempts.join(', ')} and cross-chain fallbacks
+              </div>
+            )}
+          </div>
+          <div className="bg-gray-50 p-3 rounded-lg">
+            <div className="text-sm text-gray-700 mb-2">
+              Enter the current USD price for <strong>{marketAsset?.loanAsset.symbol || 'this asset'}</strong> to display the chart:
+            </div>
+            <div className="text-xs text-gray-600 mb-2">
+              Example: If {marketAsset?.loanAsset.symbol || 'the token'} is currently trading at $1.00, enter "1.00"
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={manualPrice}
+                onChange={handleManualPriceChange}
+                onKeyDown={handleManualPriceKeyDown}
+                placeholder={`${marketAsset?.loanAsset.symbol || 'Asset'} price in USD`}
+                className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                step="any"
+                min="0"
+              />
+              <button
+                onClick={handleManualPriceSubmit}
+                disabled={!manualPrice || parseFloat(manualPrice) <= 0}
+                className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                Use Price
+              </button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -297,6 +367,20 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
         </CardTitle>
         <CardDescription>
           Borrow APY in function of the future borrow liquidity
+          {isManualPriceSet && (
+            <div className="mt-2 flex items-center gap-2 text-xs">
+              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                Using manual price: ${parseFloat(manualPrice).toFixed(4)}
+              </span>
+              <button 
+                onClick={clearManualPrice}
+                className="text-blue-600 hover:text-blue-800 underline"
+                title="Clear manual price"
+              >
+                Clear
+              </button>
+            </div>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>
