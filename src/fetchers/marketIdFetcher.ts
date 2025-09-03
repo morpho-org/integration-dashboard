@@ -2,9 +2,10 @@ import { createPublicClient, http, type Address, getAddress, Chain } from "viem"
 import { getChainAddresses } from "@morpho-org/blue-sdk";
 import { chainMapping } from "../utils/utils";
 import { initializeClient } from "../utils/client";
+import { NETWORK_TO_CHAIN_ID } from "../types/networks";
 
 // List of chain IDs that are fully supported by the Blue SDK
-const SUPPORTED_CHAIN_IDS = [1, 8453]; // Ethereum and Base
+const SUPPORTED_CHAIN_IDS = [NETWORK_TO_CHAIN_ID.ethereum, NETWORK_TO_CHAIN_ID.base]; // Ethereum and Base
 
 export interface MarketParams {
   loanToken: Address;

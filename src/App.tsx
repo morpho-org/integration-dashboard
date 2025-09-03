@@ -2,10 +2,11 @@ import React, { useState } from "react";
 import NavBar from "./components/NavBar";
 import { Route, Routes } from "react-router-dom";
 import ManualReallocationPage from "./pages/manualReallocationPage";
+import { SupportedNetwork } from "./types/networks";
 const App: React.FC = () => {
-  const [network, setNetwork] = useState<"ethereum" | "base" | "polygon" | "unichain" | "arbitrum">("ethereum");
+  const [network, setNetwork] = useState<SupportedNetwork>("ethereum");
 
-  const handleNetworkSwitch = (selectedNetwork: "ethereum" | "base" | "polygon" | "unichain" | "arbitrum") => {
+  const handleNetworkSwitch = (selectedNetwork: SupportedNetwork) => {
     setNetwork(selectedNetwork);
   };
 

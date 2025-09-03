@@ -2,6 +2,7 @@ import React from "react";
 import styled from "styled-components";
 import { useChainId } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { SupportedNetwork, CHAIN_ID_TO_NETWORK } from "../types/networks";
 
 const NavBarWrapper = styled.div`
   display: flex;
@@ -30,23 +31,16 @@ const NetworkContainer = styled.div`
 
 
 type NavBarProps = {
-  currentNetwork: "ethereum" | "base" | "polygon" | "unichain" | "arbitrum";
-  onNetworkSwitch: (network: "ethereum" | "base" | "polygon" | "unichain"| "arbitrum") => void;
+  currentNetwork: SupportedNetwork;
+  onNetworkSwitch: (network: SupportedNetwork) => void;
 };
 
 const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
   const chainId = useChainId();
   
   // Map chainId to network name
-  const getNetworkFromChainId = (chainId: number): "ethereum" | "base" | "polygon" | "unichain" | "arbitrum" => {
-    switch (chainId) {
-      case 1: return "ethereum";
-      case 8453: return "base";
-      case 137: return "polygon";
-      case 130: return "unichain";
-      case 42161: return "arbitrum";
-      default: return "ethereum";
-    }
+  const getNetworkFromChainId = (chainId: number): SupportedNetwork => {
+    return CHAIN_ID_TO_NETWORK[chainId] || "ethereum";
   };
 
   // Use connected wallet's chainId as the current network
