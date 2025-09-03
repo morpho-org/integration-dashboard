@@ -2,12 +2,13 @@ import { ChainId, MarketId, MarketParams } from "@morpho-org/blue-sdk";
 import React, { useEffect, useState, useRef } from "react";
 import { formatUnits, parseUnits } from "viem";
 import { useChainId, useSwitchChain } from "wagmi";
+import { SupportedNetwork } from "../types/networks";
 import MarketMetricsChart from "../components/MarketMetricsChart";
 import TransactionSenderV2 from "../components/TransactionSenderV2";
 import TransactionSimulatorV2 from "../components/TransactionSimulatorV2";
 import {
   fetchMarketSimulationBorrow,
-  fetchMarketSimulationSeries,
+  fetchMarketSimulationSeries,  
   ReallocationResult,
   WithdrawalDetails,
 } from "../core/publicAllocator"; // Update with correct path
@@ -78,7 +79,7 @@ const SimpleAlert = ({
 );
 
 interface ManualReallocationPageProps {
-  network: "ethereum" | "base" | "polygon" | "unichain" | "arbitrum";
+  network: SupportedNetwork;
 }
 
 // Helper functions using the new text sizes
@@ -114,8 +115,8 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
 }) => {
   const [inputs, setInputs] = useState({
     marketId:
-      "0x9103c3b4e834476c9a62ea009ba2c884ee42e94e6e314a26f04d312434191836",
-    requestedLiquidityNative: "1000",
+      "",
+    requestedLiquidityNative: "1",
     requestedLiquidityUsd: "",
     requestedLiquidityType: "native",
   });
@@ -147,28 +148,119 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     borrowAmounts: bigint[];
     error?: string;
   } | null>(null);
+  
+  // Network stabilization state
+  const [isNetworkStabilizing, setIsNetworkStabilizing] = useState(false);
+  const [networkStableChainId, setNetworkStableChainId] = useState<number | null>(null);
+  
+  // Abort controllers for cleanup
+  const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Network stabilization effect - prevents race conditions
   useEffect(() => {
+    
+    // Cancel any in-flight requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Clear all network-dependent data immediately 
     setResult(undefined);
     setError(null);
-  }, [network]);
+    setMarketAsset(null);
+    setSimulationSeries(null);
+    setMarketIdError(null);
+    setMarketIdSuggestedNetwork(null);
+    
+    // Set stabilization state
+    setIsNetworkStabilizing(true);
+    setNetworkStableChainId(null);
+    
+    // Network stabilization period (wait for network to be ready)
+    const stabilizationTimer = setTimeout(() => {
+      setNetworkStableChainId(chainId);
+      setIsNetworkStabilizing(false);
+    }, 800); // 800ms stabilization period
+    
+    return () => {
+      clearTimeout(stabilizationTimer);
+    };
+  }, [chainId, network]);
 
+  // Sequential data fetching - only when network is stable
   useEffect(() => {
-    async function fetchAssets() {
+    async function fetchSequentialData() {
+      if (!networkStableChainId || 
+          !inputs.marketId || 
+          inputs.marketId.trim() === "" ||
+          !inputs.marketId.startsWith('0x') || 
+          inputs.marketId.length !== 66 ||
+          networkStableChainId !== chainId) {
+        
+        // If market ID is invalid/empty, clear simulation data but don't show loading
+        if (!inputs.marketId || inputs.marketId.trim() === "") {
+          setSimulationSeries(null);
+          setMarketAsset(null);
+          setInputLoading(false);
+        }
+        return;
+      }
+      
+      
+      // Create new abort controller for this fetch cycle
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+      
       try {
-        const assets = await fetchMarketAssets(
-          inputs.marketId,
-          Number(chainId)
-        );
-        setMarketAsset(assets);
-      } catch (err) {
-        console.error("Error fetching market assets", err);
+        setInputLoading(true);
+        
+        // Step 1: Fetch market assets (contains price data)
+        try {
+          const assets = await fetchMarketAssets(inputs.marketId, networkStableChainId);
+          
+          if (signal.aborted) return;
+          
+          setMarketAsset(assets);
+        } catch (assetError) {
+          if (signal.aborted) return;
+          console.warn(`Could not fetch market assets:`, assetError);
+        }
+        
+        // Step 2: Fetch simulation series (dependent on market existing)
+        try {
+          const seriesData = await fetchMarketSimulationSeries(
+            inputs.marketId as MarketId,
+            networkStableChainId
+          );
+          
+          if (signal.aborted) return;
+          
+          setSimulationSeries(seriesData);
+        } catch (seriesError) {
+          if (signal.aborted) return;
+          console.warn(`⚠️ Could not fetch simulation series:`, seriesError);
+          setSimulationSeries(null);
+        }
+        
+      } catch (error) {
+        if (signal.aborted) return;
+        console.error(`Sequential data fetch failed:`, error);
+      } finally {
+        if (!signal.aborted) {
+          setInputLoading(false);
+        }
       }
     }
-    if (inputs.marketId && chainId) {
-      fetchAssets();
-    }
-  }, [inputs.marketId, chainId]);
+    
+    // Add small delay to ensure network APIs are ready
+    const fetchTimer = setTimeout(() => {
+      fetchSequentialData();
+    }, 200);
+    
+    return () => {
+      clearTimeout(fetchTimer);
+    };
+  }, [inputs.marketId, networkStableChainId, chainId]);
 
   useEffect(() => {
     if (result?.simulation?.sourceMarkets) {
@@ -198,58 +290,28 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     }
   }, [result]);
 
+  // Market ID validation - only when network is stable
   useEffect(() => {
-    async function fetchSimulationData() {
-      if (!inputs.marketId || !chainId) {
-        setSimulationSeries(null);
+    async function validateMarketId() {
+      if (!inputs.marketId || 
+          inputs.marketId.trim() === "" ||
+          !inputs.marketId.startsWith('0x') || 
+          inputs.marketId.length !== 66 || 
+          !marketIdTouched || 
+          !networkStableChainId ||
+          networkStableChainId !== chainId) {
+        setMarketIdError(null);
+        setMarketIdSuggestedNetwork(null);
+        setIsLoadingMarketId(false);
         return;
       }
-      try {
-        setInputLoading(true);
-        const seriesData = await fetchMarketSimulationSeries(
-          inputs.marketId as MarketId,
-          Number(chainId)
-        );
-        setSimulationSeries(seriesData);
-      } catch (err) {
-        console.error("Error fetching simulation series:", err);
-        setSimulationSeries(null);
-      } finally {
-        setInputLoading(false);
-      }
-    }
-    const timer = setTimeout(() => {
-      fetchSimulationData();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [inputs.marketId, chainId]);
-
-  useEffect(() => {
-    setMarketAsset(null);
-  }, [chainId, network]);
-
-  useEffect(() => {
-    if (inputs.marketId && !marketIdTouched) {
-      console.log("Auto-validating default market ID:", inputs.marketId);
-      setMarketIdTouched(true);
-      if (inputs.marketId.startsWith('0x') && inputs.marketId.length === 66) {
-        setIsLoadingMarketId(true);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!inputs.marketId || !inputs.marketId.startsWith('0x') || inputs.marketId.length !== 66 || !marketIdTouched) {
-      setMarketIdError(null);
-      setMarketIdSuggestedNetwork(null);
-      return;
-    }
-    const validateMarketId = async () => {
+      
       setIsLoadingMarketId(true);
       setMarketIdError(null);
       setMarketIdSuggestedNetwork(null);
+      
       try {
-        const result = await fetchMarketParams(inputs.marketId, Number(chainId));
+        const result = await fetchMarketParams(inputs.marketId, networkStableChainId);
         if (result.error) {
           setMarketIdError(result.error);
           if (result.networkSuggestion) {
@@ -258,32 +320,53 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
           return;
         }
         if (result.params) {
-          console.log("Market parameters found:", result.params);
           setMarketIdError(null);
           setMarketIdSuggestedNetwork(null);
         }
       } catch (error) {
-        console.error("Error validating market ID:", error);
+        console.error("❌ Error validating market ID:", error);
         setMarketIdError("Error validating market ID. Please try again.");
       } finally {
         setIsLoadingMarketId(false);
       }
+    }
+    
+    // Delay validation to allow network to stabilize
+    const validationTimer = setTimeout(validateMarketId, 300);
+    return () => clearTimeout(validationTimer);
+  }, [inputs.marketId, networkStableChainId, chainId, marketIdTouched]);
+
+  // Auto-validate default market ID on first load
+  useEffect(() => {
+    if (inputs.marketId && !marketIdTouched) {
+      setMarketIdTouched(true);
+    }
+  }, [inputs.marketId, marketIdTouched]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
-    validateMarketId();
-  }, [inputs.marketId, chainId, marketIdTouched]);
+  }, []);
 
   const handleSwitchNetwork = (networkId: number) => {
     if (switchChain && networkId) {
       const currentMarketId = inputs.marketId;
+      
+      // Set loading state and clear data immediately
       setIsLoadingMarketId(true);
+      setIsNetworkStabilizing(true);
+      
+      // Switch the network
       switchChain({ chainId: networkId });
-      setTimeout(() => {
-        if (currentMarketId && currentMarketId.startsWith('0x') && currentMarketId.length === 66) {
-          setMarketIdTouched(true);
-        } else {
-          setIsLoadingMarketId(false);
-        }
-      }, 100);
+      
+      // If there's a market ID, mark it as touched so it gets re-validated after network switch
+      if (currentMarketId && currentMarketId.startsWith('0x') && currentMarketId.length === 66) {
+        setMarketIdTouched(true);
+      }
     }
   };
 
@@ -293,6 +376,31 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
       setMarketIdError(null);
       setMarketIdSuggestedNetwork(null);
       setMarketIdTouched(true);
+      
+      // If market ID is being cleared (empty or invalid), reset everything
+      if (!value || value.trim() === "") {
+        setInputs((prev) => ({ 
+          ...prev, 
+          [name]: value,
+          requestedLiquidityNative: "1", // Reset to default
+          requestedLiquidityUsd: "",     // Clear USD input
+          requestedLiquidityType: "native"
+        }));
+        
+        // Clear all derived data
+        setMarketAsset(null);
+        setSimulationSeries(null);
+        setResult(undefined);
+        setError(null);
+        
+        // Cancel any ongoing requests
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        
+        return; // Exit early, don't set loading states
+      }
+      
       setInputs((prev) => ({ ...prev, [name]: value }));
     } else if (name === "requestedLiquidityNative") {
       const numericValue = value.replace(/[^\d]/g, "");
@@ -326,14 +434,38 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     setResult(undefined);
     setError(null);
     setMarketIdError(null);
-    setMarketIdSuggestedNetwork(null);
+    setMarketIdSuggestedNetwork(null);    
     const pastedText = e.clipboardData.getData('text').trim();
-    console.log("Pasted market ID:", pastedText);
+    
+    // If pasting empty content, reset everything like clearing the field
+    if (!pastedText || pastedText === "") {
+      setInputs((prev) => ({ 
+        ...prev, 
+        marketId: "",
+        requestedLiquidityNative: "1",
+        requestedLiquidityUsd: "",
+        requestedLiquidityType: "native"
+      }));
+      
+      // Clear all derived data
+      setMarketAsset(null);
+      setSimulationSeries(null);
+      
+      // Cancel any ongoing requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      setMarketIdTouched(true);
+      return;
+    }
+    
     setInputs((prev) => ({ ...prev, marketId: pastedText }));
     setMarketIdTouched(true);
-    if (pastedText && pastedText.startsWith('0x') && pastedText.length === 66) {
+    
+    if (pastedText.startsWith('0x') && pastedText.length === 66) {
       setIsLoadingMarketId(true);
-    } else if (pastedText.length > 0) {
+    } else {
       setMarketIdError("Invalid market ID format. Should be 0x followed by 64 hex characters.");
     }
   };
@@ -455,9 +587,13 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                       Invalid format! Must be 0x + 64 hex characters
                     </div>
                   )}
-                  {isLoadingMarketId && (
+                  {(isLoadingMarketId || isNetworkStabilizing) && (
                     <div className="text-gray-600 text-xs mt-1">
-                      Validating market ID...
+                      {isNetworkStabilizing ? (
+                        <span>🔄 Network stabilizing...</span>
+                      ) : (
+                        <span>🔍 Validating market ID...</span>
+                      )}
                     </div>
                   )}
                   {marketIdError && (
@@ -587,18 +723,24 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
               initialCollapsed={false}
             >
               <div className="p-0">
-                {inputLoading ? (
+                {isNetworkStabilizing ? (
+                  <div className="p-2 bg-blue-50 text-blue-600 text-xs rounded flex items-center">
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
+                    Network stabilizing, preparing market data...
+                  </div>
+                ) : inputLoading ? (
                   <div className="p-2 bg-blue-50 text-blue-600 text-xs rounded flex items-center">
                     <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></div>
                     Loading market graph...
                   </div>
+                ) : !inputs.marketId || inputs.marketId.trim() === "" ? (
+                  <div className="p-2 bg-gray-100 text-gray-600 text-xs rounded">
+                    📝 Enter a market ID above to see the borrow simulation graph
+                  </div>
                 ) : !simulationSeries || simulationSeries.error ? (
                   <div className="p-2 bg-yellow-400/10 text-yellow-800 text-xs rounded">
-                    ⚠️ This market does not exist on the current chain. Try:
-                    <ul className="list-disc pl-4 mt-1">
-                      <li>1. Connect wallet</li>
-                      <li>2. Switching networks</li>
-                    </ul>
+                    ⚠️ Price data unavailable for this market on the current chain. Some USD values may not display correctly.
+                    <div className="mt-1">Try switching networks or wait a moment for data to load.</div>
                   </div>
                 ) : simulationSeries.utilizationSeries.every((u) => u === 0) ? (
                   <div className="p-2 bg-yellow-400/10 text-yellow-400 text-xs rounded">
@@ -614,13 +756,14 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                 )}
               </div>
             </SimpleCard>
-            {(loading || inputLoading) && (
-              <div className="flex items-center justify-center p-6">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+            {(loading || inputLoading || isNetworkStabilizing) && (
+              <div className="flex items-center justify-center p-6 text-sm text-gray-600">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mr-3"></div>
+                {isNetworkStabilizing ? "Network stabilizing..." : loading ? "Computing..." : "Loading data..."}
               </div>
             )}
 
-            {!loading && !inputLoading && (
+            {!loading && !inputLoading && !isNetworkStabilizing && (
               <>
                 {error && (
                   <SimpleAlert

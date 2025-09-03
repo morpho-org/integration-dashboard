@@ -11,6 +11,7 @@ import {
   Withdrawal,
 } from "./types";
 import { base, mainnet, polygon, unichain, arbitrum } from "viem/chains";
+import { katana } from "./client";
 
 export const isApyOutOfRange = (apys: Apys, range: Range) => {
   return apys.supplyApy < range.lowerBound || apys.borrowApy > range.upperBound;
@@ -56,6 +57,8 @@ export const getNetworkDBBlockingFlowCapsKey = (network: string): string => {
       return "unichainBlockingFlowCaps";
     case "arbitrum":
       return "arbitrumBlockingFlowCaps";
+    case "katana":
+      return "katanaBlockingFlowCaps";
     default:
       throw new Error(`Invalid network: ${network}`);
   }
@@ -73,6 +76,8 @@ export const getNetworkId = (network: string): number => {
       return 130;
     case "arbitrum":
       return 42161;
+    case "katana":
+      return 747474;
   }
   throw new Error("Invalid chainId");
 };
@@ -89,6 +94,8 @@ export const getNetworkName = (networkId: number): string => {
       return "unichain";
     case 42161:
       return "arbitrum";
+    case 747474:
+      return "katana";
   }
   throw new Error("Invalid chainId");
 };
@@ -218,4 +225,5 @@ export const chainMapping = {
   137: polygon,
   8453: base,
   42161: arbitrum,
+  747474: katana,
 };

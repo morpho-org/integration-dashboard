@@ -1,22 +1,26 @@
 import { getAddress } from "viem";
 import { AssetPriceInfoDL, DefiLlamaResponse } from "../utils/types";
 import { getCurrentTimestamp } from "../utils/utils";
+import { NETWORK_TO_CHAIN_ID } from "../types/networks";
+
 // Define supported chains and their mappings
+// Note: This includes additional chains beyond our core supported networks
 export const SUPPORTED_CHAINS: { [key: number]: string } = {
-  1: "ethereum",
+  [NETWORK_TO_CHAIN_ID.ethereum]: "ethereum",
   10: "optimism",
-  130: "unichain",
-  137: "polygon",
+  [NETWORK_TO_CHAIN_ID.unichain]: "unichain",
+  [NETWORK_TO_CHAIN_ID.polygon]: "polygon",
   146: "sonic",
   252: "fraxtal",
   480: "wc", // World Chain
-  8453: "base",
+  [NETWORK_TO_CHAIN_ID.base]: "base",
   34443: "mode",
-  42161: "arbitrum",
+  [NETWORK_TO_CHAIN_ID.arbitrum]: "arbitrum",
   // 43111: "hemi", dl doesn't support it
   57073: "ink",
   534352: "scroll",
   21000000: "corn",
+  [NETWORK_TO_CHAIN_ID.katana]: "katana", // Add katana support
 };
 
 /**
