@@ -6,6 +6,7 @@ import { SupportedNetwork } from "../types/networks";
 import MarketMetricsChart from "../components/MarketMetricsChart";
 import TransactionSenderV2 from "../components/TransactionSenderV2";
 import TransactionSimulatorV2 from "../components/TransactionSimulatorV2";
+import AmountInput from "../components/AmountInput";
 import {
   fetchMarketSimulationBorrow,
   fetchMarketSimulationSeries,  
@@ -537,24 +538,10 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
     newAmount: string
   ) => {
     const key = `${vaultAddress}-${marketId}`;
-    const cleanedAmount = newAmount.replace(/[^\d.]/g, "");
-    const marketData = result?.apiMetrics.publicAllocatorSharedLiquidity.find(
-      (item) =>
-        item.vault.address === vaultAddress &&
-        item.allocationMarket.uniqueKey === marketId
-    );
-    if (marketData && result) {
-      const maxAmount = Number(
-        formatUnits(BigInt(marketData.assets), result.apiMetrics.decimals)
-      );
-      let numericAmount = Number(cleanedAmount);
-      numericAmount = Math.max(0, Math.min(numericAmount, maxAmount));
-      const boundedAmount = numericAmount.toFixed(result.apiMetrics.decimals);
-      setModifiedAmounts((prev) => ({
-        ...prev,
-        [key]: boundedAmount,
-      }));
-    }
+    setModifiedAmounts((prev) => ({
+      ...prev,
+      [key]: newAmount,
+    }));
   };
 
   return (
@@ -1092,14 +1079,16 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                                       {(item.allocationMarket.state.utilization * 100).toFixed(2)}%
                                     </td>
                                     <td className="px-3 py-2">
-                                      <div className="flex items-center gap-1">
-                                        <button onClick={() => handleAmountChange(item.vault.address,item.allocationMarket.uniqueKey,formatUnits(BigInt(item.assets),result.apiMetrics.decimals))} className="text-xs text-gray-600 hover:text-blue-500 px-1">MAX</button>
-                                        <input type="text" className="w-24 p-1.5 rounded bg-gray-100 text-xs border border-gray-300"
-                                          value={modifiedAmounts[`${item.vault.address}-${item.allocationMarket.uniqueKey}`] || "0"}
-                                          onChange={(e) => handleAmountChange(item.vault.address,item.allocationMarket.uniqueKey,e.target.value)}
-                                        />
-                                        <button onClick={() => handleAmountChange(item.vault.address,item.allocationMarket.uniqueKey,"0")} className="text-xs text-gray-600 hover:text-blue-500 px-1">MIN</button>
-                                      </div>
+                                      <AmountInput
+                                        value={modifiedAmounts[`${item.vault.address}-${item.allocationMarket.uniqueKey}`] || "0"}
+                                        onChange={(newAmount) => handleAmountChange(item.vault.address, item.allocationMarket.uniqueKey, newAmount)}
+                                        maxValue={formatUnits(BigInt(item.assets), result.apiMetrics.decimals)}
+                                        symbol={result.apiMetrics.symbol}
+                                        decimals={result.apiMetrics.decimals}
+                                        displayDecimals={2}
+                                        className="w-40"
+                                        placeholder="0"
+                                      />
                                     </td>
                                     <td className="px-3 py-2 text-m font-semibold">
                                       {modifiedAmounts[`${item.vault.address}-${item.allocationMarket.uniqueKey}`] ? (

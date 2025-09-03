@@ -191,9 +191,6 @@ export default function TransactionSenderV2({
         >
           Connect Wallet to Send Transaction
         </button>
-        <div className="mt-1 text-orange-600 text-sm">
-          Wallet connection required for signing transactions
-        </div>
       </div>
     );
   }
