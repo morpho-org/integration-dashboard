@@ -6,10 +6,10 @@ export const katana = {
   id: NETWORK_TO_CHAIN_ID.katana,
   name: "Katana",
   network: "katana",
-  nativeCurrency: { 
-    name: "Ether", 
-    symbol: "ETH", 
-    decimals: 18 
+  nativeCurrency: {
+    name: "Ether",
+    symbol: "ETH",
+    decimals: 18
   },
   rpcUrls: {
     default: {
@@ -30,20 +30,50 @@ export const katana = {
   }
 } as const;
 
+export const monad = {
+  id: NETWORK_TO_CHAIN_ID.monad,
+  name: "Monad",
+  network: "monad",
+  nativeCurrency: {
+    name: "MON",
+    symbol: "MON",
+    decimals: 18
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://rpc-mainnet.monadinfra.com/rpc/jREsHNVkVpcEePcj7IuDA6TAB2hh1rlv"]
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: "MonadScan",
+      url: "https://mainnet-beta.monvision.io/"
+    }
+  },
+  contracts: {
+    multicall3: {
+      address: "0xca11bde05977b3631167028862be2a173976ca11",
+      blockCreated: 1
+    }
+  }
+} as const;
+
 export async function initializeClient(chainId: number) {
   const rpcUrl =
     chainId === NETWORK_TO_CHAIN_ID.ethereum
-      ? process.env.REACT_APP_RPC_URL_MAINNET
+      ? process.env.NEXT_PUBLIC_RPC_URL_MAINNET
       : chainId === NETWORK_TO_CHAIN_ID.base
-      ? process.env.REACT_APP_RPC_URL_BASE
+      ? process.env.NEXT_PUBLIC_RPC_URL_BASE
       : chainId === NETWORK_TO_CHAIN_ID.polygon
-      ? process.env.REACT_APP_RPC_URL_POLYGON
+      ? process.env.NEXT_PUBLIC_RPC_URL_POLYGON
       : chainId === NETWORK_TO_CHAIN_ID.unichain
-      ? process.env.REACT_APP_RPC_URL_UNICHAIN
+      ? process.env.NEXT_PUBLIC_RPC_URL_UNICHAIN
       : chainId === NETWORK_TO_CHAIN_ID.arbitrum
-      ? process.env.REACT_APP_RPC_URL_ARBITRUM
+      ? process.env.NEXT_PUBLIC_RPC_URL_ARBITRUM
       : chainId === NETWORK_TO_CHAIN_ID.katana
-      ? process.env.REACT_APP_RPC_URL_KATANA
+      ? process.env.NEXT_PUBLIC_RPC_URL_KATANA
+      : chainId === NETWORK_TO_CHAIN_ID.monad
+      ? process.env.NEXT_PUBLIC_RPC_URL_MONAD
       : undefined;
 
   if (!rpcUrl)
@@ -64,6 +94,8 @@ export async function initializeClient(chainId: number) {
         ? arbitrum
         : chainId === NETWORK_TO_CHAIN_ID.katana
         ? katana
+        : chainId === NETWORK_TO_CHAIN_ID.monad
+        ? monad
         : mainnet,
     transport: http(rpcUrl, {
       batch: {

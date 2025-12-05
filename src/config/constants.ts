@@ -20,6 +20,7 @@ export const publicAllocatorAddress: Record<number, string> = {
   [NETWORK_TO_CHAIN_ID.unichain]: "0xB0c9a107fA17c779B3378210A7a593e88938C7C9",
   [NETWORK_TO_CHAIN_ID.arbitrum]: "0x769583Af5e9D03589F159EbEC31Cc2c23E8C355E",
   [NETWORK_TO_CHAIN_ID.katana]: "0x39EB6Da5e88194C82B13491Df2e8B3E213eD2412",
+  [NETWORK_TO_CHAIN_ID.monad]: "0xfd70575B732F9482F4197FE1075492e114E97302",
 };
 
 export const vaultBlacklist: Record<number, string[]> = {

@@ -35,13 +35,13 @@ export const fetchMarketParamsAndData = async (
 
   const marketChainData: MarketChainData = {
     marketState,
-    borrowRate: config.borrowRate,
+    borrowRate: config.endBorrowRate,
     rateAtTarget: config.rateAtTarget ?? 0n,
     utilization: config.utilization ?? 0n,
-    apyAtTarget: config.apyAtTarget ?? 0n,
+    apyAtTarget: config.apyAtTarget != null ? BigInt(Math.floor(Number(config.apyAtTarget) * 1e18)) : 0n,
     apys: {
-      borrowApy: config.borrowApy,
-      supplyApy: config.supplyApy,
+      borrowApy: config.borrowApy != null ? BigInt(Math.floor(Number(config.borrowApy) * 1e18)) : 0n,
+      supplyApy: config.supplyApy != null ? BigInt(Math.floor(Number(config.supplyApy) * 1e18)) : 0n,
     },
   };
 

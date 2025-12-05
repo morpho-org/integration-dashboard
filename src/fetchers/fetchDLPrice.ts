@@ -20,7 +20,8 @@ export const SUPPORTED_CHAINS: { [key: number]: string } = {
   57073: "ink",
   534352: "scroll",
   21000000: "corn",
-  [NETWORK_TO_CHAIN_ID.katana]: "katana", // Add katana support
+  [NETWORK_TO_CHAIN_ID.katana]: "katana",
+  [NETWORK_TO_CHAIN_ID.monad]: "monad",
 };
 
 /**

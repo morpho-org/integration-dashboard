@@ -5,8 +5,13 @@
 /.pnp
 .pnp.js
 .claude/settings.local.json
+
 # testing
 /coverage
+
+# Next.js
+/.next
+/out
 
 # production
 /build
@@ -18,6 +23,9 @@
 .env.development.local
 .env.test.local
 .env.production.local
+
+# typescript
+*.tsbuildinfo
 
 npm-debug.log*
 yarn-debug.log*

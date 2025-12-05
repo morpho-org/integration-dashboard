@@ -34,13 +34,23 @@ import {
   parseEther,
 } from "viem";
 import { base, mainnet, polygon, unichain, arbitrum } from "viem/chains";
-import { katana } from "../utils/client";
+import { katana, monad } from "../utils/client";
 import { NETWORK_TO_CHAIN_ID } from "../types/networks";
 import { fetchMarketTargets } from "../fetchers/fetchApiTargets";
 /**
  * The default target utilization above which the shared liquidity algorithm is triggered (scaled by WAD).
  */
 export const DEFAULT_SUPPLY_TARGET_UTILIZATION = 90_5000000000000000n;
+
+/**
+ * Helper function to convert a number (decimal APY) to WAD-scaled bigint.
+ * The new SDK returns APYs as numbers (e.g., 0.05 for 5%), we need to convert to WAD scale.
+ */
+function toWadBigInt(value: number | bigint | undefined): bigint {
+  if (value === undefined) return 0n;
+  if (typeof value === "bigint") return value;
+  return BigInt(Math.floor(value * 1e18));
+}
 
 /**
  * Helper function to create a holding object that matches the IHolding interface
@@ -309,24 +319,26 @@ async function initializeClientAndLoader(chainId: number) {
   // Use the appropriate RPC URL based on chain ID
   const rpcUrl =
     chainId === NETWORK_TO_CHAIN_ID.ethereum
-      ? process.env.REACT_APP_RPC_URL_MAINNET
+      ? process.env.NEXT_PUBLIC_RPC_URL_MAINNET
       : chainId === NETWORK_TO_CHAIN_ID.base
-      ? process.env.REACT_APP_RPC_URL_BASE
+      ? process.env.NEXT_PUBLIC_RPC_URL_BASE
       : chainId === NETWORK_TO_CHAIN_ID.polygon
-      ? process.env.REACT_APP_RPC_URL_POLYGON
+      ? process.env.NEXT_PUBLIC_RPC_URL_POLYGON
       : chainId === NETWORK_TO_CHAIN_ID.unichain
-      ? process.env.REACT_APP_RPC_URL_UNICHAIN
+      ? process.env.NEXT_PUBLIC_RPC_URL_UNICHAIN
       : chainId === NETWORK_TO_CHAIN_ID.arbitrum
-      ? process.env.REACT_APP_RPC_URL_ARBITRUM
+      ? process.env.NEXT_PUBLIC_RPC_URL_ARBITRUM
       : chainId === NETWORK_TO_CHAIN_ID.katana
-      ? process.env.REACT_APP_RPC_URL_KATANA
+      ? process.env.NEXT_PUBLIC_RPC_URL_KATANA
+      : chainId === NETWORK_TO_CHAIN_ID.monad
+      ? process.env.NEXT_PUBLIC_RPC_URL_MONAD
       : undefined;
 
   if (!rpcUrl)
     throw new Error(`No RPC URL configured for chain ID: ${chainId}`);
 
   const client = createClient({
-    chain: chainId === NETWORK_TO_CHAIN_ID.ethereum ? mainnet : chainId === NETWORK_TO_CHAIN_ID.base ? base : chainId === NETWORK_TO_CHAIN_ID.polygon ? polygon : chainId === NETWORK_TO_CHAIN_ID.unichain ? unichain : chainId === NETWORK_TO_CHAIN_ID.arbitrum ? arbitrum : chainId === NETWORK_TO_CHAIN_ID.katana ? katana : mainnet,
+    chain: chainId === NETWORK_TO_CHAIN_ID.ethereum ? mainnet : chainId === NETWORK_TO_CHAIN_ID.base ? base : chainId === NETWORK_TO_CHAIN_ID.polygon ? polygon : chainId === NETWORK_TO_CHAIN_ID.unichain ? unichain : chainId === NETWORK_TO_CHAIN_ID.arbitrum ? arbitrum : chainId === NETWORK_TO_CHAIN_ID.katana ? katana : chainId === NETWORK_TO_CHAIN_ID.monad ? monad : mainnet,
     transport: http(rpcUrl, {
       retryCount: 3,
       retryDelay: 2000,
@@ -459,7 +471,7 @@ function simulateMarketStates(
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const initialSourceState = {
           liquidity: sourceMarket.liquidity,
-          borrowApy: sourceMarket.borrowApy,
+          borrowApy: toWadBigInt(sourceMarket.borrowApy),
           utilization: sourceMarket.utilization,
         };
 
@@ -474,7 +486,7 @@ function simulateMarketStates(
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const initialTargetState = {
           liquidity: targetMarket.liquidity,
-          borrowApy: targetMarket.borrowApy,
+          borrowApy: toWadBigInt(targetMarket.borrowApy),
           utilization: targetMarket.utilization,
         };
 
@@ -518,12 +530,12 @@ function simulateMarketStates(
       sourceMarkets[reallocation.id] = {
         preReallocation: {
           liquidity: sourceMarketInitial.liquidity,
-          borrowApy: sourceMarketInitial.borrowApy,
+          borrowApy: toWadBigInt(sourceMarketInitial.borrowApy),
           utilization: sourceMarketInitial.utilization,
         },
         postReallocation: {
           liquidity: sourceMarketSimulated.liquidity,
-          borrowApy: sourceMarketSimulated.borrowApy,
+          borrowApy: toWadBigInt(sourceMarketSimulated.borrowApy),
           reallocatedAmount: reallocation.assets,
           utilization: sourceMarketSimulated.utilization,
         },
@@ -535,18 +547,18 @@ function simulateMarketStates(
     targetMarket: {
       preReallocation: {
         liquidity: marketInitial.liquidity,
-        borrowApy: marketInitial.borrowApy,
+        borrowApy: toWadBigInt(marketInitial.borrowApy),
         utilization: marketInitial.utilization,
       },
       postReallocation: {
         liquidity: marketPostReallocationSimulated.liquidity,
-        borrowApy: marketPostReallocationSimulated.borrowApy,
+        borrowApy: toWadBigInt(marketPostReallocationSimulated.borrowApy),
         reallocatedAmount,
         utilization: marketPostReallocationSimulated.utilization,
       },
       postBorrow: {
         liquidity: marketPostBorrow.liquidity,
-        borrowApy: marketPostBorrow.borrowApy,
+        borrowApy: toWadBigInt(marketPostBorrow.borrowApy),
         borrowAmount,
         utilization: marketPostBorrow.utilization,
       },
@@ -739,18 +751,18 @@ export async function compareAndReallocate(
         targetMarket: {
           preReallocation: {
             liquidity: market.liquidity,
-            borrowApy: market.borrowApy,
+            borrowApy: toWadBigInt(market.borrowApy),
             utilization: market.utilization,
           },
           postReallocation: {
             liquidity: market.liquidity,
-            borrowApy: market.borrowApy,
+            borrowApy: toWadBigInt(market.borrowApy),
             reallocatedAmount: 0n,
             utilization: market.utilization,
           },
           postBorrow: {
             liquidity: targetMarketBorrowSimulated.market.liquidity,
-            borrowApy: targetMarketBorrowSimulated.market.borrowApy,
+            borrowApy: toWadBigInt(targetMarketBorrowSimulated.market.borrowApy),
             borrowAmount,
             utilization: targetMarketBorrowSimulated.market.utilization,
           },
@@ -1019,12 +1031,12 @@ export async function fetchMarketSimulationBorrow(
         sourceMarkets[sourceMarketId] = {
           preReallocation: {
             liquidity: sourceMarketInitial.liquidity,
-            borrowApy: sourceMarketInitial.borrowApy,
+            borrowApy: toWadBigInt(sourceMarketInitial.borrowApy),
             utilization: sourceMarketInitial.utilization,
           },
           postReallocation: {
             liquidity: sourceMarketFinal.liquidity,
-            borrowApy: sourceMarketFinal.borrowApy,
+            borrowApy: toWadBigInt(sourceMarketFinal.borrowApy),
             reallocatedAmount,
             utilization: sourceMarketFinal.utilization,
           },
@@ -1037,7 +1049,7 @@ export async function fetchMarketSimulationBorrow(
       targetMarket: {
         preReallocation: {
           liquidity: initialMarket.liquidity,
-          borrowApy: initialMarket.borrowApy,
+          borrowApy: toWadBigInt(initialMarket.borrowApy),
           utilization: initialMarket.utilization,
         },
         postReallocation: {
@@ -1048,7 +1060,7 @@ export async function fetchMarketSimulationBorrow(
         },
         postBorrow: {
           liquidity: simulatedFinalMarket.liquidity,
-          borrowApy: simulatedFinalMarket.borrowApy,
+          borrowApy: toWadBigInt(simulatedFinalMarket.borrowApy),
           borrowAmount: scaledRequestedLiquidity,
           utilization: simulatedFinalMarket.utilization,
         },
@@ -1306,7 +1318,7 @@ export async function fetchMarketSimulationSeries(
         utilizationSeries.push(
           Number(formatUnits(simulatedMarket.utilization, 16))
         );
-        apySeries.push(Number(formatUnits(simulatedMarket.borrowApy, 16)));
+        apySeries.push(Number(formatUnits(toWadBigInt(simulatedMarket.borrowApy), 16)));
       } catch (error) {
         console.error(`❌ [SIMULATION ERROR] Error simulating at ${percentage}%:`, error);
         console.error(`❌ [SIMULATION ERROR] Borrow amount: ${borrowAmount.toString()}`);
@@ -1337,7 +1349,7 @@ export async function fetchMarketSimulationSeries(
             utilizationSeries.push(
               Number(formatUnits(simulatedMarket.utilization, 16))
             );
-            apySeries.push(Number(formatUnits(simulatedMarket.borrowApy, 16)));
+            apySeries.push(Number(formatUnits(toWadBigInt(simulatedMarket.borrowApy), 16)));
             
             console.log(`✅ [RETRY SUCCESS] Successfully retried simulation at ${percentage}%`);
             continue; // Skip the fallback below
