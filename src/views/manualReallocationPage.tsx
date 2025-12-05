@@ -555,6 +555,11 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                 <div>
                   <label className="block text-m font-medium mb-1 text-gray-700">
                     Market ID
+                    {marketAsset && !marketIdError && chainId && (
+                      <span className="ml-2 text-xs font-normal text-blue-600">
+                        - found on {getNetworkName(chainId)}
+                      </span>
+                    )}
                   </label>
                   <input
                     type="text"

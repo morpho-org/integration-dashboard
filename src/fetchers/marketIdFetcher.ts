@@ -1,11 +1,18 @@
-import { createPublicClient, http, type Address, getAddress, Chain } from "viem";
-import { getChainAddresses } from "@morpho-org/blue-sdk";
-import { chainMapping } from "../utils/utils";
+import { type Address, getAddress } from "viem";
 import { initializeClient } from "../utils/client";
 import { NETWORK_TO_CHAIN_ID } from "../types/networks";
+import { morphoAddress } from "../config/constants";
 
-// List of chain IDs that are fully supported by the Blue SDK
-const SUPPORTED_CHAIN_IDS = [NETWORK_TO_CHAIN_ID.ethereum, NETWORK_TO_CHAIN_ID.base]; // Ethereum and Base
+// List of chain IDs that are supported for market lookups
+const SUPPORTED_CHAIN_IDS = [
+  NETWORK_TO_CHAIN_ID.ethereum,
+  NETWORK_TO_CHAIN_ID.base,
+  NETWORK_TO_CHAIN_ID.polygon,
+  NETWORK_TO_CHAIN_ID.unichain,
+  NETWORK_TO_CHAIN_ID.arbitrum,
+  NETWORK_TO_CHAIN_ID.katana,
+  NETWORK_TO_CHAIN_ID.monad,
+];
 
 export interface MarketParams {
   loanToken: Address;
@@ -35,40 +42,15 @@ export const fetchMarketParams = async (
       };
     }
 
-    // Check if chain is supported in our client
-    if (!Object.keys(chainMapping).includes(chainId.toString())) {
-      return {
-        params: null,
-        error: `Chain ID ${chainId} is not supported by this tool.`,
-        networkSuggestion: null,
-      };
-    }
-
-    // Check if the chain is supported by Morpho Blue
-    let morphoAddress;
-    try {
-      morphoAddress = getChainAddresses(chainId)?.morpho;
-      console.log("morphoAddress", morphoAddress);
-    } catch (err) {
-      console.error(`Error getting Morpho address for chain ${chainId}:`, err);
-      
+    // Check if chain is supported
+    const morpho = morphoAddress[chainId];
+    if (!morpho) {
       // Try to find the market on supported networks
       const networkSuggestion = await findMarketOnSupportedNetworks(marketId);
-      
+
       return {
         params: null,
         error: `Chain ID ${chainId} is not supported by Morpho Blue.`,
-        networkSuggestion,
-      };
-    }
-
-    if (!morphoAddress) {
-      // Try to find the market on supported networks
-      const networkSuggestion = await findMarketOnSupportedNetworks(marketId);
-      
-      return {
-        params: null,
-        error: "Morpho Blue not available on the selected network.",
         networkSuggestion,
       };
     }
@@ -78,7 +60,7 @@ export const fetchMarketParams = async (
 
     // Call idToMarketParams function
     const result = await client.readContract({
-      address: morphoAddress as Address,
+      address: morpho as Address,
       abi: [
         {
           inputs: [{ internalType: "Id", name: "", type: "bytes32" }],
@@ -149,35 +131,20 @@ export const fetchMarketParams = async (
 };
 
 /**
- * Try to find the market on any of the fully supported networks
+ * Try to find the market on any of the supported networks
  */
 async function findMarketOnSupportedNetworks(
   marketId: string
 ): Promise<number | null> {
   for (const networkId of SUPPORTED_CHAIN_IDS) {
     try {
-      // Try to get the Morpho address
-      let morphoAddress;
-      try {
-        morphoAddress = getChainAddresses(networkId)?.morpho;
-        if (!morphoAddress) continue;
-      } catch (err) {
-        console.error(`Error getting Morpho address for chain ${networkId}:`, err);
-        continue;
-      }
+      const morpho = morphoAddress[networkId];
+      if (!morpho) continue;
 
-      // Get the chain configuration from chainMapping
-      // Use type assertion to handle the numeric key access
-      const chainConfig = chainMapping[networkId as keyof typeof chainMapping];
-      if (!chainConfig) continue;
-
-      const client = createPublicClient({
-        transport: http(),
-        chain: chainConfig as Chain,
-      });
+      const { client } = await initializeClient(networkId);
 
       const result = await client.readContract({
-        address: morphoAddress as Address,
+        address: morpho as Address,
         abi: [
           {
             inputs: [{ internalType: "Id", name: "", type: "bytes32" }],

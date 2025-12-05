@@ -11,7 +11,16 @@ export const BLOCKING_FLOW_CAPS_API =
 
 // ADDRESSES
 
-export const MORPHO = "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb";
+// Morpho Blue contract addresses per chain
+export const morphoAddress: Record<number, string> = {
+  [NETWORK_TO_CHAIN_ID.ethereum]: "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb",
+  [NETWORK_TO_CHAIN_ID.base]: "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb",
+  [NETWORK_TO_CHAIN_ID.polygon]: "0x1bF0c2541F820E775182832f06c0B7Fc27A25f67",
+  [NETWORK_TO_CHAIN_ID.unichain]: "0x8f5ae9CddB9f68de460C77730b018Ae7E04a140A",
+  [NETWORK_TO_CHAIN_ID.arbitrum]: "0x6c247b1F6182318877311737BaC0844bAa518F5e",
+  [NETWORK_TO_CHAIN_ID.katana]: "0xD50F2DffFd62f94Ee4AEd9ca05C61d0753268aBc",
+  [NETWORK_TO_CHAIN_ID.monad]: "0xD5D960E8C380B724a48AC59E2DfF1b2CB4a1eAee",
+};
 
 export const publicAllocatorAddress: Record<number, string> = {
   [NETWORK_TO_CHAIN_ID.ethereum]: "0xfd32fA2ca22c76dD6E550706Ad913FC6CE91c75D",
