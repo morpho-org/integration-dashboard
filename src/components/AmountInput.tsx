@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 // Utility function to format numbers with K, M, B, T suffixes like in utils.ts
 const formatAmountWithSuffix = (amount: number, symbol: string, precision = 2): string => {

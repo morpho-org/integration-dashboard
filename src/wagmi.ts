@@ -1,6 +1,6 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { base, mainnet, sepolia, polygon, unichain, arbitrum } from "wagmi/chains";
-import { katana } from "./utils/client";
+import { arbitrum, base, mainnet, polygon, sepolia, unichain } from "wagmi/chains";
+import { katana, monad, stable } from "./utils/client";
 
 export const config = getDefaultConfig({
   appName: "RainbowKit demo",
@@ -12,6 +12,8 @@ export const config = getDefaultConfig({
     unichain,
     arbitrum,
     katana,
-    ...(process.env.REACT_APP_ENABLE_TESTNETS === "true" ? [sepolia] : []),
+    monad,
+    stable,
+    ...(process.env.NEXT_PUBLIC_ENABLE_TESTNETS === "true" ? [sepolia] : []),
   ],
 });

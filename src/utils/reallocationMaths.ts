@@ -1,21 +1,21 @@
 import { formatUnits, maxUint256 } from "viem";
+import { REALLOCATION_USD_THRESHOLD } from "../config/constants";
 import {
-  MarketReallocationData,
-  MetaMorphoVault,
-  Reallocation,
-  ReallocationLogData,
-  Withdrawal,
+    computeNewBorrowAPY,
+    computeNewSupplyAPY,
+    computeUtilization,
+    getPercentsOf,
+    max,
+    min
+} from "./maths";
+import {
+    MarketReallocationData,
+    MetaMorphoVault,
+    Reallocation,
+    ReallocationLogData,
+    Withdrawal
 } from "./types";
 import { formatMarketLink, getMarketName, sortWithdrawals } from "./utils";
-import {
-  computeNewBorrowAPY,
-  computeNewSupplyAPY,
-  computeUtilization,
-  getPercentsOf,
-  max,
-  min,
-} from "./maths";
-import { REALLOCATION_USD_THRESHOLD } from "../config/constants";
 
 export const getMarketReallocationData = (
   vault: MetaMorphoVault,

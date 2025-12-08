@@ -1,11 +1,11 @@
+import { Activity, TrendingUp } from "lucide-react";
 import React, { useEffect, useState } from "react";
+import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { formatUnits } from "viem";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { ChartConfig, ChartContainer } from "./ui/chart";
-import { TrendingUp, Activity } from "lucide-react";
 import { fetchAssetPriceDL } from "../fetchers/fetchDLPrice";
 import { formatUsdAmount } from "../utils/utils";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { ChartConfig, ChartContainer } from "./ui/chart";
 
 interface MarketMetricsChartProps {
   simulationSeries: {
@@ -348,14 +348,15 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
               dot={(props: any) => {
                 const data = chartData.find(d => d.percentage === props.payload?.percentage);
                 if (!data?.showDot) {
-                  return <g />; // Return empty g element instead of null
+                  return <g key={`dot-empty-${props.index}`} />;
                 }
                 return (
-                  <circle 
-                    cx={props.cx} 
-                    cy={props.cy} 
-                    r={4} 
-                    fill="#5792FF" 
+                  <circle
+                    key={`dot-${props.index}`}
+                    cx={props.cx}
+                    cy={props.cy}
+                    r={4}
+                    fill="#5792FF"
                     strokeWidth={2}
                   />
                 );

@@ -1,27 +1,7 @@
 import { getAddress } from "viem";
+import { getDefiLlamaChainName } from "../config/chains";
 import { AssetPriceInfoDL, DefiLlamaResponse } from "../utils/types";
 import { getCurrentTimestamp } from "../utils/utils";
-import { NETWORK_TO_CHAIN_ID } from "../types/networks";
-
-// Define supported chains and their mappings
-// Note: This includes additional chains beyond our core supported networks
-export const SUPPORTED_CHAINS: { [key: number]: string } = {
-  [NETWORK_TO_CHAIN_ID.ethereum]: "ethereum",
-  10: "optimism",
-  [NETWORK_TO_CHAIN_ID.unichain]: "unichain",
-  [NETWORK_TO_CHAIN_ID.polygon]: "polygon",
-  146: "sonic",
-  252: "fraxtal",
-  480: "wc", // World Chain
-  [NETWORK_TO_CHAIN_ID.base]: "base",
-  34443: "mode",
-  [NETWORK_TO_CHAIN_ID.arbitrum]: "arbitrum",
-  // 43111: "hemi", dl doesn't support it
-  57073: "ink",
-  534352: "scroll",
-  21000000: "corn",
-  [NETWORK_TO_CHAIN_ID.katana]: "katana", // Add katana support
-};
 
 /**
  * Fetches the current price of an asset from DefiLlama
@@ -34,8 +14,8 @@ export async function fetchAssetPriceDL(
   chainId: number
 ): Promise<AssetPriceInfoDL | null> {
   try {
-    // Get chain name from mapping
-    const chainName = SUPPORTED_CHAINS[chainId];
+    // Get chain name from config
+    const chainName = getDefiLlamaChainName(chainId);
     if (!chainName) {
       console.warn(`Unsupported chain ID: ${chainId}`);
       return null;

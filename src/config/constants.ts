@@ -1,4 +1,4 @@
-import { NETWORK_TO_CHAIN_ID } from "../types/networks";
+import { CHAIN_CONFIGS } from "./chains";
 
 // URLS
 export const BLUE_API = "https://api.morpho.org/graphql";
@@ -9,25 +9,21 @@ export const TARGET_API =
 export const BLOCKING_FLOW_CAPS_API =
   "https://5glmns08q3.execute-api.us-east-1.amazonaws.com/dev/blockingFlowCaps";
 
-// ADDRESSES
+// ADDRESSES - derived from chain config (single source of truth)
+export const morphoAddress: Record<number, string> = Object.fromEntries(
+  Object.values(CHAIN_CONFIGS).map((config) => [config.id, config.morphoAddress])
+);
 
-export const MORPHO = "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb";
-
-export const publicAllocatorAddress: Record<number, string> = {
-  [NETWORK_TO_CHAIN_ID.ethereum]: "0xfd32fA2ca22c76dD6E550706Ad913FC6CE91c75D",
-  [NETWORK_TO_CHAIN_ID.base]: "0xA090dD1a701408Df1d4d0B85b716c87565f90467",
-  [NETWORK_TO_CHAIN_ID.polygon]: "0xfac15aff53ADd2ff80C2962127C434E8615Df0d3",
-  [NETWORK_TO_CHAIN_ID.unichain]: "0xB0c9a107fA17c779B3378210A7a593e88938C7C9",
-  [NETWORK_TO_CHAIN_ID.arbitrum]: "0x769583Af5e9D03589F159EbEC31Cc2c23E8C355E",
-  [NETWORK_TO_CHAIN_ID.katana]: "0x39EB6Da5e88194C82B13491Df2e8B3E213eD2412",
-};
+export const publicAllocatorAddress: Record<number, string> = Object.fromEntries(
+  Object.values(CHAIN_CONFIGS).map((config) => [config.id, config.publicAllocatorAddress])
+);
 
 export const vaultBlacklist: Record<number, string[]> = {
-  [NETWORK_TO_CHAIN_ID.ethereum]: [
+  [CHAIN_CONFIGS.ethereum.id]: [
     "0x73e65DBD630f90604062f6E02fAb9138e713edD9", // Spark DAI
     "0xfbDEE8670b273E12b019210426E70091464b02Ab", // MEV Capital M^0 Vault
   ],
-  [NETWORK_TO_CHAIN_ID.base]: ["0xfbDEE8670b273E12b019210426E70091464b02Ab"],
+  [CHAIN_CONFIGS.base.id]: ["0xfbDEE8670b273E12b019210426E70091464b02Ab"],
 };
 
 // THRESHOLDS

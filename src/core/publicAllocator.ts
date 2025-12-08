@@ -1,46 +1,50 @@
 // WIP work, do not change this file.
 
 import {
-  DEFAULT_SLIPPAGE_TOLERANCE,
-  getChainAddresses,
-  Holding,
-  Market,
-  MarketId,
-  MarketParams,
-  MarketUtils,
-  MathLib,
+    DEFAULT_SLIPPAGE_TOLERANCE,
+    getChainAddresses,
+    Holding,
+    Market,
+    MarketId,
+    MarketParams,
+    MarketUtils,
+    MathLib
 } from "@morpho-org/blue-sdk";
 import "@morpho-org/blue-sdk-viem/lib/augment";
 import {
-  InputBundlerOperation,
-  BundlerOperation,
-  populateBundle,
-  encodeBundle,
+    BundlerOperation, encodeBundle, InputBundlerOperation, populateBundle
 } from "@morpho-org/bundler-sdk-viem";
 import { LiquidityLoader } from "@morpho-org/liquidity-sdk-viem";
 import { getLast, Time } from "@morpho-org/morpho-ts";
 import {
-  type MaybeDraft,
-  type SimulationState,
-  produceImmutable,
-  PublicReallocation,
+    produceImmutable,
+    PublicReallocation, type MaybeDraft,
+    type SimulationState
 } from "@morpho-org/simulation-sdk";
 import {
-  Address,
-  createClient,
-  formatUnits,
-  http,
-  maxUint256,
-  parseEther,
+    Address,
+    createClient,
+    formatUnits,
+    maxUint256,
+    parseEther
 } from "viem";
-import { base, mainnet, polygon, unichain, arbitrum } from "viem/chains";
-import { katana } from "../utils/client";
-import { NETWORK_TO_CHAIN_ID } from "../types/networks";
+import { getChainConfig } from "../config/chains";
+import { createProxyTransport } from "../utils/client";
 import { fetchMarketTargets } from "../fetchers/fetchApiTargets";
 /**
  * The default target utilization above which the shared liquidity algorithm is triggered (scaled by WAD).
  */
 export const DEFAULT_SUPPLY_TARGET_UTILIZATION = 90_5000000000000000n;
+
+/**
+ * Helper function to convert a number (decimal APY) to WAD-scaled bigint.
+ * The new SDK returns APYs as numbers (e.g., 0.05 for 5%), we need to convert to WAD scale.
+ */
+function toWadBigInt(value: number | bigint | undefined): bigint {
+  if (value === undefined) return 0n;
+  if (typeof value === "bigint") return value;
+  return BigInt(Math.floor(value * 1e18));
+}
 
 /**
  * Helper function to create a holding object that matches the IHolding interface
@@ -305,38 +309,21 @@ query MarketByUniqueKeyReallocatable($uniqueKey: String!, $chainId: Int!) {
 }
 `;
 
+/**
+ * Initialize a viem client and LiquidityLoader for blockchain interactions.
+ *
+ * Uses the secure RPC proxy transport to keep RPC URLs server-side only.
+ * All RPC requests are routed through /api/rpc/[chainId] which forwards
+ * to the actual RPC provider without exposing API keys to the client.
+ */
 async function initializeClientAndLoader(chainId: number) {
-  // Use the appropriate RPC URL based on chain ID
-  const rpcUrl =
-    chainId === NETWORK_TO_CHAIN_ID.ethereum
-      ? process.env.REACT_APP_RPC_URL_MAINNET
-      : chainId === NETWORK_TO_CHAIN_ID.base
-      ? process.env.REACT_APP_RPC_URL_BASE
-      : chainId === NETWORK_TO_CHAIN_ID.polygon
-      ? process.env.REACT_APP_RPC_URL_POLYGON
-      : chainId === NETWORK_TO_CHAIN_ID.unichain
-      ? process.env.REACT_APP_RPC_URL_UNICHAIN
-      : chainId === NETWORK_TO_CHAIN_ID.arbitrum
-      ? process.env.REACT_APP_RPC_URL_ARBITRUM
-      : chainId === NETWORK_TO_CHAIN_ID.katana
-      ? process.env.REACT_APP_RPC_URL_KATANA
-      : undefined;
+  const chainConfig = getChainConfig(chainId);
+  if (!chainConfig) throw new Error(`Unsupported chain ID: ${chainId}`);
 
-  if (!rpcUrl)
-    throw new Error(`No RPC URL configured for chain ID: ${chainId}`);
-
+  // Use secure proxy transport - RPC URLs stay server-side
   const client = createClient({
-    chain: chainId === NETWORK_TO_CHAIN_ID.ethereum ? mainnet : chainId === NETWORK_TO_CHAIN_ID.base ? base : chainId === NETWORK_TO_CHAIN_ID.polygon ? polygon : chainId === NETWORK_TO_CHAIN_ID.unichain ? unichain : chainId === NETWORK_TO_CHAIN_ID.arbitrum ? arbitrum : chainId === NETWORK_TO_CHAIN_ID.katana ? katana : mainnet,
-    transport: http(rpcUrl, {
-      retryCount: 3,
-      retryDelay: 2000,
-      timeout: 20000,
-      batch: {
-        // Only useful for Alchemy endpoints
-        batchSize: 100,
-        wait: 20,
-      },
-    }),
+    chain: chainConfig.viemChain,
+    transport: createProxyTransport(chainId),
     batch: {
       multicall: {
         batchSize: 1024,
@@ -459,7 +446,7 @@ function simulateMarketStates(
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const initialSourceState = {
           liquidity: sourceMarket.liquidity,
-          borrowApy: sourceMarket.borrowApy,
+          borrowApy: toWadBigInt(sourceMarket.borrowApy),
           utilization: sourceMarket.utilization,
         };
 
@@ -474,7 +461,7 @@ function simulateMarketStates(
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const initialTargetState = {
           liquidity: targetMarket.liquidity,
-          borrowApy: targetMarket.borrowApy,
+          borrowApy: toWadBigInt(targetMarket.borrowApy),
           utilization: targetMarket.utilization,
         };
 
@@ -518,12 +505,12 @@ function simulateMarketStates(
       sourceMarkets[reallocation.id] = {
         preReallocation: {
           liquidity: sourceMarketInitial.liquidity,
-          borrowApy: sourceMarketInitial.borrowApy,
+          borrowApy: toWadBigInt(sourceMarketInitial.borrowApy),
           utilization: sourceMarketInitial.utilization,
         },
         postReallocation: {
           liquidity: sourceMarketSimulated.liquidity,
-          borrowApy: sourceMarketSimulated.borrowApy,
+          borrowApy: toWadBigInt(sourceMarketSimulated.borrowApy),
           reallocatedAmount: reallocation.assets,
           utilization: sourceMarketSimulated.utilization,
         },
@@ -535,18 +522,18 @@ function simulateMarketStates(
     targetMarket: {
       preReallocation: {
         liquidity: marketInitial.liquidity,
-        borrowApy: marketInitial.borrowApy,
+        borrowApy: toWadBigInt(marketInitial.borrowApy),
         utilization: marketInitial.utilization,
       },
       postReallocation: {
         liquidity: marketPostReallocationSimulated.liquidity,
-        borrowApy: marketPostReallocationSimulated.borrowApy,
+        borrowApy: toWadBigInt(marketPostReallocationSimulated.borrowApy),
         reallocatedAmount,
         utilization: marketPostReallocationSimulated.utilization,
       },
       postBorrow: {
         liquidity: marketPostBorrow.liquidity,
-        borrowApy: marketPostBorrow.borrowApy,
+        borrowApy: toWadBigInt(marketPostBorrow.borrowApy),
         borrowAmount,
         utilization: marketPostBorrow.utilization,
       },
@@ -739,18 +726,18 @@ export async function compareAndReallocate(
         targetMarket: {
           preReallocation: {
             liquidity: market.liquidity,
-            borrowApy: market.borrowApy,
+            borrowApy: toWadBigInt(market.borrowApy),
             utilization: market.utilization,
           },
           postReallocation: {
             liquidity: market.liquidity,
-            borrowApy: market.borrowApy,
+            borrowApy: toWadBigInt(market.borrowApy),
             reallocatedAmount: 0n,
             utilization: market.utilization,
           },
           postBorrow: {
             liquidity: targetMarketBorrowSimulated.market.liquidity,
-            borrowApy: targetMarketBorrowSimulated.market.borrowApy,
+            borrowApy: toWadBigInt(targetMarketBorrowSimulated.market.borrowApy),
             borrowAmount,
             utilization: targetMarketBorrowSimulated.market.utilization,
           },
@@ -898,8 +885,12 @@ export async function fetchMarketSimulationBorrow(
       createHolding(bundlerGeneralAdapter, initialMarket.params.collateralToken, maxUint256);
 
     // Add native token holding for bundler (needed for gas fees and operations)
-    startState.holdings[bundlerGeneralAdapter]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = 
+    startState.holdings[bundlerGeneralAdapter]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] =
       createNativeHolding(bundlerGeneralAdapter, maxUint256);
+
+    // Add loan token holding for bundler adapter (needed for receiving borrowed funds)
+    startState.holdings[bundlerGeneralAdapter][initialMarket.params.loanToken] =
+      createHolding(bundlerGeneralAdapter, initialMarket.params.loanToken, 0n);
 
     // Initialize bundler3 holdings
     if (!startState.holdings[bundlerBundler3]) {
@@ -907,32 +898,29 @@ export async function fetchMarketSimulationBorrow(
     }
 
     // Add native token holding for bundler3 address itself
-    startState.holdings[bundlerBundler3]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = 
+    startState.holdings[bundlerBundler3]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] =
       createNativeHolding(bundlerBundler3, maxUint256);
 
     // Add loan token holding for bundler3 address
-    startState.holdings[bundlerBundler3][initialMarket.params.loanToken] = 
+    startState.holdings[bundlerBundler3][initialMarket.params.loanToken] =
       createHolding(bundlerBundler3, initialMarket.params.loanToken, maxUint256);
 
     // Add native token holdings for all vault addresses that might be involved in reallocation
     const vaultAddresses = [...new Set(rpcData.withdrawals.map(w => w.vault))];
-    
+
     for (const vaultAddress of vaultAddresses) {
       if (!startState.holdings[vaultAddress]) {
         startState.holdings[vaultAddress] = {};
       }
-      
+
       // Add native token holding for each vault
-      startState.holdings[vaultAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = 
+      startState.holdings[vaultAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] =
         createNativeHolding(vaultAddress, maxUint256);
-      
+
       // Add loan token holding for each vault (needed for reallocation operations)
-      startState.holdings[vaultAddress][initialMarket.params.loanToken] = 
+      startState.holdings[vaultAddress][initialMarket.params.loanToken] =
         createHolding(vaultAddress, initialMarket.params.loanToken, maxUint256);
     }
-    
-    // Debug: Log all addresses that have holdings set up
-    // const allAddressesWithHoldings = Object.keys(startState.holdings);
 
     // Scale the requested liquidity with the correct decimals
     const scaledRequestedLiquidity =
@@ -1019,12 +1007,12 @@ export async function fetchMarketSimulationBorrow(
         sourceMarkets[sourceMarketId] = {
           preReallocation: {
             liquidity: sourceMarketInitial.liquidity,
-            borrowApy: sourceMarketInitial.borrowApy,
+            borrowApy: toWadBigInt(sourceMarketInitial.borrowApy),
             utilization: sourceMarketInitial.utilization,
           },
           postReallocation: {
             liquidity: sourceMarketFinal.liquidity,
-            borrowApy: sourceMarketFinal.borrowApy,
+            borrowApy: toWadBigInt(sourceMarketFinal.borrowApy),
             reallocatedAmount,
             utilization: sourceMarketFinal.utilization,
           },
@@ -1037,7 +1025,7 @@ export async function fetchMarketSimulationBorrow(
       targetMarket: {
         preReallocation: {
           liquidity: initialMarket.liquidity,
-          borrowApy: initialMarket.borrowApy,
+          borrowApy: toWadBigInt(initialMarket.borrowApy),
           utilization: initialMarket.utilization,
         },
         postReallocation: {
@@ -1048,7 +1036,7 @@ export async function fetchMarketSimulationBorrow(
         },
         postBorrow: {
           liquidity: simulatedFinalMarket.liquidity,
-          borrowApy: simulatedFinalMarket.borrowApy,
+          borrowApy: toWadBigInt(simulatedFinalMarket.borrowApy),
           borrowAmount: scaledRequestedLiquidity,
           utilization: simulatedFinalMarket.utilization,
         },
@@ -1189,8 +1177,12 @@ export async function fetchMarketSimulationSeries(
       createHolding(bundlerGeneralAdapter, initialMarket.params.collateralToken, maxUint256);
 
     // Add native token holding for bundler (needed for gas fees and operations)
-    startState.holdings[bundlerGeneralAdapter]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = 
+    startState.holdings[bundlerGeneralAdapter]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] =
       createNativeHolding(bundlerGeneralAdapter, maxUint256);
+
+    // Add loan token holding for bundler adapter (needed for receiving borrowed funds)
+    startState.holdings[bundlerGeneralAdapter][initialMarket.params.loanToken] =
+      createHolding(bundlerGeneralAdapter, initialMarket.params.loanToken, 0n);
 
     // Initialize bundler3 holdings
     if (!startState.holdings[bundlerBundler3]) {
@@ -1198,32 +1190,29 @@ export async function fetchMarketSimulationSeries(
     }
 
     // Add native token holding for bundler3 address itself
-    startState.holdings[bundlerBundler3]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = 
+    startState.holdings[bundlerBundler3]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] =
       createNativeHolding(bundlerBundler3, maxUint256);
 
     // Add loan token holding for bundler3 address
-    startState.holdings[bundlerBundler3][initialMarket.params.loanToken] = 
+    startState.holdings[bundlerBundler3][initialMarket.params.loanToken] =
       createHolding(bundlerBundler3, initialMarket.params.loanToken, maxUint256);
 
     // Add native token holdings for all vault addresses that might be involved in reallocation
     const vaultAddresses = [...new Set(rpcData.withdrawals.map(w => w.vault))];
-    
+
     for (const vaultAddress of vaultAddresses) {
       if (!startState.holdings[vaultAddress]) {
         startState.holdings[vaultAddress] = {};
       }
-      
+
       // Add native token holding for each vault
-      startState.holdings[vaultAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = 
+      startState.holdings[vaultAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] =
         createNativeHolding(vaultAddress, maxUint256);
-      
+
       // Add loan token holding for each vault (needed for reallocation operations)
-      startState.holdings[vaultAddress][initialMarket.params.loanToken] = 
+      startState.holdings[vaultAddress][initialMarket.params.loanToken] =
         createHolding(vaultAddress, initialMarket.params.loanToken, maxUint256);
     }
-    
-    // Debug: Log all addresses that have holdings set up
-    // const allAddressesWithHoldings = Object.keys(startState.holdings);
 
     // Define percentage steps with more granularity (every 5% instead of 1% to reduce RPC calls)
     const percentages = Array.from({ length: 21 }, (_, i) => i * 5); // 0, 5, 10, 15, ..., 100
@@ -1238,18 +1227,26 @@ export async function fetchMarketSimulationSeries(
     const apySeries: number[] = [];
     const borrowAmounts: bigint[] = [];
 
+    // Track if we've already logged a simulation error (to avoid console noise)
+    let hasLoggedSimulationError = false;
+
     // Run simulations for each percentage
     for (const percentage of percentages) {
       const borrowAmount = (maxLiquidity * BigInt(percentage)) / 100n;
       borrowAmounts.push(borrowAmount);
 
-      // Skip if borrowAmount is 0
-      if (borrowAmount === 0n && percentage > 0) continue;
+      // Handle 0% case: use current market state without simulation
+      // (SDK throws "inconsistent input" error when borrowing 0 assets)
+      if (borrowAmount === 0n) {
+        utilizationSeries.push(
+          Number(formatUnits(initialMarket.utilization, 16))
+        );
+        apySeries.push(Number(formatUnits(toWadBigInt(initialMarket.borrowApy), 16)));
+        continue;
+      }
 
       // Add rate limiting to prevent hitting Alchemy's rate limits
-      if (percentage > 0) {
-        await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay between calls
-      }
+      await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay between calls
 
       // Create operations for this borrowAmount
       const operations: InputBundlerOperation[] = [
@@ -1287,17 +1284,6 @@ export async function fetchMarketSimulationSeries(
           },
         });
 
-        // Debug: Log when we reach certain percentages
-        if (percentage % 10 === 0) {
-          console.log(`📊 [SIMULATION DEBUG] Simulating at ${percentage}% with borrow amount: ${borrowAmount.toString()}`);
-        }
-
-        // Debug: Check if reallocation operations were added by examining the steps
-        const hasReallocationSteps = steps.length > 2; // Basic operations + reallocation steps
-        if (hasReallocationSteps && percentage >= 15) {
-          console.log(`🔄 [REALLOCATION DEBUG] At ${percentage}%: Bundle has ${steps.length} steps (likely includes reallocation)`);
-        }
-
         // Get final state
         const finalState = getLast(steps);
         const simulatedMarket = finalState.getMarket(marketId);
@@ -1306,19 +1292,15 @@ export async function fetchMarketSimulationSeries(
         utilizationSeries.push(
           Number(formatUnits(simulatedMarket.utilization, 16))
         );
-        apySeries.push(Number(formatUnits(simulatedMarket.borrowApy, 16)));
+        apySeries.push(Number(formatUnits(toWadBigInt(simulatedMarket.borrowApy), 16)));
       } catch (error) {
-        console.error(`❌ [SIMULATION ERROR] Error simulating at ${percentage}%:`, error);
-        console.error(`❌ [SIMULATION ERROR] Borrow amount: ${borrowAmount.toString()}`);
-        console.error(`❌ [SIMULATION ERROR] Market liquidity: ${initialMarket.liquidity.toString()}`);
-        console.error(`❌ [SIMULATION ERROR] Available vaults:`, vaultAddresses);
-        
-        // Check if it's a rate limit error
         const errorMessage = error instanceof Error ? error.message : String(error);
+
+        // Check if it's a rate limit error
         if (errorMessage.includes('compute units per second') || errorMessage.includes('rate limit')) {
           console.warn(`⚠️ [RATE LIMIT] Hit rate limit at ${percentage}%. Waiting 2 seconds before continuing...`);
           await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
-          
+
           // Try one more time after waiting
           try {
             const { steps } = populateBundle(operations, startState, {
@@ -1330,22 +1312,31 @@ export async function fetchMarketSimulationSeries(
                 reallocatableVaults,
               },
             });
-            
+
             const finalState = getLast(steps);
             const simulatedMarket = finalState.getMarket(marketId);
-            
+
             utilizationSeries.push(
               Number(formatUnits(simulatedMarket.utilization, 16))
             );
-            apySeries.push(Number(formatUnits(simulatedMarket.borrowApy, 16)));
-            
-            console.log(`✅ [RETRY SUCCESS] Successfully retried simulation at ${percentage}%`);
+            apySeries.push(Number(formatUnits(toWadBigInt(simulatedMarket.borrowApy), 16)));
             continue; // Skip the fallback below
           } catch (retryError) {
-            console.error(`❌ [RETRY FAILED] Retry also failed at ${percentage}%:`, retryError);
+            // Log retry failure only once
+            if (!hasLoggedSimulationError) {
+              console.error(`❌ [SIMULATION ERROR] Retry failed at ${percentage}%:`, retryError);
+            }
           }
+        } else if (!hasLoggedSimulationError) {
+          // Log the first simulation error with context, then suppress subsequent ones
+          console.error(`❌ [SIMULATION ERROR] Error at ${percentage}%: ${errorMessage}`);
+          console.error(`   Market: ${marketId}`);
+          console.error(`   Borrow amount: ${borrowAmount.toString()}`);
+          console.error(`   Market liquidity: ${initialMarket.liquidity.toString()}`);
+          console.error(`   Available vaults: ${vaultAddresses.length > 0 ? vaultAddresses.join(', ') : 'none'}`);
+          hasLoggedSimulationError = true;
         }
-        
+
         // Use previous values or defaults if simulation fails
         utilizationSeries.push(
           utilizationSeries[utilizationSeries.length - 1] || 0

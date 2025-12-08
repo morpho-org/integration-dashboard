@@ -1,28 +1,28 @@
 import "evm-maths";
-import {
-  InteractionData,
-  MarketChainData,
-  MarketState,
-  Strategy,
-} from "./types";
-import {
-  ADJUSTMENT_SPEED,
-  CURVE_STEEPNESS,
-  LN_2_INT,
-  LN_WEI_INT,
-  MAX_RATE_AT_TARGET,
-  MIN_RATE_AT_TARGET,
-  REALLOCATION_DIST_THRESHOLD,
-  REALLOCATION_THRESHOLD_PERCENT,
-  TARGET_UTILIZATION,
-  VIRTUAL_ASSETS,
-  VIRTUAL_SHARES,
-  WAD,
-  WEXP_UPPER_BOUND,
-  WEXP_UPPER_VALUE,
-  YEAR,
-} from "../config/constants";
 import { maxUint256, zeroAddress } from "viem";
+import {
+    ADJUSTMENT_SPEED,
+    CURVE_STEEPNESS,
+    LN_2_INT,
+    LN_WEI_INT,
+    MAX_RATE_AT_TARGET,
+    MIN_RATE_AT_TARGET,
+    REALLOCATION_DIST_THRESHOLD,
+    REALLOCATION_THRESHOLD_PERCENT,
+    TARGET_UTILIZATION,
+    VIRTUAL_ASSETS,
+    VIRTUAL_SHARES,
+    WAD,
+    WEXP_UPPER_BOUND,
+    WEXP_UPPER_VALUE,
+    YEAR
+} from "../config/constants";
+import {
+    InteractionData,
+    MarketChainData,
+    MarketState,
+    Strategy
+} from "./types";
 
 export const pow10 = (exponant: bigint | number) => 10n ** BigInt(exponant);
 

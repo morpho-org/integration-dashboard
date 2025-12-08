@@ -1,9 +1,11 @@
-import React, { useState } from "react";
-import NavBar from "./components/NavBar";
-import { Route, Routes } from "react-router-dom";
-import ManualReallocationPage from "./pages/manualReallocationPage";
-import { SupportedNetwork } from "./types/networks";
-const App: React.FC = () => {
+"use client";
+
+import { useState } from "react";
+import NavBar from "../src/components/NavBar";
+import { SupportedNetwork } from "../src/types/networks";
+import ManualReallocationPage from "../src/views/manualReallocationPage";
+
+export default function Home() {
   const [network, setNetwork] = useState<SupportedNetwork>("ethereum");
 
   const handleNetworkSwitch = (selectedNetwork: SupportedNetwork) => {
@@ -25,19 +27,8 @@ const App: React.FC = () => {
             "linear-gradient(180deg, rgba(21, 24, 26, 0.00) 63.77%, rgba(255, 255, 255, 0.04) 89.72%), var(--Background-Base, #F9FAFB)",
         }}
       >
-        <Routes>
-          <Route
-            path="/"
-            element={<ManualReallocationPage network={network} />}
-          />
-          <Route
-            path="/manual-reallocation"
-            element={<ManualReallocationPage network={network} />}
-          />
-        </Routes>
+        <ManualReallocationPage network={network} />
       </div>
     </div>
   );
-};
-
-export default App;
+}
