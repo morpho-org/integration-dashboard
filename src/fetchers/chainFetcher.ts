@@ -1,21 +1,18 @@
-import { zeroAddress } from "viem";
 import { AccrualPosition, Market, MarketId } from "@morpho-org/blue-sdk";
 import { metaMorphoAbi, publicAllocatorAbi } from "@morpho-org/blue-sdk-viem";
 import "@morpho-org/blue-sdk-viem/lib/augment";
-import {
-  Asset,
-  FlowCaps,
-  MarketData,
-  MarketParams,
-  Strategy,
-  MarketChainData,
-} from "../utils/types";
-import { publicAllocatorAddress } from "../config/constants";
-import { getMarketName } from "../utils/utils";
-import { getReallocationData } from "../utils/maths";
-import { fetchAssetData } from "./apiFetchers";
+import { Abi, PublicClient, zeroAddress } from "viem";
 import safeAbi from "../abis/safeAbi.json";
-import { Abi, PublicClient } from "viem";
+import { publicAllocatorAddress } from "../config/constants";
+import { getReallocationData } from "../utils/maths";
+import {
+    Asset,
+    FlowCaps, MarketChainData, MarketData,
+    MarketParams,
+    Strategy
+} from "../utils/types";
+import { getMarketName } from "../utils/utils";
+import { fetchAssetData } from "./apiFetchers";
 
 export const fetchMarketParamsAndData = async (
   client: PublicClient,

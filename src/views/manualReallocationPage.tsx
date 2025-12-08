@@ -1,26 +1,26 @@
 import { ChainId, MarketId, MarketParams } from "@morpho-org/blue-sdk";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { formatUnits, parseUnits } from "viem";
 import { useChainId, useSwitchChain } from "wagmi";
-import { SupportedNetwork } from "../types/networks";
+import AmountInput from "../components/AmountInput";
 import MarketMetricsChart from "../components/MarketMetricsChart";
 import TransactionSenderV2 from "../components/TransactionSenderV2";
 import TransactionSimulatorV2 from "../components/TransactionSimulatorV2";
-import AmountInput from "../components/AmountInput";
 import {
-  fetchMarketSimulationBorrow,
-  fetchMarketSimulationSeries,  
-  ReallocationResult,
-  WithdrawalDetails,
+    fetchMarketSimulationBorrow,
+    fetchMarketSimulationSeries,
+    ReallocationResult,
+    WithdrawalDetails
 } from "../core/publicAllocator"; // Update with correct path
 import { fetchMarketAssets } from "../fetchers/apiFetchers"; // Import the fetchMarketAssets function
 import { fetchMarketParams } from "../fetchers/marketIdFetcher"; // Import fetchMarketParams
+import { SupportedNetwork } from "../types/networks";
 import {
-  formatMarketLink,
-  formatUsdAmount,
-  formatVaultLink,
-  getMarketName,
-  getNetworkName,
+    formatMarketLink,
+    formatUsdAmount,
+    formatVaultLink,
+    getMarketName,
+    getNetworkName
 } from "../utils/utils";
 
 // SimpleCard component - Downsized

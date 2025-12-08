@@ -40,10 +40,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "organize-imports": "organize-imports-cli tsconfig.json"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.20",
+    "organize-imports-cli": "^0.10.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.5.2"

@@ -1,41 +1,35 @@
 // WIP work, do not change this file.
 
 import {
-  DEFAULT_SLIPPAGE_TOLERANCE,
-  getChainAddresses,
-  Holding,
-  Market,
-  MarketId,
-  MarketParams,
-  MarketUtils,
-  MathLib,
+    DEFAULT_SLIPPAGE_TOLERANCE,
+    getChainAddresses,
+    Holding,
+    Market,
+    MarketId,
+    MarketParams,
+    MarketUtils,
+    MathLib
 } from "@morpho-org/blue-sdk";
 import "@morpho-org/blue-sdk-viem/lib/augment";
 import {
-  InputBundlerOperation,
-  BundlerOperation,
-  populateBundle,
-  encodeBundle,
+    BundlerOperation, encodeBundle, InputBundlerOperation, populateBundle
 } from "@morpho-org/bundler-sdk-viem";
 import { LiquidityLoader } from "@morpho-org/liquidity-sdk-viem";
 import { getLast, Time } from "@morpho-org/morpho-ts";
 import {
-  type MaybeDraft,
-  type SimulationState,
-  produceImmutable,
-  PublicReallocation,
+    produceImmutable,
+    PublicReallocation, type MaybeDraft,
+    type SimulationState
 } from "@morpho-org/simulation-sdk";
 import {
-  Address,
-  createClient,
-  formatUnits,
-  http,
-  maxUint256,
-  parseEther,
+    Address,
+    createClient,
+    formatUnits,
+    http,
+    maxUint256,
+    parseEther
 } from "viem";
-import { base, mainnet, polygon, unichain, arbitrum } from "viem/chains";
-import { katana, monad } from "../utils/client";
-import { NETWORK_TO_CHAIN_ID } from "../types/networks";
+import { getChainConfig, getRpcEnvKey } from "../config/chains";
 import { fetchMarketTargets } from "../fetchers/fetchApiTargets";
 /**
  * The default target utilization above which the shared liquidity algorithm is triggered (scaled by WAD).
@@ -316,29 +310,17 @@ query MarketByUniqueKeyReallocatable($uniqueKey: String!, $chainId: Int!) {
 `;
 
 async function initializeClientAndLoader(chainId: number) {
-  // Use the appropriate RPC URL based on chain ID
-  const rpcUrl =
-    chainId === NETWORK_TO_CHAIN_ID.ethereum
-      ? process.env.NEXT_PUBLIC_RPC_URL_MAINNET
-      : chainId === NETWORK_TO_CHAIN_ID.base
-      ? process.env.NEXT_PUBLIC_RPC_URL_BASE
-      : chainId === NETWORK_TO_CHAIN_ID.polygon
-      ? process.env.NEXT_PUBLIC_RPC_URL_POLYGON
-      : chainId === NETWORK_TO_CHAIN_ID.unichain
-      ? process.env.NEXT_PUBLIC_RPC_URL_UNICHAIN
-      : chainId === NETWORK_TO_CHAIN_ID.arbitrum
-      ? process.env.NEXT_PUBLIC_RPC_URL_ARBITRUM
-      : chainId === NETWORK_TO_CHAIN_ID.katana
-      ? process.env.NEXT_PUBLIC_RPC_URL_KATANA
-      : chainId === NETWORK_TO_CHAIN_ID.monad
-      ? process.env.NEXT_PUBLIC_RPC_URL_MONAD
-      : undefined;
+  const chainConfig = getChainConfig(chainId);
+  if (!chainConfig) throw new Error(`Unsupported chain ID: ${chainId}`);
+
+  const rpcEnvKey = getRpcEnvKey(chainId);
+  const rpcUrl = process.env[rpcEnvKey];
 
   if (!rpcUrl)
     throw new Error(`No RPC URL configured for chain ID: ${chainId}`);
 
   const client = createClient({
-    chain: chainId === NETWORK_TO_CHAIN_ID.ethereum ? mainnet : chainId === NETWORK_TO_CHAIN_ID.base ? base : chainId === NETWORK_TO_CHAIN_ID.polygon ? polygon : chainId === NETWORK_TO_CHAIN_ID.unichain ? unichain : chainId === NETWORK_TO_CHAIN_ID.arbitrum ? arbitrum : chainId === NETWORK_TO_CHAIN_ID.katana ? katana : chainId === NETWORK_TO_CHAIN_ID.monad ? monad : mainnet,
+    chain: chainConfig.viemChain,
     transport: http(rpcUrl, {
       retryCount: 3,
       retryDelay: 2000,

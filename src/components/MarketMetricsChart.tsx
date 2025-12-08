@@ -1,11 +1,11 @@
+import { Activity, TrendingUp } from "lucide-react";
 import React, { useEffect, useState } from "react";
+import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 import { formatUnits } from "viem";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { ChartConfig, ChartContainer } from "./ui/chart";
-import { TrendingUp, Activity } from "lucide-react";
 import { fetchAssetPriceDL } from "../fetchers/fetchDLPrice";
 import { formatUsdAmount } from "../utils/utils";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { ChartConfig, ChartContainer } from "./ui/chart";
 
 interface MarketMetricsChartProps {
   simulationSeries: {

@@ -1,8 +1,8 @@
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import React from "react";
 import styled from "styled-components";
 import { useChainId } from "wagmi";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { SupportedNetwork, CHAIN_ID_TO_NETWORK } from "../types/networks";
+import { CHAIN_ID_TO_NETWORK, SupportedNetwork } from "../types/networks";
 
 const NavBarWrapper = styled.div`
   display: flex;

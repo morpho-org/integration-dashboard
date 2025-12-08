@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import NavBar from "../src/components/NavBar";
-import ManualReallocationPage from "../src/views/manualReallocationPage";
 import { SupportedNetwork } from "../src/types/networks";
+import ManualReallocationPage from "../src/views/manualReallocationPage";
 
 export default function Home() {
   const [network, setNetwork] = useState<SupportedNetwork>("ethereum");

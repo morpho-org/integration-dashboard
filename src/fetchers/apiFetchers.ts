@@ -1,26 +1,24 @@
+import { PublicClient } from "viem";
 import {
-  BLOCKING_FLOW_CAPS_API,
-  BLUE_API,
-  TARGET_API,
-  WHITELIST_API,
+    BLOCKING_FLOW_CAPS_API,
+    BLUE_API,
+    TARGET_API
 } from "../config/constants";
 import {
-  Asset,
-  BlockingFlowCaps,
-  MarketWithWarning,
-  MarketWithWarningAPIData,
-  MetaMorphoAPIData,
-  MetaMorphoVaultData,
-  Strategy,
-  WhitelistedVault,
+    Asset,
+    BlockingFlowCaps,
+    MarketWithWarning,
+    MarketWithWarningAPIData,
+    MetaMorphoAPIData,
+    MetaMorphoVaultData,
+    Strategy
 } from "../utils/types";
 import {
-  formatMarketLink,
-  formatMarketWithWarning,
-  getMarketName,
+    formatMarketLink,
+    formatMarketWithWarning,
+    getMarketName
 } from "../utils/utils";
 import { getQueuesAndChecks } from "./chainFetcher";
-import { PublicClient } from "viem";
 
 export const fetchStrategies = async (
   networkId: number
@@ -115,23 +113,6 @@ export const fetchMorphoVaultsAddresses = async (networkId: number) => {
   }
 
   return allVaults;
-};
-
-export const fetchWhitelistedMetaMorphos = async (
-  chainId: number
-): Promise<WhitelistedVault[]> => {
-  try {
-    const res = await fetch(WHITELIST_API);
-    const data = await res.json();
-    const metaMorphos: WhitelistedVault[] = data.filter(
-      (vault: { address: string; chainId: string }) =>
-        Number(vault.chainId) === chainId
-    );
-    return metaMorphos;
-  } catch (error) {
-    console.error("Error fetching whitelisted vaults", error);
-    throw error;
-  }
 };
 
 export const fetchVaultData = async (

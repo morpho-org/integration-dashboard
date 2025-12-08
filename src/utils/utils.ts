@@ -1,17 +1,22 @@
 import { encodeAbiParameters, keccak256 } from "viem";
+import {
+    chainMapping, getNetworkDBBlockingFlowCapsKey, getNetworkId,
+    getNetworkName
+} from "../config/chains";
 import { pow10 } from "./maths";
 import {
-  Apys,
-  Asset,
-  MarketParams,
-  MarketWithWarning,
-  MarketWithWarningAPIData,
-  Range,
-  VaultReallocationData,
-  Withdrawal,
+    Apys,
+    Asset,
+    MarketParams,
+    MarketWithWarning,
+    MarketWithWarningAPIData,
+    Range,
+    VaultReallocationData,
+    Withdrawal
 } from "./types";
-import { base, mainnet, polygon, unichain, arbitrum } from "viem/chains";
-import { katana, monad } from "./client";
+
+// Re-export for backward compatibility
+export { getNetworkId, getNetworkName, getNetworkDBBlockingFlowCapsKey, chainMapping };
 
 export const isApyOutOfRange = (apys: Apys, range: Range) => {
   return apys.supplyApy < range.lowerBound || apys.borrowApy > range.upperBound;
@@ -43,67 +48,6 @@ export const getMarketId = (market: MarketParams) => {
     ]
   );
   return keccak256(encodedMarket);
-};
-
-export const getNetworkDBBlockingFlowCapsKey = (network: string): string => {
-  switch (network) {
-    case "ethereum":
-      return "mainnetBlockingFlowCaps";
-    case "base":
-      return "baseBlockingFlowCaps";
-    case "polygon":
-      return "polygonBlockingFlowCaps";
-    case "unichain":
-      return "unichainBlockingFlowCaps";
-    case "arbitrum":
-      return "arbitrumBlockingFlowCaps";
-    case "katana":
-      return "katanaBlockingFlowCaps";
-    case "monad":
-      return "monadBlockingFlowCaps";
-    default:
-      throw new Error(`Invalid network: ${network}`);
-  }
-};
-
-export const getNetworkId = (network: string): number => {
-  switch (network) {
-    case "ethereum":
-      return 1;
-    case "base":
-      return 8453;
-    case "polygon":
-      return 137;
-    case "unichain":
-      return 130;
-    case "arbitrum":
-      return 42161;
-    case "katana":
-      return 747474;
-    case "monad":
-      return 143;
-  }
-  throw new Error("Invalid chainId");
-};
-
-export const getNetworkName = (networkId: number): string => {
-  switch (networkId) {
-    case 1:
-      return "ethereum";
-    case 8453:
-      return "base";
-    case 137:
-      return "polygon";
-    case 130:
-      return "unichain";
-    case 42161:
-      return "arbitrum";
-    case 747474:
-      return "katana";
-    case 143:
-      return "monad";
-  }
-  throw new Error("Invalid chainId");
 };
 
 export const getMarketName = (
@@ -222,15 +166,4 @@ export const extractIdFromUrl = (url: string) => {
 
 export const handleLinkClick = (event: React.MouseEvent) => {
   event.stopPropagation();
-};
-
-
-export const chainMapping = {
-  1: mainnet,
-  130: unichain,
-  137: polygon,
-  8453: base,
-  42161: arbitrum,
-  747474: katana,
-  143: monad,
 };

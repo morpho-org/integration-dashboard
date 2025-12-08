@@ -1,18 +1,7 @@
-import { type Address, getAddress } from "viem";
-import { initializeClient } from "../utils/client";
-import { NETWORK_TO_CHAIN_ID } from "../types/networks";
+import { getAddress, type Address } from "viem";
+import { SUPPORTED_CHAIN_IDS } from "../config/chains";
 import { morphoAddress } from "../config/constants";
-
-// List of chain IDs that are supported for market lookups
-const SUPPORTED_CHAIN_IDS = [
-  NETWORK_TO_CHAIN_ID.ethereum,
-  NETWORK_TO_CHAIN_ID.base,
-  NETWORK_TO_CHAIN_ID.polygon,
-  NETWORK_TO_CHAIN_ID.unichain,
-  NETWORK_TO_CHAIN_ID.arbitrum,
-  NETWORK_TO_CHAIN_ID.katana,
-  NETWORK_TO_CHAIN_ID.monad,
-];
+import { initializeClient } from "../utils/client";
 
 export interface MarketParams {
   loanToken: Address;

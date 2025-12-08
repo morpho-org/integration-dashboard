@@ -1,17 +1,17 @@
 import {
-  getChainAddresses,
-  MarketId,
-  MarketParams,
+    getChainAddresses,
+    MarketId,
+    MarketParams
 } from "@morpho-org/blue-sdk";
-import { LiquidityLoader } from "@morpho-org/liquidity-sdk-viem";
 import {
-  BundlerOperation,
-  encodeBundle,
+    BundlerOperation,
+    encodeBundle
 } from "@morpho-org/bundler-sdk-viem";
+import { LiquidityLoader } from "@morpho-org/liquidity-sdk-viem";
 import { produceImmutable } from "@morpho-org/simulation-sdk";
 import { useState } from "react";
 import { Address, parseEther } from "viem";
-import { useAccount, useWaitForTransactionReceipt, useSendTransaction } from "wagmi";
+import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
 import { WithdrawalDetails } from "../core/publicAllocator";
 import { initializeClient } from "../utils/client";
 

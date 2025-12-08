@@ -1,30 +1,7 @@
 /**
- * Supported networks in the Morpho integration dashboard
+ * Re-export chain configuration from single source of truth
  */
-export type SupportedNetwork = "ethereum" | "base" | "polygon" | "unichain" | "arbitrum" | "katana" | "monad";
-
-/**
- * Chain ID to network name mapping
- */
-export const CHAIN_ID_TO_NETWORK: Record<number, SupportedNetwork> = {
-  1: "ethereum",
-  8453: "base",
-  137: "polygon",
-  130: "unichain",
-  42161: "arbitrum",
-  747474: "katana",
-  143: "monad",
-} as const;
-
-/**
- * Network name to chain ID mapping
- */
-export const NETWORK_TO_CHAIN_ID: Record<SupportedNetwork, number> = {
-  ethereum: 1,
-  base: 8453,
-  polygon: 137,
-  unichain: 130,
-  arbitrum: 42161,
-  katana: 747474,
-  monad: 143,
-} as const;
+export {
+    CHAIN_ID_TO_NETWORK,
+    NETWORK_TO_CHAIN_ID, type SupportedNetwork
+} from "../config/chains";
