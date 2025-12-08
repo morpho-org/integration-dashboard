@@ -25,11 +25,11 @@ import {
     Address,
     createClient,
     formatUnits,
-    http,
     maxUint256,
     parseEther
 } from "viem";
-import { getChainConfig, getRpcEnvKey } from "../config/chains";
+import { getChainConfig } from "../config/chains";
+import { createProxyTransport } from "../utils/client";
 import { fetchMarketTargets } from "../fetchers/fetchApiTargets";
 /**
  * The default target utilization above which the shared liquidity algorithm is triggered (scaled by WAD).
@@ -309,28 +309,21 @@ query MarketByUniqueKeyReallocatable($uniqueKey: String!, $chainId: Int!) {
 }
 `;
 
+/**
+ * Initialize a viem client and LiquidityLoader for blockchain interactions.
+ *
+ * Uses the secure RPC proxy transport to keep RPC URLs server-side only.
+ * All RPC requests are routed through /api/rpc/[chainId] which forwards
+ * to the actual RPC provider without exposing API keys to the client.
+ */
 async function initializeClientAndLoader(chainId: number) {
   const chainConfig = getChainConfig(chainId);
   if (!chainConfig) throw new Error(`Unsupported chain ID: ${chainId}`);
 
-  const rpcEnvKey = getRpcEnvKey(chainId);
-  const rpcUrl = process.env[rpcEnvKey];
-
-  if (!rpcUrl)
-    throw new Error(`No RPC URL configured for chain ID: ${chainId}`);
-
+  // Use secure proxy transport - RPC URLs stay server-side
   const client = createClient({
     chain: chainConfig.viemChain,
-    transport: http(rpcUrl, {
-      retryCount: 3,
-      retryDelay: 2000,
-      timeout: 20000,
-      batch: {
-        // Only useful for Alchemy endpoints
-        batchSize: 100,
-        wait: 20,
-      },
-    }),
+    transport: createProxyTransport(chainId),
     batch: {
       multicall: {
         batchSize: 1024,

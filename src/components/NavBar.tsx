@@ -37,7 +37,15 @@ type NavBarProps = {
 
 const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
   const chainId = useChainId();
-  
+
+  // Track if component has mounted (hydration complete)
+  const [hasMounted, setHasMounted] = React.useState(false);
+
+  // Set mounted flag after initial render to prevent hydration mismatches
+  React.useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   // Map chainId to network name
   const getNetworkFromChainId = (chainId: number): SupportedNetwork => {
     return CHAIN_ID_TO_NETWORK[chainId] || "ethereum";
@@ -45,18 +53,21 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
 
   // Use connected wallet's chainId as the current network
   const connectedNetwork = getNetworkFromChainId(chainId);
-  
+
   // Update parent when chainId changes (with debouncing to prevent loops)
+  // Only run after hydration is complete to prevent "setState during render" errors
   React.useEffect(() => {
+    if (!hasMounted) return;
+
     if (connectedNetwork !== currentNetwork) {
       // Add a small delay to prevent rapid switching
       const timeoutId = setTimeout(() => {
         onNetworkSwitch(connectedNetwork);
       }, 500);
-      
+
       return () => clearTimeout(timeoutId);
     }
-  }, [connectedNetwork, currentNetwork, onNetworkSwitch]);
+  }, [hasMounted, connectedNetwork, currentNetwork, onNetworkSwitch]);
 
   return (
     <NavBarWrapper>
