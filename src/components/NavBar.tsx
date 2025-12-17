@@ -1,4 +1,6 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import React from "react";
 import styled from "styled-components";
 import { useChainId } from "wagmi";
@@ -14,11 +16,33 @@ const NavBarWrapper = styled.div`
   border-radius: 8px;
 `;
 
-const Title = styled.h1`
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #ffffff;
-  margin: 0;
+const NavLinks = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const NavLink = styled(Link)<{ $active?: boolean }>`
+  font-size: 0.85rem;
+  font-weight: ${(props) => (props.$active ? "600" : "500")};
+  color: ${(props) => (props.$active ? "#ffffff" : "rgba(255, 255, 255, 0.7)")};
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background-color: ${(props) =>
+    props.$active ? "rgba(255, 255, 255, 0.15)" : "transparent"};
+  transition: all 0.2s;
+
+  &:hover {
+    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+`;
+
+const NavSeparator = styled.span`
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0 2px;
+  user-select: none;
 `;
 
 const NetworkContainer = styled.div`
@@ -37,6 +61,7 @@ type NavBarProps = {
 
 const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
   const chainId = useChainId();
+  const pathname = usePathname();
 
   // Track if component has mounted (hydration complete)
   const [hasMounted, setHasMounted] = React.useState(false);
@@ -71,7 +96,21 @@ const NavBar: React.FC<NavBarProps> = ({ currentNetwork, onNetworkSwitch }) => {
 
   return (
     <NavBarWrapper>
-      <Title>Manual Reallocation</Title>
+      <NavLinks>
+        <NavLink
+          href="/manual-reallocation"
+          $active={pathname === "/manual-reallocation"}
+        >
+          Manual Reallocation
+        </NavLink>
+        <NavSeparator>|</NavSeparator>
+        <NavLink
+          href="/looping-calculator"
+          $active={pathname === "/looping-calculator"}
+        >
+          Looping Calculator
+        </NavLink>
+      </NavLinks>
       <NetworkContainer>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <ConnectButton.Custom>
