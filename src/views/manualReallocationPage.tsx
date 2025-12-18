@@ -602,10 +602,17 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                           </div>
                           <button
                             onClick={() => handleSwitchNetwork(marketIdSuggestedNetwork)}
-                            className="w-full py-1.5 px-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md transition-colors duration-200 flex items-center justify-center"
+                            disabled={isNetworkStabilizing}
+                            className={`w-full py-1.5 px-2 ${isNetworkStabilizing ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'} text-white text-xs font-semibold rounded-md transition-colors duration-200 flex items-center justify-center`}
                           >
-                            <span className="mr-1">Switch to</span>
-                            {getNetworkName(marketIdSuggestedNetwork)}
+                            {isNetworkStabilizing ? (
+                              <span>Switching...</span>
+                            ) : (
+                              <>
+                                <span className="mr-1">Switch to</span>
+                                {getNetworkName(marketIdSuggestedNetwork)}
+                              </>
+                            )}
                           </button>
                         </div>
                       ) : (
