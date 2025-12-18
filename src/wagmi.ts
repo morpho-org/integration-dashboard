@@ -1,5 +1,5 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { arbitrum, base, mainnet, polygon, sepolia, unichain } from "wagmi/chains";
+import { arbitrum, base, mainnet, optimism, polygon, sepolia, unichain } from "wagmi/chains";
 import { katana, monad, stable } from "./utils/client";
 
 export const config = getDefaultConfig({
@@ -8,6 +8,7 @@ export const config = getDefaultConfig({
   chains: [
     mainnet,
     base,
+    optimism,
     polygon,
     unichain,
     arbitrum,

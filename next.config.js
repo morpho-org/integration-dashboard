@@ -2,6 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
 
+  // Enable Turbopack (Next.js 16 default)
+  turbopack: {},
+
   // Set the output file tracing root to this directory
   outputFileTracingRoot: __dirname,
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Providers } from "./providers";
+import { ClientProviders } from "./client-providers";
 
 export const metadata: Metadata = {
   title: "Manual Reallocation Dashboard",
@@ -15,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Providers>{children}</Providers>
+        <ClientProviders>{children}</ClientProviders>
       </body>
     </html>
   );
