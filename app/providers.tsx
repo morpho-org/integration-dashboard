@@ -17,9 +17,10 @@ import { WagmiProvider, type Config } from "wagmi";
  * WalletConnect from trying to access localStorage during SSR/prerendering.
  */
 export function Providers({ children }: { children: React.ReactNode }) {
-  // Track mounting state and wagmi config
+  // Track mounting state, wagmi config, and potential load errors
   const [mounted, setMounted] = useState(false);
   const [wagmiConfig, setWagmiConfig] = useState<Config | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Create QueryClient inside component to avoid SSR/hydration issues
   // useState with initializer function ensures it's only created once
@@ -39,11 +40,27 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   // Dynamically import wagmi config only on client side
   useEffect(() => {
-    import("../src/wagmi").then((module) => {
-      setWagmiConfig(module.config);
-      setMounted(true);
-    });
+    import("../src/wagmi")
+      .then((module) => {
+        setWagmiConfig(module.config);
+        setMounted(true);
+      })
+      .catch((error) => {
+        console.error("Failed to load wallet configuration:", error);
+        setLoadError("Failed to initialize wallet connection. Please refresh the page.");
+        setMounted(true);
+      });
   }, []);
+
+  // Show error if wallet config failed to load
+  if (loadError) {
+    return (
+      <div className="p-4 text-red-600">
+        {loadError}
+        {children}
+      </div>
+    );
+  }
 
   // During SSR/prerendering, just render children without providers
   // The wallet-dependent components won't render until client-side

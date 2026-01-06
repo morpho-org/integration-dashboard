@@ -3,14 +3,11 @@ const nextConfig = {
   reactStrictMode: true,
 
   // Enable Turbopack (Next.js 16 default)
+  // Empty config to silence Next.js 16 warning
   turbopack: {},
 
   // Set the output file tracing root to this directory
   outputFileTracingRoot: __dirname,
-
-  // Empty turbopack config to silence Next.js 16 warning
-  // (webpack config is still used for production builds with --webpack flag)
-  turbopack: {},
 
   // Webpack configuration for compatibility
   webpack: (config) => {
