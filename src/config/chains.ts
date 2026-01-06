@@ -1,11 +1,12 @@
 import { Chain } from "viem";
-import { arbitrum, base, mainnet, polygon, unichain } from "viem/chains";
+import { arbitrum, base, mainnet, optimism, polygon, unichain } from "viem/chains";
 
 /**
  * Supported network names
  */
 export type SupportedNetwork =
   | "ethereum"
+  | "optimism"
   | "base"
   | "polygon"
   | "unichain"
@@ -141,6 +142,19 @@ export const CHAIN_CONFIGS: Record<SupportedNetwork, ChainConfig> = {
     publicAllocatorAddress: "0xfd32fA2ca22c76dD6E550706Ad913FC6CE91c75D",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
     blockExplorer: { name: "Etherscan", url: "https://etherscan.io" },
+  },
+  optimism: {
+    id: 10,
+    name: "optimism",
+    displayName: "Optimism",
+    viemChain: optimism,
+    rpcEnvKey: "NEXT_PUBLIC_RPC_URL_OPTIMISM",
+    dbBlockingFlowCapsKey: "optimismBlockingFlowCaps",
+    defiLlamaName: "optimism",
+    morphoAddress: "0xce95AfbB8EA029495c66020883F87aaE8864AF92",
+    publicAllocatorAddress: "0x0d68a97324E602E02799CD83B42D337207B40658",
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    blockExplorer: { name: "Optimistic Etherscan", url: "https://optimistic.etherscan.io" },
   },
   base: {
     id: 8453,

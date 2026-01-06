@@ -22,6 +22,7 @@ import { NextRequest, NextResponse } from "next/server";
  */
 const CHAIN_ID_TO_RPC_ENV_KEY: Record<number, string> = {
   1: "RPC_URL_MAINNET",
+  10: "RPC_URL_OPTIMISM",
   8453: "RPC_URL_BASE",
   137: "RPC_URL_POLYGON",
   130: "RPC_URL_UNICHAIN",
