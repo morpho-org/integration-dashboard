@@ -108,7 +108,7 @@ export default function TransactionSimulatorV2({
       const { client } = await initializeClient(networkId);
       
       // 1. Use LiquidityLoader to fetch the REAL simulation state
-      const loader = new LiquidityLoader(client as any, {
+      const loader = new LiquidityLoader(client as ConstructorParameters<typeof LiquidityLoader>[0], {
         maxWithdrawalUtilization: {},
         defaultMaxWithdrawalUtilization: parseEther("1"),
       });
@@ -123,15 +123,8 @@ export default function TransactionSimulatorV2({
         )
       ];
       
-      // Fetch the primary market first, then additional markets if any
-      let fetchResult;
-      if (allMarketIds.length === 1) {
-        fetchResult = await loader.fetch(allMarketIds[0]);
-      } else {
-        // For multiple markets, we need to call fetch with proper spread
-        const [first, ...rest] = allMarketIds;
-        fetchResult = await (loader.fetch as any)(first, ...rest);
-      }
+      // Fetch the state (fetch primary market)
+      const fetchResult = await loader.fetch(allMarketIds[0]);
       const { startState } = fetchResult;
 
       // 2. Prepare the fetched state for simulation (add user and funds)
@@ -175,8 +168,8 @@ export default function TransactionSimulatorV2({
 
       // Fund the simulation account with ETH if needed (for Anvil/Hardhat)
       try {
-        await client.request({
-          method: "anvil_setBalance" as any,
+        await (client.request as (args: { method: string; params: unknown[] }) => Promise<unknown>)({
+          method: "anvil_setBalance",
           params: [simulationUserAddress, `0x${parseEther("1000").toString(16)}`],
         });
         console.log(`💰 Funded simulation account ${simulationUserAddress} with 1000 ETH`);

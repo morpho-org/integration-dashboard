@@ -7,6 +7,13 @@ import { formatUsdAmount } from "../utils/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { ChartConfig, ChartContainer } from "./ui/chart";
 
+interface AssetInfo {
+  address: string;
+  decimals?: bigint | number;
+  symbol?: string;
+  priceUsd?: number;
+}
+
 interface MarketMetricsChartProps {
   simulationSeries: {
     percentages: number[];
@@ -16,8 +23,8 @@ interface MarketMetricsChartProps {
     borrowAmounts: bigint[];
   } | null;
   marketAsset: {
-    loanAsset: any;
-    collateralAsset: any;
+    loanAsset: AssetInfo;
+    collateralAsset: AssetInfo;
   } | null;
   onUseMaxAvailable: () => void;
   loading: boolean;
@@ -46,8 +53,9 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
       if (marketAsset?.loanAsset && !marketAsset.loanAsset.priceUsd) {
         try {
           setIsLoadingPrice(true);
-          const chainId = (window as any).ethereum?.chainId
-            ? parseInt((window as any).ethereum.chainId, 16)
+          const ethereum = window as unknown as { ethereum?: { chainId?: string } };
+          const chainId = ethereum.ethereum?.chainId
+            ? parseInt(ethereum.ethereum.chainId, 16)
             : 1; // Default to Ethereum mainnet
 
           const priceData = await fetchAssetPriceDL(
@@ -91,7 +99,7 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
   const getFormattedBorrowAmount = (amount: bigint) => {
     if (!marketAsset) return "Loading...";
     const nativeAmount = Number(
-      formatUnits(amount, marketAsset.loanAsset.decimals || 18)
+      formatUnits(amount, Number(marketAsset.loanAsset.decimals ?? 18))
     );
     const usdAmount = nativeAmount * effectivePrice;
     return hasPriceData
@@ -101,7 +109,7 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
 
   // Calculate total liquidity in USD for X-axis labels
   const totalLiquidityUsd = marketAsset && simulationSeries.initialLiquidity
-    ? Number(formatUnits(simulationSeries.initialLiquidity, marketAsset.loanAsset.decimals || 18)) * effectivePrice
+    ? Number(formatUnits(simulationSeries.initialLiquidity, Number(marketAsset.loanAsset.decimals ?? 18))) * effectivePrice
     : 0;
 
   // Create comprehensive chart data for every 1% (for hover) and mark 10% intervals (for display)
@@ -140,10 +148,10 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
             (simulationSeries.utilizationSeries[upperIndex] - simulationSeries.utilizationSeries[lowerIndex]) * ratio;
           
           // Calculate interpolated borrow amount
-          const lowerAmount = Number(formatUnits(simulationSeries.borrowAmounts[lowerIndex], marketAsset?.loanAsset.decimals || 18));
-          const upperAmount = Number(formatUnits(simulationSeries.borrowAmounts[upperIndex], marketAsset?.loanAsset.decimals || 18));
+          const lowerAmount = Number(formatUnits(simulationSeries.borrowAmounts[lowerIndex], Number(marketAsset?.loanAsset.decimals ?? 18)));
+          const upperAmount = Number(formatUnits(simulationSeries.borrowAmounts[upperIndex], Number(marketAsset?.loanAsset.decimals ?? 18)));
           const interpolatedAmount = lowerAmount + (upperAmount - lowerAmount) * ratio;
-          const interpolatedAmountBigInt = BigInt(Math.round(interpolatedAmount * Math.pow(10, marketAsset?.loanAsset.decimals || 18)));
+          const interpolatedAmountBigInt = BigInt(Math.round(interpolatedAmount * Math.pow(10, Number(marketAsset?.loanAsset.decimals ?? 18))));
           
           standardData.push({
             percentage: i,
@@ -185,7 +193,7 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
           Number(
             formatUnits(
               simulationSeries.initialLiquidity,
-              marketAsset.loanAsset.decimals || 18
+              Number(marketAsset.loanAsset.decimals ?? 18)
             )
           ) * effectivePrice,
           2
@@ -193,14 +201,14 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
       : `${Number(
           formatUnits(
             simulationSeries.initialLiquidity,
-            marketAsset.loanAsset.decimals || 18
+            Number(marketAsset.loanAsset.decimals ?? 18)
           )
         ).toFixed(2)} ${marketAsset.loanAsset.symbol || ""}`
     : "Loading...";
 
   // Custom X-axis tick component with percentage and USD values (only for 10% intervals)
-  const CustomXAxisTick = ({ x, y, payload }: any) => {
-    const data = chartData.find(d => d.percentage === payload.value && d.showTick);
+  const CustomXAxisTick = ({ x = 0, y = 0, payload = { value: 0 } }: { x?: number; y?: number; payload?: { value: number } }) => {
+    const data = chartData.find(d => d.percentage === payload?.value && d.showTick);
     if (!data) return null;
 
     return (
@@ -232,7 +240,7 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
   };
 
   // Custom tooltip component
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: typeof chartData[number] }> }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
@@ -345,7 +353,7 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
               fill="url(#blueGradient)"
               stroke="#5792FF"
               strokeWidth={2}
-              dot={(props: any) => {
+              dot={(props: { cx: number; cy: number; index: number; payload?: { percentage: number } }) => {
                 const data = chartData.find(d => d.percentage === props.payload?.percentage);
                 if (!data?.showDot) {
                   return <g key={`dot-empty-${props.index}`} />;

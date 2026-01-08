@@ -354,7 +354,19 @@ async function fetchMarketMetricsFromAPI(marketId: MarketId, chainId: number) {
     }),
   });
 
-  const data: any = await response.json();
+  interface MarketAPIData {
+    state: { utilization: number; liquidityAssets: string };
+    reallocatableLiquidityAssets: string;
+    loanAsset: { decimals: number; priceUsd: number; symbol: string; address: string };
+    collateralAsset: { address: string; decimals: number; symbol: string };
+    lltv: string;
+    publicAllocatorSharedLiquidity: Array<{
+      assets: string;
+      vault: { address: string; name?: string };
+      allocationMarket: AllocationMarket;
+    }>;
+  }
+  const data = await response.json() as { data?: { marketByUniqueKey?: MarketAPIData } };
   const marketData = data?.data?.marketByUniqueKey;
 
   if (!marketData) throw new Error("Market data not found");
@@ -373,11 +385,11 @@ async function fetchMarketMetricsFromAPI(marketId: MarketId, chainId: number) {
     symbol: marketData.loanAsset.symbol,
     loanAsset: marketData.loanAsset,
     collateralAsset: marketData.collateralAsset,
-    lltv: marketData.lltv,
+    lltv: BigInt(marketData.lltv),
     publicAllocatorSharedLiquidity:
-      marketData.publicAllocatorSharedLiquidity.map((item: any) => ({
+      marketData.publicAllocatorSharedLiquidity.map((item) => ({
         assets: item.assets,
-        vault: item.vault,
+        vault: { address: item.vault.address, name: item.vault.name || item.vault.address },
         allocationMarket: item.allocationMarket,
       })),
   };
@@ -613,7 +625,7 @@ export async function compareAndReallocate(
 
     if (needsReallocation) {
       // Calculate required assets for target utilization
-      let requiredAssets =
+      const requiredAssets =
         MathLib.wDivDown(newTotalBorrowAssets, supplyTargetUtilization) -
         newTotalSupplyAssets;
 

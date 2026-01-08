@@ -115,7 +115,7 @@ export default function TransactionSenderV2({
 
       // 2. Fetch real simulation state using LiquidityLoader
       const { client } = await initializeClient(networkId);
-      const loader = new LiquidityLoader(client as any, {
+      const loader = new LiquidityLoader(client as ConstructorParameters<typeof LiquidityLoader>[0], {
         maxWithdrawalUtilization: {},
         defaultMaxWithdrawalUtilization: parseEther("1"),
       });
@@ -130,14 +130,8 @@ export default function TransactionSenderV2({
         )
       ];
       
-      // Fetch the state
-      let fetchResult;
-      if (allMarketIds.length === 1) {
-        fetchResult = await loader.fetch(allMarketIds[0]);
-      } else {
-        const [first, ...rest] = allMarketIds;
-        fetchResult = await (loader.fetch as any)(first, ...rest);
-      }
+      // Fetch the state (fetch primary market)
+      const fetchResult = await loader.fetch(allMarketIds[0]);
       const { startState } = fetchResult;
 
       // 3. Prepare the state with user data

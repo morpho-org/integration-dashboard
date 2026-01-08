@@ -321,7 +321,7 @@ export async function checkIfSafeBatch(
   client: PublicClient,
   addresses: string[]
 ) {
-  const results: { [key: string]: any } = {};
+  const results: { [key: string]: { isSafe: boolean; owners?: string[]; threshold?: string } } = {};
   const BATCH_SIZE = 2;
   const DELAY_BETWEEN_BATCHES = 1000;
 
@@ -375,10 +375,10 @@ export async function checkIfSafeBatch(
                 address,
                 {
                   isSafe,
-                  ...(isSafe ? { owners, threshold } : {}),
+                  ...(isSafe ? { owners: [...(owners as string[])], threshold: (threshold as bigint).toString() } : {}),
                 },
               ];
-            } catch (error) {
+            } catch {
               // If multicall fails, it's not a Safe contract
               return [address, { isSafe: false }];
             }
@@ -391,7 +391,7 @@ export async function checkIfSafeBatch(
 
     // Add batch results
     batchResults.forEach((item) => {
-      const [address, result] = item as [string, any];
+      const [address, result] = item as [string, { isSafe: boolean; owners?: string[]; threshold?: string }];
       results[address] = result;
     });
 

@@ -17,4 +17,5 @@ export const config = getDefaultConfig({
     stable,
     ...(process.env.NEXT_PUBLIC_ENABLE_TESTNETS === "true" ? [sepolia] : []),
   ],
+  ssr: true,
 });

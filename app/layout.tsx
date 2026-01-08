@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import "./globals.css";
 import { ClientProviders } from "./client-providers";
 
@@ -15,7 +16,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ClientProviders>{children}</ClientProviders>
+        <NuqsAdapter>
+          <ClientProviders>{children}</ClientProviders>
+        </NuqsAdapter>
       </body>
     </html>
   );

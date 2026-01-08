@@ -138,8 +138,8 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
   const [isLoadingMarketId, setIsLoadingMarketId] = useState<boolean>(false);
   const [marketIdTouched, setMarketIdTouched] = useState<boolean>(false);
   const [marketAsset, setMarketAsset] = useState<{
-    loanAsset: any;
-    collateralAsset: any;
+    loanAsset: { address: string; decimals?: bigint; symbol?: string; priceUsd?: number };
+    collateralAsset: { address: string; decimals?: bigint; symbol?: string; priceUsd?: number };
   } | null>(null);
   const [simulationSeries, setSimulationSeries] = useState<{
     percentages: number[];
@@ -476,7 +476,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
       const availableAmount = Number(
         formatUnits(
           (simulationSeries.initialLiquidity * 999n) / 1000n,
-          marketAsset.loanAsset.decimals || 18
+          Number(marketAsset.loanAsset.decimals ?? 18)
         )
       ).toFixed(0);
       setInputs((prev) => ({
@@ -512,7 +512,8 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
       } else if (inputs.requestedLiquidityType === "usd") {
         if (!marketAsset) throw new Error("Market asset data not loaded. Please try again.");
         const usdValue = Number(inputs.requestedLiquidityUsd.replace(/,/g, ""));
-        const priceUsd = marketAsset.loanAsset.priceUsd;
+        const priceUsd = marketAsset.loanAsset.priceUsd ?? 0;
+        if (priceUsd === 0) throw new Error("Price data not available for this asset.");
         const nativeAmount = (usdValue / priceUsd).toFixed(0);
         liquidityValue = BigInt(nativeAmount);
       } else {
@@ -603,10 +604,14 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
                           <button
                             onClick={() => handleSwitchNetwork(marketIdSuggestedNetwork)}
                             disabled={isNetworkStabilizing}
-                            className={`w-full py-1.5 px-2 ${isNetworkStabilizing ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'} text-white text-xs font-semibold rounded-md transition-colors duration-200 flex items-center justify-center`}
+                            className={[
+                              "w-full py-1.5 px-2 text-white text-xs font-semibold rounded-md",
+                              "transition-colors duration-200 flex items-center justify-center",
+                              isNetworkStabilizing ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700",
+                            ].join(" ")}
                           >
                             {isNetworkStabilizing ? (
-                              <span>Switching...</span>
+                              "Switching..."
                             ) : (
                               <>
                                 <span className="mr-1">Switch to</span>
@@ -668,7 +673,7 @@ const ManualReallocationPage: React.FC<ManualReallocationPageProps> = ({
 
                 {showComputePrompt && (
                   <div className="text-yellow-500 text-xs text-center animate-fade-in mt-2">
-                    ⚠️ Click "Compute Reallocation" to see the results
+                    ⚠️ Click &quot;Compute Reallocation&quot; to see the results
                   </div>
                 )}
 
