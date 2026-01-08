@@ -206,6 +206,59 @@ const urlKeys = {
   additionalInsuranceCost: "exit",
 };
 
+// How It Works expandable helper - subtle educational component
+const HowItWorks = () => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="mb-4 pb-3 border-b border-gray-100">
+      <div
+        className="flex items-center justify-between cursor-pointer group"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <span className="text-xs text-gray-500 group-hover:text-gray-600 transition-colors">
+          How does this work?
+        </span>
+        <span className="text-xs text-gray-400 group-hover:text-gray-500 transition-colors">
+          {isExpanded ? "Hide" : "Learn"}
+        </span>
+      </div>
+      <div
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+          isExpanded ? "max-h-96 opacity-100 mt-3" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="text-xs text-gray-500 space-y-2 bg-gray-50 rounded-md p-3">
+          <p className="font-medium text-gray-600">What is looping?</p>
+          <p>
+            Looping amplifies your yield by repeatedly borrowing against your
+            collateral to buy more of the same asset. For example, 8x leverage
+            means your $1M becomes $8M in exposure.
+          </p>
+          <p className="font-medium text-gray-600 pt-1">What to expect</p>
+          <ul className="list-disc list-inside space-y-1 text-gray-500">
+            <li>
+              <span className="text-green-600 font-medium">Loop ROE</span> — your
+              net annualized return
+            </li>
+            <li>
+              <span className="text-blue-600 font-medium">Risk Metrics</span> —
+              how much price can drop before liquidation
+            </li>
+            <li>
+              <span className="text-orange-600 font-medium">Unwind</span> — what
+              happens if you exit during a drop
+            </li>
+          </ul>
+          <p className="text-gray-400 pt-1 italic">
+            Higher leverage = higher returns but less room for error.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Metric display component
 const Metric = ({
   label,
@@ -322,6 +375,9 @@ const LoopingCalculatorPage: React.FC = () => {
           <div className="w-full lg:w-1/3">
             <SimpleCard title="Input Parameters">
               <div className="space-y-4">
+                {/* How It Works - Subtle educational helper */}
+                <HowItWorks />
+
                 {/* Slippage Section - Greyed out by default */}
                 <div className="border-b border-gray-200 pb-3">
                   <div
