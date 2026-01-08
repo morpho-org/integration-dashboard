@@ -89,7 +89,7 @@ function calculateMaxLeverageExposure(
   // Note: J14 = C14 - I4 in Excel (same formula as I14 when insurance is consistent)
   const rwaPurchase = capitalDeposited - insuranceCost; // J14
 
-  // Total debt at LTV cap: RWA * ((1/(1-LTV_cap)) - 1)
+  // Total debt at LTV cap: Collateral * ((1/(1-LTV_cap)) - 1)
   // At 90% LTV cap: multiplier = (1/0.1) - 1 = 9
   const totalDebt = rwaPurchase * (1 / (1 - ltvCap) - 1); // K14
 

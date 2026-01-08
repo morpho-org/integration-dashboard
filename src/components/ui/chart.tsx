@@ -18,6 +18,15 @@ export type ChartConfig = {
   )
 }
 
+type ChartPayloadItem = {
+  name?: string
+  value?: number
+  dataKey?: string
+  color?: string
+  payload?: Record<string, unknown>
+  [key: string]: unknown
+}
+
 type ChartContextProps = {
   config: ChartConfig
 }
@@ -120,15 +129,15 @@ function ChartTooltipContent({
   labelKey,
 }: {
   active?: boolean
-  payload?: any[]
-  label?: any
+  payload?: Record<string, unknown>[]
+  label?: React.ReactNode
   className?: string
   indicator?: "line" | "dot" | "dashed"
   hideLabel?: boolean
   hideIndicator?: boolean
-  labelFormatter?: (value: any, payload: any[]) => React.ReactNode
+  labelFormatter?: (value: React.ReactNode, payload: Record<string, unknown>[]) => React.ReactNode
   labelClassName?: string
-  formatter?: (value: any, name: string, item: any, index: number, payload: any) => React.ReactNode
+  formatter?: (value: unknown, name: string, item: Record<string, unknown>, index: number, payload: Record<string, unknown>) => React.ReactNode
   color?: string
   nameKey?: string
   labelKey?: string
@@ -186,7 +195,7 @@ function ChartTooltipContent({
     >
       {!nestLabel ? tooltipLabel : null}
       <div className="grid gap-1.5">
-        {payload.map((item: any, index: number) => {
+        {payload.map((item: ChartPayloadItem, index: number) => {
           const key = `${nameKey || item.name || item.dataKey || "value"}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
           const indicatorColor = color || item.payload?.fill || item.color
@@ -200,7 +209,7 @@ function ChartTooltipContent({
               )}
             >
               {formatter && item?.value !== undefined && item.name ? (
-                formatter(item.value, item.name, item, index, item.payload)
+                formatter(item.value, item.name, item, index, item.payload ?? {})
               ) : (
                 <>
                   {itemConfig?.icon ? (
@@ -266,7 +275,7 @@ function ChartLegendContent({
 }: {
   className?: string
   hideIcon?: boolean
-  payload?: any[]
+  payload?: Record<string, unknown>[]
   verticalAlign?: "top" | "bottom"
   nameKey?: string
 }) {
@@ -284,13 +293,13 @@ function ChartLegendContent({
         className
       )}
     >
-      {payload.map((item: any) => {
+      {payload.map((item: ChartPayloadItem) => {
         const key = `${nameKey || item.dataKey || "value"}`
         const itemConfig = getPayloadConfigFromPayload(config, item, key)
 
         return (
           <div
-            key={item.value}
+            key={item.dataKey || item.name}
             className={cn(
               "[&>svg]:text-muted-foreground flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3"
             )}

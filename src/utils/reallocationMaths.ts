@@ -418,7 +418,7 @@ const computeToSupplyReallocate = (
   toSupply = min(toSupply, vault.flowCaps[enabledMarketId].maxIn);
 
   if (toSupply > 0n) {
-    let usdValue =
+    const usdValue =
       Number(formatUnits(toSupply, Number(vault.underlyingAsset.decimals))) *
       vault.underlyingAsset.priceUsd;
     if (usdValue > REALLOCATION_USD_THRESHOLD)
@@ -445,7 +445,7 @@ const computeToWithdrawReallocate = (
   toWithdraw = min(toWithdraw, vault.flowCaps[enabledMarketId].maxOut);
 
   if (toWithdraw > 0n) {
-    let usdValue =
+    const usdValue =
       Number(formatUnits(toWithdraw, Number(vault.underlyingAsset.decimals))) *
       vault.underlyingAsset.priceUsd;
     if (usdValue > REALLOCATION_USD_THRESHOLD)

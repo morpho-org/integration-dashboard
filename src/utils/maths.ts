@@ -286,7 +286,7 @@ const computeReallocationData = (
     100 + REALLOCATION_DIST_THRESHOLD
   );
 
-  let reallocationData = {
+  const reallocationData = {
     toSupply: 0n,
     toWithdraw: 0n,
     toBorrow: 0n,

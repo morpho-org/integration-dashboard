@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useQueryStates, parseAsFloat, parseAsInteger } from "nuqs";
 import {
   AreaChart,
   Area,
@@ -172,6 +173,39 @@ const formatPercent = (value: number, decimals: number = 2): string => {
   return `${(value * 100).toFixed(decimals)}%`;
 };
 
+// Custom parser for percentage values (URL stores as whole numbers, app uses decimals)
+// e.g., URL "5" -> app 0.05, app 0.05 -> URL "5"
+const parseAsPercent = (defaultValue: number) =>
+  parseAsFloat.withOptions({ clearOnDefault: true }).withDefault(defaultValue * 100);
+
+// URL parameter parsers with short keys for clean URLs
+const calculatorParsers = {
+  borrowRate: parseAsPercent(DEFAULT_INPUTS.borrowRate),
+  ltvCap: parseAsPercent(DEFAULT_INPUTS.ltvCap),
+  liquidationLTV: parseAsPercent(DEFAULT_INPUTS.liquidationLTV),
+  assetYield: parseAsPercent(DEFAULT_INPUTS.assetYield),
+  turnsOfLeverage: parseAsFloat.withOptions({ clearOnDefault: true }).withDefault(DEFAULT_INPUTS.turnsOfLeverage),
+  capitalDeposited: parseAsInteger.withOptions({ clearOnDefault: true }).withDefault(DEFAULT_INPUTS.capitalDeposited),
+  navDrop: parseAsPercent(DEFAULT_INPUTS.navDrop),
+  insuranceUpfrontCost: parseAsPercent(DEFAULT_INPUTS.insuranceUpfrontCost),
+  coverageDurationDays: parseAsInteger.withOptions({ clearOnDefault: true }).withDefault(DEFAULT_INPUTS.coverageDurationDays),
+  additionalInsuranceCost: parseAsPercent(DEFAULT_INPUTS.additionalInsuranceCost),
+};
+
+// URL keys mapping - short keys for cleaner URLs
+const urlKeys = {
+  borrowRate: "br",
+  ltvCap: "ltv",
+  liquidationLTV: "lltv",
+  assetYield: "ay",
+  turnsOfLeverage: "lev",
+  capitalDeposited: "cap",
+  navDrop: "nav",
+  insuranceUpfrontCost: "entry",
+  coverageDurationDays: "days",
+  additionalInsuranceCost: "exit",
+};
+
 // Metric display component
 const Metric = ({
   label,
@@ -210,15 +244,49 @@ const Metric = ({
 };
 
 const LoopingCalculatorPage: React.FC = () => {
-  const [inputs, setInputs] = useState<LoopingCalculatorInputs>(DEFAULT_INPUTS);
-  const [showSlippage, setShowSlippage] = useState(false);
+  // Use nuqs for URL-synced state management
+  // URL stores percentages as whole numbers (5 = 5%), convert to decimals for internal use
+  const [urlState, setUrlState] = useQueryStates(calculatorParsers, { urlKeys });
 
-  // Update a single input field
+  // Convert URL state (percentages as whole numbers) to internal format (decimals)
+  const inputs: LoopingCalculatorInputs = useMemo(() => ({
+    borrowRate: urlState.borrowRate / 100,
+    ltvCap: urlState.ltvCap / 100,
+    liquidationLTV: urlState.liquidationLTV / 100,
+    assetYield: urlState.assetYield / 100,
+    turnsOfLeverage: urlState.turnsOfLeverage,
+    capitalDeposited: urlState.capitalDeposited,
+    navDrop: urlState.navDrop / 100,
+    insuranceUpfrontCost: urlState.insuranceUpfrontCost / 100,
+    coverageDurationDays: urlState.coverageDurationDays,
+    additionalInsuranceCost: urlState.additionalInsuranceCost / 100,
+  }), [urlState]);
+
+  // Auto-show slippage section if any slippage params are non-default
+  const [showSlippage, setShowSlippage] = useState(() => {
+    return (
+      urlState.insuranceUpfrontCost !== DEFAULT_INPUTS.insuranceUpfrontCost * 100 ||
+      urlState.additionalInsuranceCost !== DEFAULT_INPUTS.additionalInsuranceCost * 100 ||
+      urlState.coverageDurationDays !== DEFAULT_INPUTS.coverageDurationDays
+    );
+  });
+
+  // Update a single input field (converts decimal to URL percentage format)
   const updateInput = (
     field: keyof LoopingCalculatorInputs,
     value: number
   ) => {
-    setInputs((prev) => ({ ...prev, [field]: value }));
+    const percentFields = [
+      "borrowRate", "ltvCap", "liquidationLTV", "assetYield",
+      "navDrop", "insuranceUpfrontCost", "additionalInsuranceCost"
+    ];
+
+    // Convert decimals to percentage for URL storage
+    const urlValue = percentFields.includes(field)
+      ? Number((value * 100).toFixed(2))  // e.g., 0.05 -> 5
+      : value;
+
+    setUrlState({ [field]: urlValue });
   };
 
   // Validation error
@@ -399,7 +467,7 @@ const LoopingCalculatorPage: React.FC = () => {
                       label="Notional Exposure"
                       value={formatCurrency(results.notionalExposure)}
                       subValue={`${inputs.turnsOfLeverage}x leverage`}
-                      tooltip="Total value of assets purchased (Initial RWA + Additional RWA from borrowed funds). Equals Capital x Turns of Leverage."
+                      tooltip="Total value of assets purchased (Initial Collateral + Additional Collateral from borrowed funds). Equals Capital x Turns of Leverage."
                     />
                     <Metric
                       label="Target LTV"
@@ -665,8 +733,8 @@ const LoopingCalculatorPage: React.FC = () => {
                           </tr>
                           <tr>
                             <td className="py-1.5 text-gray-500">
-                              RWA Purchase
-                              <Tooltip content="Real World Asset purchase from initial capital. Formula: Principal - Slippage Cost." />
+                              Collateral Purchase
+                              <Tooltip content="Collateral purchase from initial capital. Formula: Principal - Slippage Cost." />
                             </td>
                             <td className="py-1.5 text-right font-medium">
                               {formatCurrency(
@@ -677,7 +745,7 @@ const LoopingCalculatorPage: React.FC = () => {
                           <tr>
                             <td className="py-1.5 text-gray-500">
                               Total Debt
-                              <Tooltip content="Amount borrowed. Formula: RWA Purchase x (Leverage - 1). At 8x leverage, you borrow 7x your initial RWA." />
+                              <Tooltip content="Amount borrowed. Formula: Collateral Purchase x (Leverage - 1). At 8x leverage, you borrow 7x your initial Collateral." />
                             </td>
                             <td className="py-1.5 text-right font-medium text-red-600">
                               {formatCurrency(results.targetLeverage.totalDebt)}
@@ -685,8 +753,8 @@ const LoopingCalculatorPage: React.FC = () => {
                           </tr>
                           <tr>
                             <td className="py-1.5 text-gray-500">
-                              Additional RWA
-                              <Tooltip content="RWA purchased with borrowed funds. Formula: Total Debt - Slippage on Debt." />
+                              Additional Collateral
+                              <Tooltip content="Collateral purchased with borrowed funds. Formula: Total Debt - Slippage on Debt." />
                             </td>
                             <td className="py-1.5 text-right font-medium">
                               {formatCurrency(
@@ -697,7 +765,7 @@ const LoopingCalculatorPage: React.FC = () => {
                           <tr className="bg-blue-50">
                             <td className="py-1.5 font-medium">
                               Total Exposure
-                              <Tooltip content="Sum of all RWA (Initial + Additional). This is your total asset position that earns yield." />
+                              <Tooltip content="Sum of all Collateral (Initial + Additional). This is your total asset position that earns yield." />
                             </td>
                             <td className="py-1.5 text-right font-bold text-blue-600">
                               {formatCurrency(
@@ -747,7 +815,7 @@ const LoopingCalculatorPage: React.FC = () => {
                           </tr>
                           <tr>
                             <td className="py-1.5 text-gray-500">
-                              RWA Purchase
+                              Collateral Purchase
                             </td>
                             <td className="py-1.5 text-right font-medium">
                               {formatCurrency(results.maxLeverage.rwaPurchase)}
@@ -756,7 +824,7 @@ const LoopingCalculatorPage: React.FC = () => {
                           <tr>
                             <td className="py-1.5 text-gray-500">
                               Total Debt
-                              <Tooltip content="At LTV Cap: RWA x ((1/(1-LTV Cap)) - 1). At 90% cap, debt = RWA x 9." />
+                              <Tooltip content="At LTV Cap: Collateral x ((1/(1-LTV Cap)) - 1). At 90% cap, debt = Collateral x 9." />
                             </td>
                             <td className="py-1.5 text-right font-medium text-red-600">
                               {formatCurrency(results.maxLeverage.totalDebt)}
@@ -764,7 +832,7 @@ const LoopingCalculatorPage: React.FC = () => {
                           </tr>
                           <tr>
                             <td className="py-1.5 text-gray-500">
-                              Additional RWA
+                              Additional Collateral
                             </td>
                             <td className="py-1.5 text-right font-medium">
                               {formatCurrency(

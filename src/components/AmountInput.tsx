@@ -27,6 +27,7 @@ const AmountInput: React.FC<AmountInputProps> = ({
   onChange,
   maxValue,
   symbol,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   decimals = 18,
   displayDecimals = 2,
   className = "",
@@ -37,20 +38,22 @@ const AmountInput: React.FC<AmountInputProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [cursorPosition, setCursorPosition] = useState<number | null>(null);
 
-  // Sync internal value with external value changes
+  // Sync internal value with external value changes (legitimate sync pattern)
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isFocused) {
       setInternalValue(value);
     }
   }, [value, isFocused]);
 
-  // Restore cursor position after value updates
+  // Restore cursor position after value updates (one-time effect pattern)
   useEffect(() => {
     if (cursorPosition !== null && inputRef.current) {
       inputRef.current.setSelectionRange(cursorPosition, cursorPosition);
       setCursorPosition(null);
     }
   }, [cursorPosition]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const formatDisplayValue = (val: string): string => {
     if (!val || val === '') return '0';
