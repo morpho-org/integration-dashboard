@@ -211,7 +211,7 @@ const Metric = ({
 
 const LoopingCalculatorPage: React.FC = () => {
   const [inputs, setInputs] = useState<LoopingCalculatorInputs>(DEFAULT_INPUTS);
-  const [showInsurance, setShowInsurance] = useState(false);
+  const [showSlippage, setShowSlippage] = useState(false);
 
   // Update a single input field
   const updateInput = (
@@ -254,43 +254,43 @@ const LoopingCalculatorPage: React.FC = () => {
           <div className="w-full lg:w-1/3">
             <SimpleCard title="Input Parameters">
               <div className="space-y-4">
-                {/* Insurance Section - Greyed out by default */}
+                {/* Slippage Section - Greyed out by default */}
                 <div className="border-b border-gray-200 pb-3">
                   <div
                     className="flex items-center justify-between cursor-pointer mb-2"
-                    onClick={() => setShowInsurance(!showInsurance)}
+                    onClick={() => setShowSlippage(!showSlippage)}
                   >
                     <span className="text-m font-medium text-gray-500">
-                      Insurance (Optional)
+                      Slippage (Optional)
                     </span>
                     <span className="text-xs text-gray-400">
-                      {showInsurance ? "Hide" : "Show"}
+                      {showSlippage ? "Hide" : "Show"}
                     </span>
                   </div>
-                  {showInsurance && (
+                  {showSlippage && (
                     <div className="space-y-3 mt-3">
                       <PercentageInput
-                        label="Upfront Cost (Annualized)"
+                        label="Entry Cost (Annualized)"
                         value={inputs.insuranceUpfrontCost}
                         onChange={(v) => updateInput("insuranceUpfrontCost", v)}
-                        tooltip="Annual cost of insurance, paid upfront"
+                        tooltip="Annual cost of entry slippage, paid upfront"
                       />
                       <InputField
-                        label="Coverage Duration"
+                        label="Trade Duration"
                         value={inputs.coverageDurationDays}
                         onChange={(v) => updateInput("coverageDurationDays", v)}
                         suffix="days"
                         min={1}
                         max={365}
-                        tooltip="Duration of coverage period"
+                        tooltip="Duration of trade period"
                       />
                       <PercentageInput
-                        label="Additional Cost / Swap Haircut"
+                        label="Exit Cost"
                         value={inputs.additionalInsuranceCost}
                         onChange={(v) =>
                           updateInput("additionalInsuranceCost", v)
                         }
-                        tooltip="Additional APY cost or exit fee"
+                        tooltip="Exit slippage or swap haircut"
                       />
                     </div>
                   )}
@@ -393,7 +393,7 @@ const LoopingCalculatorPage: React.FC = () => {
                       positive={results.loopROE > 0}
                       negative={results.loopROE < 0}
                       large
-                      tooltip="Return on Equity: (Net Earnings / Capital) x Terms per Year. Net Earnings = Gross Yield - Debt Cost - Insurance."
+                      tooltip="Return on Equity: (Net Earnings / Capital) x Terms per Year. Net Earnings = Gross Yield - Debt Cost - Slippage."
                     />
                     <Metric
                       label="Notional Exposure"
@@ -439,8 +439,8 @@ const LoopingCalculatorPage: React.FC = () => {
                       </div>
                       <div>
                         <p className="text-gray-500">
-                          Insurance Cost
-                          <Tooltip content="Present-value adjusted insurance premium on both initial capital and borrowed funds." />
+                          Slippage Cost
+                          <Tooltip content="Present-value adjusted slippage cost on both initial capital and borrowed funds." />
                         </p>
                         <p className="text-red-600 font-semibold">
                           -{formatCurrency(results.netReturn.totalInsuranceCost)}
@@ -543,7 +543,7 @@ const LoopingCalculatorPage: React.FC = () => {
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-gray-500">
                             NAV drop to trigger LLTV
-                            <Tooltip content="LLTV = Liquidation LTV. Formula: 1 - (Debt + Interest + Insurance) / (LLTV x Exposure x (1 - Exit Fee)). How much asset price can fall before liquidation." />
+                            <Tooltip content="LLTV = Liquidation LTV. Formula: 1 - (Debt + Interest + Slippage) / (LLTV x Exposure x (1 - Exit Fee)). How much asset price can fall before liquidation." />
                           </span>
                           <span
                             className={`text-m font-semibold ${
@@ -562,7 +562,7 @@ const LoopingCalculatorPage: React.FC = () => {
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-gray-500">
                             NAV drop to bad debt
-                            <Tooltip content="Formula: 1 - (Debt + Interest + Insurance) / (Exposure x (1 - Exit Fee)). How much asset price can fall before collateral is worth less than debt." />
+                            <Tooltip content="Formula: 1 - (Debt + Interest + Slippage) / (Exposure x (1 - Exit Fee)). How much asset price can fall before collateral is worth less than debt." />
                           </span>
                           <span
                             className={`text-m font-semibold ${
@@ -653,8 +653,8 @@ const LoopingCalculatorPage: React.FC = () => {
                           </tr>
                           <tr>
                             <td className="py-1.5 text-gray-500">
-                              Insurance Cost
-                              <Tooltip content="Capital x (Insurance Rate / Terms per Year), adjusted for present value. Deducted from principal." />
+                              Slippage Cost
+                              <Tooltip content="Capital x (Entry Cost / Terms per Year), adjusted for present value. Deducted from principal." />
                             </td>
                             <td className="py-1.5 text-right font-medium text-red-600">
                               -
@@ -666,7 +666,7 @@ const LoopingCalculatorPage: React.FC = () => {
                           <tr>
                             <td className="py-1.5 text-gray-500">
                               RWA Purchase
-                              <Tooltip content="Real World Asset purchase from initial capital. Formula: Principal - Insurance Cost." />
+                              <Tooltip content="Real World Asset purchase from initial capital. Formula: Principal - Slippage Cost." />
                             </td>
                             <td className="py-1.5 text-right font-medium">
                               {formatCurrency(
@@ -686,7 +686,7 @@ const LoopingCalculatorPage: React.FC = () => {
                           <tr>
                             <td className="py-1.5 text-gray-500">
                               Additional RWA
-                              <Tooltip content="RWA purchased with borrowed funds. Formula: Total Debt - Insurance on Debt." />
+                              <Tooltip content="RWA purchased with borrowed funds. Formula: Total Debt - Slippage on Debt." />
                             </td>
                             <td className="py-1.5 text-right font-medium">
                               {formatCurrency(
@@ -738,7 +738,7 @@ const LoopingCalculatorPage: React.FC = () => {
                           </tr>
                           <tr>
                             <td className="py-1.5 text-gray-500">
-                              Insurance Cost
+                              Slippage Cost
                             </td>
                             <td className="py-1.5 text-right font-medium text-red-600">
                               -
@@ -847,7 +847,7 @@ const LoopingCalculatorPage: React.FC = () => {
                       <div>
                         <p className="text-gray-500">
                           Cost to Exit
-                          <Tooltip content="Swap haircut / exit fee: Exposure After Drop x Additional Insurance Cost (exit fee %)." />
+                          <Tooltip content="Swap haircut / exit fee: Exposure After Drop x Exit Cost (exit fee %)." />
                         </p>
                         <p className="font-medium text-red-600">
                           -{formatCurrency(results.unwind.costToExit)}
