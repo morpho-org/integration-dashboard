@@ -62,10 +62,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // During SSR/prerendering, just render children without providers
-  // The wallet-dependent components won't render until client-side
+  // Show minimal loading state while wagmi config loads
+  // Don't render children without providers - components may use wagmi hooks
   if (!mounted || !wagmiConfig) {
-    return <>{children}</>;
+    return (
+      <div className="min-h-screen bg-[#F9FAFB]">
+        <div className="w-full px-4 py-2">
+          <div className="h-10 bg-gray-200 rounded-lg animate-pulse" />
+        </div>
+      </div>
+    );
   }
 
   return (
