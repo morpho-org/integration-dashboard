@@ -483,7 +483,7 @@ const LoopingCalculatorPage: React.FC = () => {
                 {/* Unwind Scenario Section */}
                 <div>
                   <span className="text-m font-medium text-gray-700 block mb-3">
-                    Unwind Scenario
+                    Unwind potential scenario
                   </span>
                   <PercentageInput
                     label="NAV Drop"
@@ -508,7 +508,7 @@ const LoopingCalculatorPage: React.FC = () => {
             {results && (
               <>
                 {/* Main ROE Card */}
-                <SimpleCard title="Loop Returns">
+                <SimpleCard title="Loop potential returns">
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <Metric
                       label="Loop ROE (Annualized)"
@@ -919,7 +919,7 @@ const LoopingCalculatorPage: React.FC = () => {
                 </SimpleCard>
 
                 {/* Unwind Scenario */}
-                <SimpleCard title={`Unwind Scenario (${formatPercent(inputs.navDrop)} NAV Drop)`}>
+                <SimpleCard title={`Unwind potential scenario (${formatPercent(inputs.navDrop)} NAV Drop)`}>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                     <Metric
                       label="Current LTV"
