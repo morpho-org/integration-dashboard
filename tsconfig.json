@@ -26,6 +26,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@morpho-org/blue-sdk-viem/lib/augment": [
+        "./node_modules/@morpho-org/blue-sdk-viem/lib/esm/augment/index.d.ts"
       ]
     }
   },

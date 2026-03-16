@@ -1,11 +1,5 @@
-"use client";
-
-import dynamic from "next/dynamic";
-
-// Dynamically import the client component with SSR disabled
-// This prevents WalletConnect from trying to access localStorage during build
-const HomeContent = dynamic(() => import("./HomeClient"), { ssr: false });
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return <HomeContent />;
+  redirect("/manual-reallocation");
 }

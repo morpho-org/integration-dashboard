@@ -34,7 +34,7 @@ import { fetchMarketTargets } from "../fetchers/fetchApiTargets";
 /**
  * The default target utilization above which the shared liquidity algorithm is triggered (scaled by WAD).
  */
-export const DEFAULT_SUPPLY_TARGET_UTILIZATION = 90_5000000000000000n;
+export const DEFAULT_SUPPLY_TARGET_UTILIZATION = 900000000000000000n;
 
 /**
  * Helper function to convert a number (decimal APY) to WAD-scaled bigint.
