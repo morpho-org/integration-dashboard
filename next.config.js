@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const path = require('path');
+
 const nextConfig = {
   reactStrictMode: true,
 
@@ -20,6 +22,11 @@ const nextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       'pino-pretty': false,
+      // blue-sdk-viem v4.5+ restricts subpath exports; alias the augment path
+      '@morpho-org/blue-sdk-viem/lib/augment': path.resolve(
+        __dirname,
+        'node_modules/@morpho-org/blue-sdk-viem/lib/esm/augment/index.js'
+      ),
     };
 
     return config;
