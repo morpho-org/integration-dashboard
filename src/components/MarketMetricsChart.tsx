@@ -353,9 +353,9 @@ const MarketMetricsChart: React.FC<MarketMetricsChartProps> = ({
               fill="url(#blueGradient)"
               stroke="#5792FF"
               strokeWidth={2}
-              dot={(props: { cx: number; cy: number; index: number; payload?: { percentage: number } }) => {
+              dot={(props) => {
                 const data = chartData.find(d => d.percentage === props.payload?.percentage);
-                if (!data?.showDot) {
+                if (!data?.showDot || props.cx == null || props.cy == null) {
                   return <g key={`dot-empty-${props.index}`} />;
                 }
                 return (

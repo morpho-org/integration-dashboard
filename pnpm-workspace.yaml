@@ -1,0 +1,13 @@
+minimumReleaseAge: 10080
+resolutionMode: time-based
+allowBuilds:
+  "bufferutil": true
+  "keccak": true
+  "sharp": true
+  "unrs-resolver": true
+  "utf-8-validate": true
+overrides:
+  "@coinbase/cdp-sdk>axios": "1.15.2"
+  "axios-retry>axios": "1.15.2"
+  "immer": "11.1.6"
+  "next>postcss": "8.5.14"

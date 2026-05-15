@@ -12,13 +12,13 @@ A Next.js dashboard for Morpho integration and manual reallocation operations.
 ### Installation
 
 ```bash
-yarn install
+npx -y pnpm@11.0.9 install
 ```
 
 ### Development
 
 ```bash
-yarn dev
+npx -y pnpm@11.0.9 run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
@@ -26,14 +26,14 @@ Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 ### Production Build
 
 ```bash
-yarn build
-yarn start
+npx -y pnpm@11.0.9 run build
+npx -y pnpm@11.0.9 run start
 ```
 
 ### Linting
 
 ```bash
-yarn lint
+npx -y pnpm@11.0.9 run lint
 ```
 
 ## Tech Stack
