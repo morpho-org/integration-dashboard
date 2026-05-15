@@ -615,10 +615,10 @@ const LoopingCalculatorPage: React.FC = () => {
                           stroke="#9ca3af"
                         />
                         <RechartsTooltip
-                          formatter={(value: number) => [
-                            `${value.toFixed(2)}%`,
-                            "ROE",
-                          ]}
+                          formatter={(value) => {
+                            const numericValue = typeof value === "number" ? value : Number(value ?? 0);
+                            return [`${numericValue.toFixed(2)}%`, "ROE"];
+                          }}
                           labelFormatter={(label) => `Leverage: ${label}x`}
                           contentStyle={{
                             fontSize: 12,
