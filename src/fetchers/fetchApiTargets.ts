@@ -8,7 +8,7 @@ query GetMarketTargets($chainId: Int!) {
   markets(where: { chainId_in: [$chainId] }, first: 1000) {
     items {
       id
-      uniqueKey
+      uniqueKey: marketId
       targetBorrowUtilization
       targetWithdrawUtilization
     }
@@ -16,7 +16,7 @@ query GetMarketTargets($chainId: Int!) {
   vaults(
     where: {
       chainId_in: [$chainId]
-      whitelisted: true
+      listed: true
     }
     first: 1000
   ) {

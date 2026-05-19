@@ -71,7 +71,7 @@ function wadToPercent(wad: bigint): number {
 const API_URL = "https://blue-api.morpho.org/graphql";
 const MARKET_QUERY = `
 query MarketByUniqueKeyReallocatable($uniqueKey: String!, $chainId: Int!) {
-  marketByUniqueKey(uniqueKey: $uniqueKey, chainId: $chainId) {
+  marketByUniqueKey: marketById(marketId: $uniqueKey, chainId: $chainId) {
     reallocatableLiquidityAssets
     publicAllocatorSharedLiquidity {
       assets
@@ -80,7 +80,7 @@ query MarketByUniqueKeyReallocatable($uniqueKey: String!, $chainId: Int!) {
         name
       }
       allocationMarket {
-        uniqueKey
+        uniqueKey: marketId
         targetBorrowUtilization
         targetWithdrawUtilization
         state {
