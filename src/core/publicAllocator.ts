@@ -259,7 +259,7 @@ export interface ReallocationResult {
 const API_URL = "https://blue-api.morpho.org/graphql";
 const MARKET_QUERY = `
 query MarketByUniqueKeyReallocatable($uniqueKey: String!, $chainId: Int!) {
-  marketByUniqueKey(uniqueKey: $uniqueKey, chainId: $chainId) {
+  marketByUniqueKey: marketById(marketId: $uniqueKey, chainId: $chainId) {
     reallocatableLiquidityAssets
     publicAllocatorSharedLiquidity {
       assets
@@ -275,7 +275,7 @@ query MarketByUniqueKeyReallocatable($uniqueKey: String!, $chainId: Int!) {
           supplyAssets
           borrowAssets
         } 
-        uniqueKey
+        uniqueKey: marketId
         collateralAsset {
           address
           symbol

@@ -226,8 +226,8 @@ export type MetaMorphoAPIData = {
   name: string;
   address: string;
   asset: Asset;
-  metadata: { curators: { name: string }[] };
   state: {
+    curators: { name: string }[];
     totalAssets: number;
     apy: number;
     netApy: number;

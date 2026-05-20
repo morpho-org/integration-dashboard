@@ -73,7 +73,7 @@ export const fetchMorphoVaultsAddresses = async (networkId: number) => {
       ) {
         items {
           address
-          whitelisted
+          whitelisted: listed
         }
       }
     }
@@ -130,13 +130,11 @@ export const fetchVaultData = async (
             symbol: string;
             name: string;
             address: string;
-            metadata: {
-              curators: { name: string }[];
-            };
             asset: Asset;
             allocators: { address: string }[];
             factory: { address: string };
             state: {
+              curators: { name: string }[];
               timelock: number;
               owner: string;
               curator: string;
@@ -171,11 +169,6 @@ export const fetchVaultData = async (
       symbol
       name
       address
-      metadata {
-        curators {
-          name
-        }
-      }
       asset {
         address
         priceUsd
@@ -189,6 +182,9 @@ export const fetchVaultData = async (
         address
       }
       state {
+        curators {
+          name
+        }
         timelock
         owner
         curator
@@ -203,7 +199,7 @@ export const fetchVaultData = async (
               symbol
             }
             lltv
-            uniqueKey
+            uniqueKey: marketId
           }
           supplyAssets
           supplyCap
@@ -230,8 +226,7 @@ export const fetchVaultData = async (
   }
 
   // Process curators and allocators with null checks
-  const curators =
-    vault.metadata?.curators?.map((curator) => curator.name) || [];
+  const curators = vault.state?.curators?.map((curator) => curator.name) || [];
   const allocators =
     vault.allocators?.map((allocator) => allocator.address) || [];
 
@@ -419,7 +414,7 @@ export const fetchSupplingVaultsData = async (
             fee
             allocation {
               market {
-                uniqueKey
+                uniqueKey: marketId
               }
               supplyAssets
               supplyCap
@@ -471,9 +466,9 @@ export const fetchMarketsWithWarnings = async (
 ): Promise<MarketWithWarning[]> => {
   const query = `
     query {
-    markets(where: { whitelisted: true, chainId_in: ${networkId}} ) {
+    markets(where: { listed: true, chainId_in: ${networkId}} ) {
       items {
-        uniqueKey
+        uniqueKey: marketId
         collateralAsset {
           symbol
         }
@@ -529,7 +524,7 @@ export const fetchMarketWithoutStrategyData = async (
     query {
     markets(where: {  uniqueKey_in: "${id}"} ) {
       items {
-        uniqueKey
+        uniqueKey: marketId
         collateralAsset {
           symbol
         }
