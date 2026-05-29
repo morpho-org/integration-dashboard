@@ -11,4 +11,4 @@ overrides:
   "immer": "11.1.6"
   "next>postcss": "8.5.14"
 patchedDependencies:
-  '@morpho-org/liquidity-sdk-viem@1.4.1': patches/@morpho-org__liquidity-sdk-viem@1.4.1.patch
+  '@morpho-org/liquidity-sdk-viem@2.0.1': patches/@morpho-org__liquidity-sdk-viem@2.0.1.patch

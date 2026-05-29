@@ -7,18 +7,21 @@ import {
     Market,
     MarketId,
     MarketParams,
-    MarketUtils,
-    MathLib
+    MathLib,
+    NATIVE_ADDRESS,
+    Position,
+    User
 } from "@morpho-org/blue-sdk";
 import "@morpho-org/blue-sdk-viem/lib/augment";
 import {
-    BundlerOperation, encodeBundle, InputBundlerOperation, populateBundle
+    InputBundlerOperation,
+    populateBundle,
+    simulateBundlerOperations
 } from "@morpho-org/bundler-sdk-viem";
 import { LiquidityLoader } from "@morpho-org/liquidity-sdk-viem";
-import { getLast, Time } from "@morpho-org/morpho-ts";
+import { getLast, values } from "@morpho-org/morpho-ts";
 import {
     produceImmutable,
-    PublicReallocation, type MaybeDraft,
     type SimulationState
 } from "@morpho-org/simulation-sdk";
 import {
@@ -29,12 +32,12 @@ import {
     parseEther
 } from "viem";
 import { getChainConfig } from "../config/chains";
-import { createProxyTransport } from "../utils/client";
 import { fetchMarketTargets } from "../fetchers/fetchApiTargets";
+import { createProxyTransport } from "../utils/client";
 /**
  * The default target utilization above which the shared liquidity algorithm is triggered (scaled by WAD).
  */
-export const DEFAULT_SUPPLY_TARGET_UTILIZATION = 900000000000000000n;
+export const DEFAULT_SUPPLY_TARGET_UTILIZATION = 905000000000000000n;
 
 /**
  * Helper function to convert a number (decimal APY) to WAD-scaled bigint.
@@ -83,65 +86,7 @@ function createHolding(
  * Helper function to create a native token holding
  */
 function createNativeHolding(user: Address, balance: bigint): Holding {
-  return createHolding(user, "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE", balance);
-}
-
-/**
- * Helper function to create a collateral token holding for user
- */
-function createCollateralHolding(user: Address, token: Address, balance: bigint): Holding {
-  return createHolding(user, token, balance, {
-    permit2Allowance: 0n,
-    permit2BundlerAmount: 0n,
-    permit2BundlerExpiration: 0n,
-    permit2BundlerNonce: 0n,
-  });
-}
-
-/**
- * Helper function to create reallocation operations using the modern bundler SDK
- */
-function createReallocationOperations(
-  userAddress: Address,
-  withdrawalsPerVault: { [vaultAddress: string]: WithdrawalDetails[] },
-  supplyMarketParams: MarketParams
-): BundlerOperation[] {
-  const operations: BundlerOperation[] = [];
-
-  // Sort withdrawals by market id for consistency
-  const filteredVaults = Object.keys(withdrawalsPerVault).filter(
-    (vaultAddress) =>
-      withdrawalsPerVault[vaultAddress].length > 0 &&
-      withdrawalsPerVault[vaultAddress].every(
-        (withdrawal) => withdrawal.amount > 0n
-      )
-  );
-
-  for (const vaultAddress of filteredVaults) {
-    const vaultWithdrawals = withdrawalsPerVault[vaultAddress];
-    // Sort withdrawals within each vault
-    vaultWithdrawals.sort((a, b) => (a.marketId > b.marketId ? 1 : -1));
-
-    operations.push({
-      type: "MetaMorpho_PublicReallocate",
-      sender: userAddress,
-      address: vaultAddress as Address,
-      args: {
-        withdrawals: vaultWithdrawals.map(withdrawal => ({
-          id: withdrawal.marketId,
-          assets: withdrawal.amount,
-        })),
-        supplyMarketId: supplyMarketParams.id,
-      },
-    });
-  }
-
-  return operations;
-}
-
-export interface VaultReallocation {
-  id: MarketId;
-  assets: bigint;
+  return createHolding(user, NATIVE_ADDRESS, balance);
 }
 
 export interface WithdrawalDetails {
@@ -403,372 +348,172 @@ async function fetchMarketData(loader: LiquidityLoader, marketId: MarketId) {
   };
 }
 
-function processReallocations(
-  withdrawals: PublicReallocation[],
-  requiredAssets: bigint
-): { [vault: Address]: VaultReallocation[] } {
-  const reallocations: { [vault: Address]: VaultReallocation[] } = {};
+const SIMULATION_USER_ADDRESS: Address = "0x7f7A70b5B584C4033CAfD52219a496Df9AFb1af7";
+const DEALT_AMOUNT = MathLib.MAX_UINT_160;
 
-  for (const { vault, id, assets } of withdrawals) {
-    // Initialize array for this vault if it doesn't exist
-    if (!reallocations[vault]) {
-      reallocations[vault] = [];
-    }
-
-    if (assets > requiredAssets) {
-      // If this withdrawal can fulfill all remaining required assets
-      reallocations[vault].push({
-        id,
-        assets: requiredAssets,
-      });
-      break;
-    } else {
-      // Add the full withdrawal amount and continue
-      reallocations[vault].push({
-        id,
-        assets,
-      });
-      requiredAssets -= assets;
-    }
-  }
-
-  return reallocations;
-}
-
-function simulateMarketStates(
-  rpcData: {
-    startState: SimulationState;
-    endState: MaybeDraft<SimulationState>;
-    withdrawals: PublicReallocation[];
-    targetBorrowUtilization: bigint;
-  },
-  marketId: MarketId,
-  requestedLiquidity: bigint,
-  reallocations: { [vault: Address]: VaultReallocation[] }
-): SimulationResults {
-  // Create a new simulation state based on initial state
-  const simulatedState = produceImmutable(rpcData.startState, (draft) => {
-    // Process each reallocation
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const [vault, vaultReallocations] of Object.entries(reallocations)) {
-      for (const reallocation of vaultReallocations) {
-        // Get source market
-        const sourceMarket = draft.getMarket(reallocation.id);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const initialSourceState = {
-          liquidity: sourceMarket.liquidity,
-          borrowApy: toWadBigInt(sourceMarket.borrowApy),
-          utilization: sourceMarket.utilization,
-        };
-
-        // Simulate withdrawal and capture new state
-        const withdrawResult = sourceMarket.withdraw(reallocation.assets, 0n);
-
-        // Replace market properties with new state
-        Object.assign(sourceMarket, withdrawResult.market);
-
-        // Get target market and track initial state
-        const targetMarket = draft.getMarket(marketId);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const initialTargetState = {
-          liquidity: targetMarket.liquidity,
-          borrowApy: toWadBigInt(targetMarket.borrowApy),
-          utilization: targetMarket.utilization,
-        };
-
-        // Simulate deposit and capture new state
-        const supplyResult = targetMarket.supply(reallocation.assets, 0n);
-
-        // Replace market properties with new state
-        Object.assign(targetMarket, supplyResult.market);
-      }
-    }
+function createUser(address: Address, isBundlerAuthorized = false): User {
+  return new User({
+    address,
+    isBundlerAuthorized,
+    morphoNonce: 0n,
   });
+}
 
-  // Get initial and final states for target market
-  const marketInitial = rpcData.startState.getMarket(marketId);
-  const marketPostReallocationSimulated = simulatedState.getMarket(marketId);
-  const reallocatedAmount =
-    marketPostReallocationSimulated.liquidity - marketInitial.liquidity;
+function createPosition(user: Address, marketId: MarketId): Position {
+  return new Position({
+    user,
+    marketId,
+    supplyShares: 0n,
+    borrowShares: 0n,
+    collateral: 0n,
+  });
+}
 
-  // Simulate borrow impact
-  const borrowAmount = MathLib.min(
-    requestedLiquidity,
-    marketPostReallocationSimulated.liquidity
+/**
+ * Seed the same minimum bundler-side simulation state vvrm-app relies on.
+ * LiquidityLoader provides markets/vaults/flow caps; this fills the synthetic
+ * user and bundler holdings needed to run a potential borrow through the SDK.
+ */
+function seedBundlerState(state: SimulationState): SimulationState {
+  const { bundler3 } = getChainAddresses(state.chainId);
+
+  state.users[bundler3.generalAdapter1] ??= createUser(bundler3.generalAdapter1);
+
+  for (const token of values(state.tokens)) {
+    if (!token) continue;
+
+    (state.holdings[bundler3.generalAdapter1] ??= {})[token.address] ??=
+      createHolding(bundler3.generalAdapter1, token.address, 0n);
+  }
+
+  (state.holdings[bundler3.generalAdapter1] ??= {})[NATIVE_ADDRESS] ??=
+    createNativeHolding(bundler3.generalAdapter1, 0n);
+
+  (state.holdings[bundler3.bundler3] ??= {})[NATIVE_ADDRESS] ??= createNativeHolding(
+    bundler3.bundler3,
+    0n
   );
-  const borrowResult = marketPostReallocationSimulated.borrow(
-    borrowAmount,
-    0n,
-    Time.timestamp()
+
+  for (const market of values(state.markets)) {
+    if (!market) continue;
+
+    (state.positions[bundler3.generalAdapter1] ??= {})[market.id] ??= createPosition(
+      bundler3.generalAdapter1,
+      market.id
+    );
+  }
+
+  return state;
+}
+
+function seedPotentialBorrowState(
+  state: SimulationState,
+  userAddress: Address = SIMULATION_USER_ADDRESS
+): SimulationState {
+  return seedBundlerState(
+    produceImmutable(state, (draft) => {
+      draft.users[userAddress] ??= createUser(userAddress);
+
+      for (const token of values(draft.tokens)) {
+        if (!token) continue;
+
+        const holding = ((draft.holdings[userAddress] ??= {})[token.address] ??=
+          createHolding(userAddress, token.address, 0n));
+        holding.canTransfer = true;
+        holding.balance += DEALT_AMOUNT;
+      }
+
+      (draft.holdings[userAddress] ??= {})[NATIVE_ADDRESS] ??= createNativeHolding(
+        userAddress,
+        maxUint256
+      );
+
+      for (const market of values(draft.markets)) {
+        if (!market) continue;
+
+        (draft.positions[userAddress] ??= {})[market.id] ??= createPosition(
+          userAddress,
+          market.id
+        );
+      }
+    })
+  );
+}
+
+function getSupplyTargetUtilization(
+  marketId: MarketId,
+  supplyTargetUtilization: Record<MarketId, bigint | undefined>
+) {
+  return supplyTargetUtilization[marketId] ?? DEFAULT_SUPPLY_TARGET_UTILIZATION;
+}
+
+function getMaxBorrowWithoutReallocation(market: Market, supplyTargetUtilization: bigint) {
+  return MathLib.zeroFloorSub(
+    MathLib.wMulUp(supplyTargetUtilization, market.totalSupplyAssets),
+    market.totalBorrowAssets
+  );
+}
+
+function getReallocatedAmount(operations: ReturnType<typeof populateBundle>["operations"]) {
+  return operations
+    .filter((op) => op.type === "MetaMorpho_PublicReallocate")
+    .reduce(
+      (acc, op) =>
+        acc + op.args.withdrawals.reduce((sum, withdrawal) => sum + withdrawal.assets, 0n),
+      0n
+    );
+}
+
+function getStateBeforeBorrow(
+  operations: ReturnType<typeof populateBundle>["operations"],
+  startState: SimulationState,
+  marketId: MarketId
+) {
+  const borrowOperationIndex = operations.findIndex(
+    (op) => op.type === "Blue_Borrow" && op.args.id === marketId
   );
 
-  // Update market with borrow result
-  const marketPostBorrow = borrowResult.market;
+  if (borrowOperationIndex < 0) return startState;
+  const preBorrowOperations = operations.slice(0, borrowOperationIndex);
+  if (preBorrowOperations.length === 0) return startState;
 
-  // Calculate metrics for source markets
-  const sourceMarkets: { [marketId: string]: MarketSimulationResult } = {};
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  for (const [vault, vaultReallocations] of Object.entries(reallocations)) {
-    for (const reallocation of vaultReallocations) {
-      const sourceMarketInitial = rpcData.startState.getMarket(reallocation.id);
-      const sourceMarketSimulated = simulatedState.getMarket(reallocation.id);
+  return getLast(simulateBundlerOperations(preBorrowOperations, startState));
+}
 
-      sourceMarkets[reallocation.id] = {
-        preReallocation: {
-          liquidity: sourceMarketInitial.liquidity,
-          borrowApy: toWadBigInt(sourceMarketInitial.borrowApy),
-          utilization: sourceMarketInitial.utilization,
-        },
-        postReallocation: {
-          liquidity: sourceMarketSimulated.liquidity,
-          borrowApy: toWadBigInt(sourceMarketSimulated.borrowApy),
-          reallocatedAmount: reallocation.assets,
-          utilization: sourceMarketSimulated.utilization,
-        },
-      };
+function getWithdrawalsPerVault(
+  operations: ReturnType<typeof populateBundle>["operations"],
+  startState: SimulationState
+): ProcessedWithdrawals {
+  const withdrawalsPerVault: ProcessedWithdrawals["withdrawalsPerVault"] = {};
+  let totalReallocated = 0n;
+
+  for (const operation of operations) {
+    if (operation.type !== "MetaMorpho_PublicReallocate") continue;
+
+    const vaultWithdrawals = (withdrawalsPerVault[operation.address] ??= []);
+    for (const withdrawal of operation.args.withdrawals) {
+      const sourceMarket = startState.getMarket(withdrawal.id);
+      vaultWithdrawals.push({
+        marketId: withdrawal.id,
+        marketParams: sourceMarket.params,
+        amount: withdrawal.assets,
+        sourceMarketLiquidity: sourceMarket.liquidity,
+      });
+      totalReallocated += withdrawal.assets;
     }
   }
 
-  return {
-    targetMarket: {
-      preReallocation: {
-        liquidity: marketInitial.liquidity,
-        borrowApy: toWadBigInt(marketInitial.borrowApy),
-        utilization: marketInitial.utilization,
-      },
-      postReallocation: {
-        liquidity: marketPostReallocationSimulated.liquidity,
-        borrowApy: toWadBigInt(marketPostReallocationSimulated.borrowApy),
-        reallocatedAmount,
-        utilization: marketPostReallocationSimulated.utilization,
-      },
-      postBorrow: {
-        liquidity: marketPostBorrow.liquidity,
-        borrowApy: toWadBigInt(marketPostBorrow.borrowApy),
-        borrowAmount,
-        utilization: marketPostBorrow.utilization,
-      },
-    },
-    sourceMarkets,
-  };
+  return { withdrawalsPerVault, totalReallocated };
 }
 
-// legacy function. Keeping for few weeks starting 9 April 2025 for reference.
+// Backward-compatible legacy entrypoint. The implementation now uses the same
+// SDK-populated public allocator path as the market simulation dashboard.
 export async function compareAndReallocate(
   marketId: MarketId,
   chainId: number,
   requestedLiquidity: bigint
 ): Promise<ReallocationResult> {
-  const result: ReallocationResult = {
-    requestedLiquidity,
-    currentMarketLiquidity: 0n,
-    apiMetrics: {
-      utilization: 0n,
-      maxBorrowWithoutReallocation: 0n,
-      currentMarketLiquidity: 0n,
-      reallocatableLiquidity: 0n,
-      decimals: 0,
-      priceUsd: 0,
-      symbol: "",
-      loanAsset: { address: "", symbol: "" },
-      collateralAsset: { address: "", symbol: "" },
-      lltv: 0n,
-      publicAllocatorSharedLiquidity: [],
-    },
-  };
-
-  const { client, loader } = await initializeClientAndLoader(chainId);
-
-  try {
-    // First fetch API metrics to get decimals
-    const [apiMetrics, market] = await Promise.all([
-      fetchMarketMetricsFromAPI(marketId, chainId),
-      Market.fetch(marketId, client),
-    ]);
-
-    result.apiMetrics = apiMetrics;
-    result.currentMarketLiquidity = market.liquidity;
-
-    // Scale the requested liquidity with the correct decimals
-    const scaledRequestedLiquidity =
-      requestedLiquidity * BigInt(10 ** apiMetrics.decimals);
-
-    const supplyTargetUtilization = DEFAULT_SUPPLY_TARGET_UTILIZATION;
-    const newTotalSupplyAssets = market.totalSupplyAssets;
-    const newTotalBorrowAssets =
-      market.totalBorrowAssets + scaledRequestedLiquidity;
-
-    // Then the maximum additional borrow, to keep utilization ≤ supplyTargetUtilization:
-    const maxAdditionalBorrow =
-      MathLib.wMulUp(supplyTargetUtilization, newTotalSupplyAssets) -
-      market.totalBorrowAssets;
-    result.apiMetrics.maxBorrowWithoutReallocation = maxAdditionalBorrow;
-
-    const needsReallocation =
-      MarketUtils.getUtilization({
-        totalSupplyAssets: newTotalSupplyAssets,
-        totalBorrowAssets: newTotalBorrowAssets,
-      }) > supplyTargetUtilization;
-
-    // Simulate borrow impact without reallocation
-    const borrowAmount = MathLib.min(
-      scaledRequestedLiquidity,
-      market.liquidity
-    );
-
-    const targetMarketBorrowSimulated = market.borrow(
-      borrowAmount,
-      0n,
-      Time.timestamp()
-    );
-
-    if (needsReallocation) {
-      // Calculate required assets for target utilization
-      const requiredAssets =
-        MathLib.wDivDown(newTotalBorrowAssets, supplyTargetUtilization) -
-        newTotalSupplyAssets;
-
-      const { rpcData, hasReallocatableLiquidity } = await fetchMarketData(
-        loader,
-        marketId
-      );
-
-      if (hasReallocatableLiquidity) {
-        const reallocations = processReallocations(
-          rpcData.withdrawals,
-          requiredAssets
-        );
-
-        result.simulation = simulateMarketStates(
-          rpcData,
-          marketId,
-          scaledRequestedLiquidity,
-          reallocations
-        );
-
-        // Calculate total reallocated liquidity
-        const totalReallocated = Object.values(reallocations).reduce(
-          (total, vaultReallocations) =>
-            total + vaultReallocations.reduce((sum, r) => sum + r.assets, 0n),
-          0n
-        );
-
-        const isLiquidityFullyMatched =
-          result.currentMarketLiquidity + totalReallocated >=
-          scaledRequestedLiquidity;
-
-        // Transform reallocations into withdrawal details
-        const withdrawalsPerVault: {
-          [vaultAddress: string]: WithdrawalDetails[];
-        } = {};
-
-        for (const [vault, vaultReallocations] of Object.entries(
-          reallocations
-        )) {
-          withdrawalsPerVault[vault] = vaultReallocations.map(
-            (reallocation) => ({
-              marketId: reallocation.id,
-              marketParams: MarketParams.get(reallocation.id),
-              amount: reallocation.assets,
-              sourceMarketLiquidity: rpcData.startState.getMarket(
-                reallocation.id
-              ).liquidity,
-            })
-          );
-        }
-
-        result.reallocation = {
-          withdrawals: {
-            withdrawalsPerVault,
-            totalReallocated,
-          },
-          liquidityNeededFromReallocation: requiredAssets,
-          reallocatableLiquidity: totalReallocated,
-          isLiquidityFullyMatched,
-          liquidityShortfall: isLiquidityFullyMatched
-            ? 0n
-            : scaledRequestedLiquidity -
-              (result.currentMarketLiquidity + totalReallocated),
-        };
-
-        // Generate raw transaction if we have reallocations
-        if (result.reallocation.withdrawals.totalReallocated > 0n) {
-          const supplyMarketParams = MarketParams.get(marketId);
-          const userAddress: Address = "0x7f7A70b5B584C4033CAfD52219a496Df9AFb1af7";
-
-          // Create reallocation operations using modern bundler SDK
-          const reallocationOperations = createReallocationOperations(
-            userAddress,
-            withdrawalsPerVault,
-            supplyMarketParams
-          );
-
-          // Use the modern bundler SDK to encode the transaction
-          const bundle = encodeBundle(reallocationOperations, rpcData.startState, false);
-
-          result.rawTransaction = {
-            to: bundle.tx().to as string,
-            data: bundle.tx().data,
-            value: bundle.tx().value?.toString() ?? "0",
-          };
-        }
-
-        if (!isLiquidityFullyMatched) {
-          result.reason = {
-            type: "error",
-            message:
-              "Unable to fully match requested liquidity with available reallocations",
-          };
-        } else {
-          result.reason = {
-            type: "success",
-            message: "Successfully generated reallocation transaction",
-          };
-        }
-      } else {
-        result.reason = {
-          type: "error",
-          message: "No onchain reallocatable liquidity available at the moment",
-        };
-      }
-    } else {
-      // Add simulation results even when no reallocation is needed
-      result.simulation = {
-        targetMarket: {
-          preReallocation: {
-            liquidity: market.liquidity,
-            borrowApy: toWadBigInt(market.borrowApy),
-            utilization: market.utilization,
-          },
-          postReallocation: {
-            liquidity: market.liquidity,
-            borrowApy: toWadBigInt(market.borrowApy),
-            reallocatedAmount: 0n,
-            utilization: market.utilization,
-          },
-          postBorrow: {
-            liquidity: targetMarketBorrowSimulated.market.liquidity,
-            borrowApy: toWadBigInt(targetMarketBorrowSimulated.market.borrowApy),
-            borrowAmount,
-            utilization: targetMarketBorrowSimulated.market.utilization,
-          },
-        },
-        sourceMarkets: {},
-      };
-
-      result.reason = {
-        type: "success",
-        message:
-          "Sufficient liquidity already available in the market, no reallocation needed",
-      };
-    }
-
-    return result;
-  } catch (error) {
-    console.error("Error in compareAndReallocate:", error);
-    throw error;
-  }
+  return fetchMarketSimulationBorrow(marketId, chainId, requestedLiquidity);
 }
 
 export async function fetchMarketSimulationBorrow(
@@ -825,7 +570,7 @@ export async function fetchMarketSimulationBorrow(
       return result;
     }
 
-    const startState = rpcData.startState;
+    const startState = seedPotentialBorrowState(rpcData.startState, userAddress);
     const initialMarket = startState.getMarket(marketId);
 
     // Validate that the market exists and has required data
@@ -837,108 +582,18 @@ export async function fetchMarketSimulationBorrow(
       return result;
     }
 
-
-
-    // Initialize user position for this market
-    if (!startState.users[userAddress]) {
-      startState.users[userAddress] = {
-        address: userAddress,
-        isBundlerAuthorized: false,
-        morphoNonce: 0n,
-      };
-    }
-
-    // Initialize user position for this market
-    if (!startState.positions[userAddress]) {
-      startState.positions[userAddress] = {};
-    }
-
-    // Add an empty position for this market
-    startState.positions[userAddress][marketId] = {
-      supplyShares: 0n,
-      borrowShares: 0n,
-      collateral: 0n,
-      user: userAddress,
-      marketId: marketId,
-    };
-
-    // Prepare user holdings for simulation
-    if (!startState.holdings[userAddress]) {
-      startState.holdings[userAddress] = {};
-    }
-
-    // Add collateral token to user's holdings
-    startState.holdings[userAddress][initialMarket.params.collateralToken] = 
-      createCollateralHolding(userAddress, initialMarket.params.collateralToken, maxUint256 / 2n);
-
-    // Add native token holding for user (needed for gas fees)
-    startState.holdings[userAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = 
-      createNativeHolding(userAddress, maxUint256);
-
-    // Get bundler addresses
-    const bundlerAddresses = getChainAddresses(chainId);
-    const bundlerGeneralAdapter = bundlerAddresses.bundler3.generalAdapter1;
-    const bundlerBundler3 = bundlerAddresses.bundler3.bundler3;
-
-    
-    // Safety check: ensure bundlerBundler3 is defined
-    if (!bundlerBundler3) {
-      console.error(`❌ [BUNDLER ERROR] bundlerBundler3 is undefined! bundlerAddresses:`, bundlerAddresses);
-      throw new Error(`bundlerBundler3 address is undefined for chainId ${chainId}`);
-    }
-
-    // Initialize bundler adapter holding for the collateral token
-    if (!startState.holdings[bundlerGeneralAdapter]) {
-      startState.holdings[bundlerGeneralAdapter] = {};
-    }
-
-    // Add the collateral token to the bundler's holdings
-    startState.holdings[bundlerGeneralAdapter][initialMarket.params.collateralToken] = 
-      createHolding(bundlerGeneralAdapter, initialMarket.params.collateralToken, maxUint256);
-
-    // Add native token holding for bundler (needed for gas fees and operations)
-    startState.holdings[bundlerGeneralAdapter]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] =
-      createNativeHolding(bundlerGeneralAdapter, maxUint256);
-
-    // Add loan token holding for bundler adapter (needed for receiving borrowed funds)
-    startState.holdings[bundlerGeneralAdapter][initialMarket.params.loanToken] =
-      createHolding(bundlerGeneralAdapter, initialMarket.params.loanToken, 0n);
-
-    // Initialize bundler3 holdings
-    if (!startState.holdings[bundlerBundler3]) {
-      startState.holdings[bundlerBundler3] = {};
-    }
-
-    // Add native token holding for bundler3 address itself
-    startState.holdings[bundlerBundler3]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] =
-      createNativeHolding(bundlerBundler3, maxUint256);
-
-    // Add loan token holding for bundler3 address
-    startState.holdings[bundlerBundler3][initialMarket.params.loanToken] =
-      createHolding(bundlerBundler3, initialMarket.params.loanToken, maxUint256);
-
-    // Add native token holdings for all vault addresses that might be involved in reallocation
-    const vaultAddresses = [...new Set(rpcData.withdrawals.map(w => w.vault))];
-
-    for (const vaultAddress of vaultAddresses) {
-      if (!startState.holdings[vaultAddress]) {
-        startState.holdings[vaultAddress] = {};
-      }
-
-      // Add native token holding for each vault
-      startState.holdings[vaultAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] =
-        createNativeHolding(vaultAddress, maxUint256);
-
-      // Add loan token holding for each vault (needed for reallocation operations)
-      startState.holdings[vaultAddress][initialMarket.params.loanToken] =
-        createHolding(vaultAddress, initialMarket.params.loanToken, maxUint256);
-    }
+    const targetUtilization = getSupplyTargetUtilization(marketId, supplyTargetUtilization);
+    result.apiMetrics.maxBorrowWithoutReallocation = getMaxBorrowWithoutReallocation(
+      initialMarket,
+      targetUtilization
+    );
 
     // Scale the requested liquidity with the correct decimals
     const scaledRequestedLiquidity =
       requestedLiquidity * BigInt(10 ** apiMetrics.decimals);
 
-    // Create operations for this borrowAmount
+    // Mirror vvrm-app: model the user's requested borrow and let the bundler SDK
+    // insert MetaMorpho_PublicReallocate operations if target utilization requires it.
     const operations: InputBundlerOperation[] = [
       {
         type: "Blue_SupplyCollateral",
@@ -962,7 +617,6 @@ export async function fetchMarketSimulationBorrow(
       },
     ];
 
-    // The key part: Populate the bundle with public allocator options
     const populatedBundle = populateBundle(operations, startState, {
       publicAllocatorOptions: {
         enabled: true,
@@ -973,66 +627,40 @@ export async function fetchMarketSimulationBorrow(
       },
     });
 
-    // Extract any MetaMorpho_PublicReallocate operations
-    const publicReallocateOps = populatedBundle.operations.filter(
-      (op) => op.type === "MetaMorpho_PublicReallocate"
-    );
-    const reallocatedAmountFromBundle = publicReallocateOps.reduce(
-      (acc, op) =>
-        acc +
-        op.args.withdrawals.reduce(
-          (sum, withdrawal) => sum + withdrawal.assets,
-          0n
-        ),
-      0n
-    );
-
-    const utilizationPostReallocation =
-      initialMarket.utilization +
-      reallocatedAmountFromBundle / initialMarket.liquidity;
-
-    // Get final state
+    const reallocatedAmountFromBundle = getReallocatedAmount(populatedBundle.operations);
     const finalState = getLast(populatedBundle.steps);
+    const stateBeforeBorrow = getStateBeforeBorrow(
+      populatedBundle.operations,
+      startState,
+      marketId
+    );
 
+    const marketBeforeBorrow = stateBeforeBorrow.getMarket(marketId);
     const simulatedFinalMarket = finalState.getMarket(marketId);
+    const withdrawals = getWithdrawalsPerVault(populatedBundle.operations, startState);
 
-    // Build sourceMarkets based on publicReallocateOps
     const sourceMarkets: { [marketId: string]: MarketSimulationResult } = {};
+    for (const vaultWithdrawals of Object.values(withdrawals.withdrawalsPerVault)) {
+      for (const withdrawal of vaultWithdrawals) {
+        const sourceMarketInitial = startState.getMarket(withdrawal.marketId);
+        const sourceMarketAfterReallocation = stateBeforeBorrow.getMarket(withdrawal.marketId);
 
-    // Process each public reallocation operation
-    for (const reallocateOp of publicReallocateOps) {
-      // Extract withdrawals from the operation
-      const { withdrawals } = reallocateOp.args;
-
-      // Process each withdrawal which corresponds to a source market
-      for (const withdrawal of withdrawals) {
-        const sourceMarketId = withdrawal.id;
-        const reallocatedAmount = withdrawal.assets;
-
-        // Get initial state for the source market
-        const sourceMarketInitial = startState.getMarket(sourceMarketId);
-
-        // Get final state for the source market
-        const sourceMarketFinal = finalState.getMarket(sourceMarketId);
-
-        // Add to sourceMarkets object
-        sourceMarkets[sourceMarketId] = {
+        sourceMarkets[withdrawal.marketId] = {
           preReallocation: {
             liquidity: sourceMarketInitial.liquidity,
             borrowApy: toWadBigInt(sourceMarketInitial.borrowApy),
             utilization: sourceMarketInitial.utilization,
           },
           postReallocation: {
-            liquidity: sourceMarketFinal.liquidity,
-            borrowApy: toWadBigInt(sourceMarketFinal.borrowApy),
-            reallocatedAmount,
-            utilization: sourceMarketFinal.utilization,
+            liquidity: sourceMarketAfterReallocation.liquidity,
+            borrowApy: toWadBigInt(sourceMarketAfterReallocation.borrowApy),
+            reallocatedAmount: withdrawal.amount,
+            utilization: sourceMarketAfterReallocation.utilization,
           },
         };
       }
     }
 
-    // Add simulation results
     result.simulation = {
       targetMarket: {
         preReallocation: {
@@ -1041,10 +669,10 @@ export async function fetchMarketSimulationBorrow(
           utilization: initialMarket.utilization,
         },
         postReallocation: {
-          liquidity: initialMarket.liquidity + reallocatedAmountFromBundle,
-          borrowApy: 0n,
+          liquidity: marketBeforeBorrow.liquidity,
+          borrowApy: toWadBigInt(marketBeforeBorrow.borrowApy),
           reallocatedAmount: reallocatedAmountFromBundle,
-          utilization: utilizationPostReallocation,
+          utilization: marketBeforeBorrow.utilization,
         },
         postBorrow: {
           liquidity: simulatedFinalMarket.liquidity,
@@ -1056,11 +684,35 @@ export async function fetchMarketSimulationBorrow(
       sourceMarkets,
     };
 
+    if (withdrawals.totalReallocated > 0n) {
+      const liquidityShortfall = MathLib.zeroFloorSub(
+        scaledRequestedLiquidity,
+        result.currentMarketLiquidity + withdrawals.totalReallocated
+      );
+
+      result.reallocation = {
+        withdrawals,
+        liquidityNeededFromReallocation:
+          targetUtilization === 0n
+            ? MathLib.MAX_UINT_160
+            : MathLib.zeroFloorSub(
+                MathLib.wDivDown(
+                  initialMarket.totalBorrowAssets + scaledRequestedLiquidity,
+                  targetUtilization
+                ),
+                initialMarket.totalSupplyAssets
+              ),
+        reallocatableLiquidity: withdrawals.totalReallocated,
+        isLiquidityFullyMatched: liquidityShortfall === 0n,
+        liquidityShortfall,
+      };
+    }
+
     result.reason = {
       type: "success",
       message:
-        publicReallocateOps.length > 0
-          ? "Successfully simulated with reallocation"
+        withdrawals.totalReallocated > 0n
+          ? "Successfully simulated with SDK-populated public allocator reallocation"
           : "Successfully simulated without reallocation",
     };
 
@@ -1117,7 +769,7 @@ export async function fetchMarketSimulationSeries(
       };
     }
 
-    const startState = rpcData.startState;
+    const startState = seedPotentialBorrowState(rpcData.startState, userAddress);
     const initialMarket = startState.getMarket(marketId);
 
     // Validate that the market exists and has required data
@@ -1132,99 +784,7 @@ export async function fetchMarketSimulationSeries(
       };
     }
 
-
-    // Initialize user position for this market (THIS IS THE KEY ADDITION)
-    if (!startState.users[userAddress]) {
-      startState.users[userAddress] = {
-        address: userAddress,
-        isBundlerAuthorized: false,
-        morphoNonce: 0n,
-      };
-    }
-
-    // Initialize user position for this market
-    if (!startState.positions[userAddress]) {
-      startState.positions[userAddress] = {};
-    }
-
-    // Add an empty position for this market
-    startState.positions[userAddress][marketId] = {
-      supplyShares: 0n,
-      borrowShares: 0n,
-      collateral: 0n,
-      user: userAddress,
-      marketId: marketId,
-    };
-
-    // Prepare user holdings for simulation
-    if (!startState.holdings[userAddress]) {
-      startState.holdings[userAddress] = {};
-    }
-
-    startState.holdings[userAddress][initialMarket.params.collateralToken] = 
-      createCollateralHolding(userAddress, initialMarket.params.collateralToken, maxUint256 / 2n);
-
-    // Add native token holding for user (needed for gas fees)
-    startState.holdings[userAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] = 
-      createNativeHolding(userAddress, maxUint256);
-
-    // Get bundler addresses
-    const bundlerAddresses = getChainAddresses(chainId);
-    const bundlerGeneralAdapter = bundlerAddresses.bundler3.generalAdapter1;
-    const bundlerBundler3 = bundlerAddresses.bundler3.bundler3;
-    
-    // Safety check: ensure bundlerBundler3 is defined
-    if (!bundlerBundler3) {
-      console.error(`❌ [BUNDLER ERROR] bundlerBundler3 is undefined! bundlerAddresses:`, bundlerAddresses);
-      throw new Error(`bundlerBundler3 address is undefined for chainId ${chainId}`);
-    }
-
-    // Initialize bundler adapter holding for the collateral token
-    if (!startState.holdings[bundlerGeneralAdapter]) {
-      startState.holdings[bundlerGeneralAdapter] = {};
-    }
-
-    // Add the collateral token to the bundler's holdings
-    startState.holdings[bundlerGeneralAdapter][initialMarket.params.collateralToken] = 
-      createHolding(bundlerGeneralAdapter, initialMarket.params.collateralToken, maxUint256);
-
-    // Add native token holding for bundler (needed for gas fees and operations)
-    startState.holdings[bundlerGeneralAdapter]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] =
-      createNativeHolding(bundlerGeneralAdapter, maxUint256);
-
-    // Add loan token holding for bundler adapter (needed for receiving borrowed funds)
-    startState.holdings[bundlerGeneralAdapter][initialMarket.params.loanToken] =
-      createHolding(bundlerGeneralAdapter, initialMarket.params.loanToken, 0n);
-
-    // Initialize bundler3 holdings
-    if (!startState.holdings[bundlerBundler3]) {
-      startState.holdings[bundlerBundler3] = {};
-    }
-
-    // Add native token holding for bundler3 address itself
-    startState.holdings[bundlerBundler3]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] =
-      createNativeHolding(bundlerBundler3, maxUint256);
-
-    // Add loan token holding for bundler3 address
-    startState.holdings[bundlerBundler3][initialMarket.params.loanToken] =
-      createHolding(bundlerBundler3, initialMarket.params.loanToken, maxUint256);
-
-    // Add native token holdings for all vault addresses that might be involved in reallocation
-    const vaultAddresses = [...new Set(rpcData.withdrawals.map(w => w.vault))];
-
-    for (const vaultAddress of vaultAddresses) {
-      if (!startState.holdings[vaultAddress]) {
-        startState.holdings[vaultAddress] = {};
-      }
-
-      // Add native token holding for each vault
-      startState.holdings[vaultAddress]["0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"] =
-        createNativeHolding(vaultAddress, maxUint256);
-
-      // Add loan token holding for each vault (needed for reallocation operations)
-      startState.holdings[vaultAddress][initialMarket.params.loanToken] =
-        createHolding(vaultAddress, initialMarket.params.loanToken, maxUint256);
-    }
+    const vaultAddresses = [...new Set(rpcData.withdrawals.map((w) => w.vault))];
 
     // Define percentage steps with more granularity (every 5% instead of 1% to reduce RPC calls)
     const percentages = Array.from({ length: 21 }, (_, i) => i * 5); // 0, 5, 10, 15, ..., 100
