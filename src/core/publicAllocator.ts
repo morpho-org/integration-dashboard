@@ -267,7 +267,7 @@ query MarketByUniqueKeyReallocatable($uniqueKey: String!, $chainId: Int!) {
         address
         name
       }
-      allocationMarket {
+      allocationMarket: withdrawMarket {
         targetBorrowUtilization
         targetWithdrawUtilization
         state {
