@@ -254,6 +254,17 @@ query MarketByUniqueKeyReallocatable($uniqueKey: String!, $chainId: Int!) {
 }
 `;
 
+const MARKET_IRM_CURVE_QUERY = `
+query MarketIrmCurve($marketId: String!, $chainId: Int!) {
+  marketById(marketId: $marketId, chainId: $chainId) {
+    currentIrmCurve {
+      utilization
+      borrowApy
+    }
+  }
+}
+`;
+
 /**
  * Initialize a viem client and LiquidityLoader for blockchain interactions.
  *
@@ -338,6 +349,62 @@ async function fetchMarketMetricsFromAPI(marketId: MarketId, chainId: number) {
         allocationMarket: item.allocationMarket,
       })),
   };
+}
+
+interface MarketIrmCurvePoint {
+  utilization: number;
+  borrowApy: number;
+}
+
+async function fetchMarketIrmCurveFromAPI(marketId: MarketId, chainId: number) {
+  const response = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query: MARKET_IRM_CURVE_QUERY,
+      variables: { marketId, chainId },
+    }),
+  });
+
+  const data = await response.json() as {
+    data?: { marketById?: { currentIrmCurve?: MarketIrmCurvePoint[] | null } | null };
+  };
+
+  return data.data?.marketById?.currentIrmCurve ?? [];
+}
+
+function getBorrowApyFromIrmCurve(
+  irmCurve: MarketIrmCurvePoint[],
+  utilization: number
+) {
+  const curve = irmCurve
+    .filter(
+      (point) =>
+        Number.isFinite(point.utilization) && Number.isFinite(point.borrowApy)
+    )
+    .sort((a, b) => a.utilization - b.utilization);
+
+  if (curve.length === 0) return undefined;
+
+  if (utilization <= curve[0].utilization) return curve[0].borrowApy;
+
+  const last = curve[curve.length - 1];
+  if (utilization >= last.utilization) return last.borrowApy;
+
+  for (let i = 1; i < curve.length; i++) {
+    const right = curve[i];
+    const left = curve[i - 1];
+
+    if (utilization > right.utilization) continue;
+
+    const span = right.utilization - left.utilization;
+    if (span === 0) return right.borrowApy;
+
+    const ratio = (utilization - left.utilization) / span;
+    return left.borrowApy + (right.borrowApy - left.borrowApy) * ratio;
+  }
+
+  return last.borrowApy;
 }
 
 async function fetchMarketData(loader: LiquidityLoader, marketId: MarketId) {
@@ -742,17 +809,9 @@ export async function fetchMarketSimulationSeries(
   error?: string;
 }> {
   try {
-    const userAddress: Address = "0x7f7A70b5B584C4033CAfD52219a496Df9AFb1af7";
-    const [
-      { loader },
-      {
-        supplyTargetUtilization,
-        maxWithdrawalUtilization,
-        reallocatableVaults,
-      },
-    ] = await Promise.all([
+    const [{ loader }, irmCurve] = await Promise.all([
       initializeClientAndLoader(chainId),
-      fetchMarketTargets(chainId),
+      fetchMarketIrmCurveFromAPI(marketId, chainId),
     ]);
 
     // First, check if we can fetch market data
@@ -769,8 +828,7 @@ export async function fetchMarketSimulationSeries(
       };
     }
 
-    const startState = seedPotentialBorrowState(rpcData.startState, userAddress);
-    const initialMarket = startState.getMarket(marketId);
+    const initialMarket = rpcData.startState.getMarket(marketId);
 
     // Validate that the market exists and has required data
     if (!initialMarket || !initialMarket.params) {
@@ -784,8 +842,6 @@ export async function fetchMarketSimulationSeries(
       };
     }
 
-    const vaultAddresses = [...new Set(rpcData.withdrawals.map((w) => w.vault))];
-
     // Define percentage steps with more granularity (every 5% instead of 1% to reduce RPC calls)
     const percentages = Array.from({ length: 21 }, (_, i) => i * 5); // 0, 5, 10, 15, ..., 100
     const maxLiquidity =
@@ -794,127 +850,32 @@ export async function fetchMarketSimulationSeries(
         (sum, withdrawal) => sum + withdrawal.assets,
         0n
       );
+    const initialUtilization = Number(formatUnits(initialMarket.utilization, 18));
+
     // Store results
     const utilizationSeries: number[] = [];
     const apySeries: number[] = [];
     const borrowAmounts: bigint[] = [];
 
-    // Track if we've already logged a simulation error (to avoid console noise)
-    let hasLoggedSimulationError = false;
-
-    // Run simulations for each percentage
+    // The graph is an IRM display, like vvrm-app's MarketPage/InterestRateModelSection.
+    // Public allocator simulation belongs to the action/transaction path; using it here
+    // flattens the curve around target utilization and hides the borrow-rate curve.
     for (const percentage of percentages) {
       const borrowAmount = (maxLiquidity * BigInt(percentage)) / 100n;
       borrowAmounts.push(borrowAmount);
 
-      // Handle 0% case: use current market state without simulation
-      // (SDK throws "inconsistent input" error when borrowing 0 assets)
-      if (borrowAmount === 0n) {
-        utilizationSeries.push(
-          Number(formatUnits(initialMarket.utilization, 16))
-        );
-        apySeries.push(Number(formatUnits(toWadBigInt(initialMarket.borrowApy), 16)));
-        continue;
-      }
+      const utilization = Math.min(
+        1,
+        initialUtilization + (1 - initialUtilization) * (percentage / 100)
+      );
+      const borrowApy = getBorrowApyFromIrmCurve(irmCurve, utilization);
 
-      // Add rate limiting to prevent hitting Alchemy's rate limits
-      await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay between calls
-
-      // Create operations for this borrowAmount
-      const operations: InputBundlerOperation[] = [
-        {
-          type: "Blue_SupplyCollateral",
-          sender: userAddress,
-          args: {
-            id: marketId,
-            assets: maxUint256 / 2n,
-            onBehalf: userAddress,
-          },
-        },
-        {
-          type: "Blue_Borrow",
-          sender: userAddress,
-          args: {
-            id: marketId,
-            assets: borrowAmount,
-            onBehalf: userAddress,
-            receiver: userAddress,
-            slippage: DEFAULT_SLIPPAGE_TOLERANCE,
-          },
-        },
-      ];
-
-      try {
-        // Simulate operations with the fetched targets
-        const { steps } = populateBundle(operations, startState, {
-          publicAllocatorOptions: {
-            enabled: true,
-            defaultSupplyTargetUtilization: DEFAULT_SUPPLY_TARGET_UTILIZATION,
-            supplyTargetUtilization,
-            maxWithdrawalUtilization,
-            reallocatableVaults,
-          },
-        });
-
-        // Get final state
-        const finalState = getLast(steps);
-        const simulatedMarket = finalState.getMarket(marketId);
-
-        // Store utilization and APY values (as percentages)
-        utilizationSeries.push(
-          Number(formatUnits(simulatedMarket.utilization, 16))
-        );
-        apySeries.push(Number(formatUnits(toWadBigInt(simulatedMarket.borrowApy), 16)));
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-
-        // Check if it's a rate limit error
-        if (errorMessage.includes('compute units per second') || errorMessage.includes('rate limit')) {
-          console.warn(`⚠️ [RATE LIMIT] Hit rate limit at ${percentage}%. Waiting 2 seconds before continuing...`);
-          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
-
-          // Try one more time after waiting
-          try {
-            const { steps } = populateBundle(operations, startState, {
-              publicAllocatorOptions: {
-                enabled: true,
-                defaultSupplyTargetUtilization: DEFAULT_SUPPLY_TARGET_UTILIZATION,
-                supplyTargetUtilization,
-                maxWithdrawalUtilization,
-                reallocatableVaults,
-              },
-            });
-
-            const finalState = getLast(steps);
-            const simulatedMarket = finalState.getMarket(marketId);
-
-            utilizationSeries.push(
-              Number(formatUnits(simulatedMarket.utilization, 16))
-            );
-            apySeries.push(Number(formatUnits(toWadBigInt(simulatedMarket.borrowApy), 16)));
-            continue; // Skip the fallback below
-          } catch (retryError) {
-            // Log retry failure only once
-            if (!hasLoggedSimulationError) {
-              console.error(`❌ [SIMULATION ERROR] Retry failed at ${percentage}%:`, retryError);
-            }
-          }
-        } else if (!hasLoggedSimulationError) {
-          // Log the first simulation error with context, then suppress subsequent ones
-          console.error(`❌ [SIMULATION ERROR] Error at ${percentage}%: ${errorMessage}`);
-          console.error(`   Market: ${marketId}`);
-          console.error(`   Borrow amount: ${borrowAmount.toString()}`);
-          console.error(`   Market liquidity: ${initialMarket.liquidity.toString()}`);
-          console.error(`   Available vaults: ${vaultAddresses.length > 0 ? vaultAddresses.join(', ') : 'none'}`);
-          hasLoggedSimulationError = true;
-        }
-
-        // Use previous values or defaults if simulation fails
-        utilizationSeries.push(
-          utilizationSeries[utilizationSeries.length - 1] || 0
-        );
-        apySeries.push(apySeries[apySeries.length - 1] || 0);
-      }
+      utilizationSeries.push(utilization * 100);
+      apySeries.push(
+        borrowApy == null
+          ? Number(formatUnits(toWadBigInt(initialMarket.borrowApy), 16))
+          : borrowApy * 100
+      );
     }
 
     return {
