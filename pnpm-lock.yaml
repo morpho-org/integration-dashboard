@@ -10,6 +10,9 @@ overrides:
   immer: 11.1.6
   next>postcss: 8.5.14
 
+patchedDependencies:
+  '@morpho-org/liquidity-sdk-viem@1.4.1': aba8eb653ffaacf7736166842e8dd57f99afd095e88395c31f619b7423505529
+
 importers:
 
   .:
@@ -28,7 +31,7 @@ importers:
         version: 4.3.3(@morpho-org/blue-sdk-viem@4.6.5(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.3)))(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1)(@morpho-org/simulation-sdk@3.4.3(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1))(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.3))
       '@morpho-org/liquidity-sdk-viem':
         specifier: ^1.4.0
-        version: 1.4.1(@morpho-org/blue-sdk-viem@4.6.5(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.3)))(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1)(@morpho-org/simulation-sdk@3.4.3(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1))(dataloader@2.2.3)(graphql-request@7.4.0(graphql@16.14.0))(graphql-tag@2.12.6(graphql@16.14.0))(graphql@16.14.0)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.3))
+        version: 1.4.1(patch_hash=aba8eb653ffaacf7736166842e8dd57f99afd095e88395c31f619b7423505529)(@morpho-org/blue-sdk-viem@4.6.5(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.3)))(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1)(@morpho-org/simulation-sdk@3.4.3(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1))(dataloader@2.2.3)(graphql-request@7.4.0(graphql@16.14.0))(graphql-tag@2.12.6(graphql@16.14.0))(graphql@16.14.0)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.3))
       '@morpho-org/morpho-blue-bundlers':
         specifier: ^1.1.2
         version: 1.1.2(bufferutil@4.1.0)(utf-8-validate@5.0.10)
@@ -5153,7 +5156,7 @@ snapshots:
       '@morpho-org/simulation-sdk': 3.4.3(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1)
       viem: 2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.3)
 
-  '@morpho-org/liquidity-sdk-viem@1.4.1(@morpho-org/blue-sdk-viem@4.6.5(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.3)))(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1)(@morpho-org/simulation-sdk@3.4.3(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1))(dataloader@2.2.3)(graphql-request@7.4.0(graphql@16.14.0))(graphql-tag@2.12.6(graphql@16.14.0))(graphql@16.14.0)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.3))':
+  '@morpho-org/liquidity-sdk-viem@1.4.1(patch_hash=aba8eb653ffaacf7736166842e8dd57f99afd095e88395c31f619b7423505529)(@morpho-org/blue-sdk-viem@4.6.5(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.3)))(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1)(@morpho-org/simulation-sdk@3.4.3(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1))(dataloader@2.2.3)(graphql-request@7.4.0(graphql@16.14.0))(graphql-tag@2.12.6(graphql@16.14.0))(graphql@16.14.0)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.3))':
     dependencies:
       '@morpho-org/blue-sdk': 5.23.2(@morpho-org/morpho-ts@2.5.1)
       '@morpho-org/blue-sdk-viem': 4.6.5(@morpho-org/blue-sdk@5.23.2(@morpho-org/morpho-ts@2.5.1))(@morpho-org/morpho-ts@2.5.1)(viem@2.48.11(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.4.3))
