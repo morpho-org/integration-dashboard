@@ -1,0 +1,26 @@
+diff --git a/lib/cjs/api/sdk.js b/lib/cjs/api/sdk.js
+index c8f02dcf54b6ff5f632936c9f22af49fa37e0ed3..e30c1a55ed8b25660a545d1b3302b169a4dcece2 100644
+--- a/lib/cjs/api/sdk.js
++++ b/lib/cjs/api/sdk.js
+@@ -13,7 +13,7 @@ exports.GetMarketsDocument = (0, graphql_tag_1.gql) `
+         vault {
+           address
+         }
+-        allocationMarket {
++        allocationMarket: withdrawMarket {
+           uniqueKey: marketId
+         }
+         assets
+diff --git a/lib/esm/api/sdk.js b/lib/esm/api/sdk.js
+index a76b48bcc19bea4c6afbad7dcadf1b9be9b7c066..b30fbee68dab2b6289f2d96b170a68a79200fa00 100644
+--- a/lib/esm/api/sdk.js
++++ b/lib/esm/api/sdk.js
+@@ -9,7 +9,7 @@ export const GetMarketsDocument = gql `
+         vault {
+           address
+         }
+-        allocationMarket {
++        allocationMarket: withdrawMarket {
+           uniqueKey: marketId
+         }
+         assets
