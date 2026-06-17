@@ -436,7 +436,6 @@ export interface AssetPriceInfoDL {
 }
 
 export interface MarketTarget {
-  id: string;
   uniqueKey: string;
   targetBorrowUtilization: string;
   targetWithdrawUtilization: string;
@@ -449,7 +448,6 @@ export interface ApiTargetsResponse {
     };
     vaults?: {
       items: {
-        id: string;
         address: string;
         publicAllocatorConfig: {
           fee: string;

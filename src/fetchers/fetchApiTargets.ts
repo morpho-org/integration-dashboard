@@ -7,7 +7,6 @@ const MARKET_TARGETS_QUERY = `
 query GetMarketTargets($chainId: Int!) {
   markets(where: { chainId_in: [$chainId] }, first: 1000) {
     items {
-      id
       uniqueKey: marketId
       targetBorrowUtilization
       targetWithdrawUtilization
@@ -21,7 +20,6 @@ query GetMarketTargets($chainId: Int!) {
     first: 1000
   ) {
     items {
-      id
       address
       publicAllocatorConfig {
         fee
