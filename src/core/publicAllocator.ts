@@ -1,43 +1,30 @@
-// WIP work, do not change this file.
-
 import {
-    DEFAULT_SLIPPAGE_TOLERANCE,
     getChainAddresses,
-    Holding,
     Market,
     MarketId,
     MarketParams,
-    MathLib,
-    NATIVE_ADDRESS,
-    Position,
-    User
+    MathLib
 } from "@morpho-org/blue-sdk";
 import "@morpho-org/blue-sdk-viem/lib/augment";
-import {
-    InputBundlerOperation,
-    populateBundle,
-    simulateBundlerOperations
-} from "@morpho-org/bundler-sdk-viem";
 import { LiquidityLoader } from "@morpho-org/liquidity-sdk-viem";
-import { getLast, values } from "@morpho-org/morpho-ts";
+import { computeReallocations, type VaultReallocation } from "@morpho-org/morpho-sdk";
+import type { ReallocationData } from "@morpho-org/morpho-sdk/entities";
 import {
-    produceImmutable,
-    type SimulationState
-} from "@morpho-org/simulation-sdk";
-import {
-    Address,
     createClient,
     formatUnits,
-    maxUint256,
     parseEther
 } from "viem";
+import { getBlock } from "viem/actions";
 import { getChainConfig } from "../config/chains";
 import { fetchMarketTargets } from "../fetchers/fetchApiTargets";
 import { createProxyTransport } from "../utils/client";
+
 /**
  * The default target utilization above which the shared liquidity algorithm is triggered (scaled by WAD).
  */
 export const DEFAULT_SUPPLY_TARGET_UTILIZATION = 905000000000000000n;
+
+const REALLOCATION_SIMULATION_DELAY = 3600n;
 
 /**
  * Helper function to convert a number (decimal APY) to WAD-scaled bigint.
@@ -47,46 +34,6 @@ function toWadBigInt(value: number | bigint | undefined): bigint {
   if (value === undefined) return 0n;
   if (typeof value === "bigint") return value;
   return BigInt(Math.floor(value * 1e18));
-}
-
-/**
- * Helper function to create a holding object that matches the IHolding interface
- */
-function createHolding(
-  user: Address,
-  token: Address,
-  balance: bigint,
-  options: {
-    morphoAllowance?: bigint;
-    permit2Allowance?: bigint;
-    bundlerAllowance?: bigint;
-    permit2BundlerAmount?: bigint;
-    permit2BundlerExpiration?: bigint;
-    permit2BundlerNonce?: bigint;
-  } = {}
-): Holding {
-  return new Holding({
-    user,
-    token,
-    balance,
-    erc20Allowances: {
-      morpho: options.morphoAllowance ?? maxUint256,
-      permit2: options.permit2Allowance ?? maxUint256,
-      "bundler3.generalAdapter1": options.bundlerAllowance ?? maxUint256,
-    },
-    permit2BundlerAllowance: {
-      amount: options.permit2BundlerAmount ?? maxUint256,
-      expiration: options.permit2BundlerExpiration ?? BigInt(2 ** 48 - 1),
-      nonce: options.permit2BundlerNonce ?? 0n,
-    },
-  });
-}
-
-/**
- * Helper function to create a native token holding
- */
-function createNativeHolding(user: Address, balance: bigint): Holding {
-  return createHolding(user, NATIVE_ADDRESS, balance);
 }
 
 export interface WithdrawalDetails {
@@ -365,118 +312,6 @@ async function fetchMarketData(loader: LiquidityLoader, marketId: MarketId) {
   };
 }
 
-const SIMULATION_USER_ADDRESS: Address = "0x7f7A70b5B584C4033CAfD52219a496Df9AFb1af7";
-const DEALT_AMOUNT = MathLib.MAX_UINT_160;
-
-function createUser(address: Address, isBundlerAuthorized = false): User {
-  return new User({
-    address,
-    isBundlerAuthorized,
-    morphoNonce: 0n,
-  });
-}
-
-function createPosition(user: Address, marketId: MarketId): Position {
-  return new Position({
-    user,
-    marketId,
-    supplyShares: 0n,
-    borrowShares: 0n,
-    collateral: 0n,
-  });
-}
-
-/**
- * Seed the same minimum bundler-side simulation state vvrm-app relies on.
- * LiquidityLoader provides markets/vaults/flow caps; this fills the synthetic
- * user and bundler holdings needed to run a potential borrow through the SDK.
- */
-function seedBundlerState(state: SimulationState): SimulationState {
-  const { bundler3 } = getChainAddresses(state.chainId);
-
-  state.users[bundler3.generalAdapter1] ??= createUser(bundler3.generalAdapter1);
-
-  for (const token of values(state.tokens)) {
-    if (!token) continue;
-
-    (state.holdings[bundler3.generalAdapter1] ??= {})[token.address] ??=
-      createHolding(bundler3.generalAdapter1, token.address, 0n);
-  }
-
-  (state.holdings[bundler3.generalAdapter1] ??= {})[NATIVE_ADDRESS] ??=
-    createNativeHolding(bundler3.generalAdapter1, 0n);
-
-  (state.holdings[bundler3.bundler3] ??= {})[NATIVE_ADDRESS] ??= createNativeHolding(
-    bundler3.bundler3,
-    0n
-  );
-
-  for (const market of values(state.markets)) {
-    if (!market) continue;
-
-    (state.positions[bundler3.generalAdapter1] ??= {})[market.id] ??= createPosition(
-      bundler3.generalAdapter1,
-      market.id
-    );
-  }
-
-  return state;
-}
-
-function seedPotentialBorrowState(
-  state: SimulationState,
-  userAddress: Address = SIMULATION_USER_ADDRESS
-): SimulationState {
-  return seedBundlerState(
-    produceImmutable(state, (draft) => {
-      const { bundler3 } = getChainAddresses(draft.chainId);
-
-      draft.users[userAddress] ??= createUser(userAddress);
-
-      for (const token of values(draft.tokens)) {
-        if (!token) continue;
-
-        const holding = ((draft.holdings[userAddress] ??= {})[token.address] ??=
-          createHolding(userAddress, token.address, 0n));
-        holding.canTransfer = true;
-        holding.balance += DEALT_AMOUNT;
-      }
-
-      (draft.holdings[userAddress] ??= {})[NATIVE_ADDRESS] ??= createNativeHolding(
-        userAddress,
-        maxUint256
-      );
-
-      for (const market of values(draft.markets)) {
-        if (!market) continue;
-
-        (draft.positions[userAddress] ??= {})[market.id] ??= createPosition(
-          userAddress,
-          market.id
-        );
-
-        for (const token of [market.params.loanToken, market.params.collateralToken]) {
-          const userHolding = ((draft.holdings[userAddress] ??= {})[token] ??=
-            createHolding(userAddress, token, 0n));
-          userHolding.canTransfer = true;
-          userHolding.balance = maxUint256;
-
-          (draft.holdings[bundler3.generalAdapter1] ??= {})[token] ??= createHolding(
-            bundler3.generalAdapter1,
-            token,
-            maxUint256
-          );
-          (draft.holdings[bundler3.bundler3] ??= {})[token] ??= createHolding(
-            bundler3.bundler3,
-            token,
-            maxUint256
-          );
-        }
-      }
-    })
-  );
-}
-
 function getSupplyTargetUtilization(
   marketId: MarketId,
   supplyTargetUtilization: Record<MarketId, bigint | undefined>
@@ -530,60 +365,71 @@ function getMaxBorrowWithoutReallocation(market: Market, supplyTargetUtilization
   );
 }
 
-function getReallocatedAmount(operations: ReturnType<typeof populateBundle>["operations"]) {
-  return operations
-    .filter((op) => op.type === "MetaMorpho_PublicReallocate")
-    .reduce(
-      (acc, op) =>
-        acc + op.args.withdrawals.reduce((sum, withdrawal) => sum + withdrawal.assets, 0n),
-      0n
-    );
-}
-
-function getStateBeforeBorrow(
-  operations: ReturnType<typeof populateBundle>["operations"],
-  startState: SimulationState,
-  marketId: MarketId
-) {
-  const borrowOperationIndex = operations.findIndex(
-    (op) => op.type === "Blue_Borrow" && op.args.id === marketId
+function getTotalReallocated(reallocations: readonly VaultReallocation[]) {
+  return reallocations.reduce(
+    (acc, reallocation) =>
+      acc + reallocation.withdrawals.reduce((sum, withdrawal) => sum + withdrawal.amount, 0n),
+    0n
   );
-
-  if (borrowOperationIndex < 0) return startState;
-  const preBorrowOperations = operations.slice(0, borrowOperationIndex);
-  if (preBorrowOperations.length === 0) return startState;
-
-  return getLast(simulateBundlerOperations(preBorrowOperations, startState));
 }
 
 function getWithdrawalsPerVault(
-  operations: ReturnType<typeof populateBundle>["operations"],
-  startState: SimulationState
+  reallocations: readonly VaultReallocation[],
+  startState: ReallocationData
 ): ProcessedWithdrawals {
   const withdrawalsPerVault: ProcessedWithdrawals["withdrawalsPerVault"] = {};
   let totalReallocated = 0n;
 
-  for (const operation of operations) {
-    if (operation.type !== "MetaMorpho_PublicReallocate") continue;
-
-    const vaultWithdrawals = (withdrawalsPerVault[operation.address] ??= []);
-    for (const withdrawal of operation.args.withdrawals) {
-      const sourceMarket = startState.getMarket(withdrawal.id);
+  for (const reallocation of reallocations) {
+    const vaultWithdrawals = (withdrawalsPerVault[reallocation.vault] ??= []);
+    for (const withdrawal of reallocation.withdrawals) {
+      const sourceMarket = startState.getMarket(withdrawal.marketParams.id);
       vaultWithdrawals.push({
-        marketId: withdrawal.id,
-        marketParams: sourceMarket.params,
-        amount: withdrawal.assets,
+        marketId: withdrawal.marketParams.id,
+        marketParams: withdrawal.marketParams,
+        amount: withdrawal.amount,
         sourceMarketLiquidity: sourceMarket.liquidity,
       });
-      totalReallocated += withdrawal.assets;
+      totalReallocated += withdrawal.amount;
     }
   }
 
   return { withdrawalsPerVault, totalReallocated };
 }
 
+function getSourceReallocatedAmounts(withdrawals: ProcessedWithdrawals) {
+  const amounts: Record<MarketId, bigint> = {};
+  for (const vaultWithdrawals of Object.values(withdrawals.withdrawalsPerVault)) {
+    for (const withdrawal of vaultWithdrawals) {
+      amounts[withdrawal.marketId] =
+        (amounts[withdrawal.marketId] ?? 0n) + withdrawal.amount;
+    }
+  }
+  return amounts;
+}
+
+function marketSnapshot(market: Market) {
+  return {
+    liquidity: market.liquidity,
+    borrowApy: toWadBigInt(market.borrowApy),
+    utilization: market.utilization,
+  };
+}
+
+function applySupply(market: Market, amount: bigint, timestamp: bigint) {
+  return amount === 0n ? market : market.supply(amount, 0n, timestamp).market;
+}
+
+function applyBorrow(market: Market, amount: bigint, timestamp: bigint) {
+  return amount === 0n ? market : market.borrow(amount, 0n, timestamp).market;
+}
+
+function applyWithdraw(market: Market, amount: bigint, timestamp: bigint) {
+  return amount === 0n ? market : market.withdraw(amount, 0n, timestamp).market;
+}
+
 // Backward-compatible legacy entrypoint. The implementation now uses the same
-// SDK-populated public allocator path as the market simulation dashboard.
+// morpho-sdk public allocator planner as the market simulation dashboard.
 export async function compareAndReallocate(
   marketId: MarketId,
   chainId: number,
@@ -616,9 +462,6 @@ export async function fetchMarketSimulationBorrow(
   };
 
   try {
-    const userAddress: Address = "0x7f7A70b5B584C4033CAfD52219a496Df9AFb1af7";
-
-    // Initialize client, loader and fetch market targets
     const { client, loader } = await initializeClientAndLoader(chainId);
     const {
       supplyTargetUtilization,
@@ -626,16 +469,15 @@ export async function fetchMarketSimulationBorrow(
       reallocatableVaults,
     } = await fetchMarketTargets(chainId);
 
-    // Fetch API metrics and market data
-    const [apiMetrics, market] = await Promise.all([
+    const [apiMetrics, market, block] = await Promise.all([
       fetchMarketMetricsFromAPI(marketId, chainId),
       Market.fetch(marketId, client),
+      getBlock(client),
     ]);
 
     result.apiMetrics = apiMetrics;
     result.currentMarketLiquidity = market.liquidity;
 
-    // Check if we can fetch market data
     const { rpcData } = await fetchMarketData(loader, marketId);
 
     if (!rpcData || !rpcData.startState) {
@@ -646,10 +488,9 @@ export async function fetchMarketSimulationBorrow(
       return result;
     }
 
-    const startState = seedPotentialBorrowState(rpcData.startState, userAddress);
+    const startState = rpcData.startState;
     const initialMarket = startState.getMarket(marketId);
 
-    // Validate that the market exists and has required data
     if (!initialMarket || !initialMarket.params) {
       result.reason = {
         type: "error",
@@ -676,94 +517,67 @@ export async function fetchMarketSimulationBorrow(
     // Scale the requested liquidity with the correct decimals
     const scaledRequestedLiquidity =
       requestedLiquidity * BigInt(10 ** apiMetrics.decimals);
+    const reallocationTimestamp = block.timestamp + REALLOCATION_SIMULATION_DELAY;
 
-    // Mirror vvrm-app: model the user's requested borrow and let the bundler SDK
-    // insert MetaMorpho_PublicReallocate operations if target utilization requires it.
-    const operations: InputBundlerOperation[] = [
-      {
-        type: "Blue_SupplyCollateral",
-        sender: userAddress,
-        args: {
-          id: marketId,
-          assets: maxUint256 / 2n,
-          onBehalf: userAddress,
-        },
-      },
-      {
-        type: "Blue_Borrow",
-        sender: userAddress,
-        args: {
-          id: marketId,
-          assets: scaledRequestedLiquidity,
-          onBehalf: userAddress,
-          receiver: userAddress,
-          slippage: DEFAULT_SLIPPAGE_TOLERANCE,
-        },
-      },
-    ];
+    const reallocations = scaledRequestedLiquidity === 0n
+      ? []
+      : computeReallocations({
+          reallocationData: startState,
+          marketId,
+          operation: "borrow",
+          amount: scaledRequestedLiquidity,
+          options: {
+            enabled: true,
+            timestamp: reallocationTimestamp,
+            defaultSupplyTargetUtilization: DEFAULT_SUPPLY_TARGET_UTILIZATION,
+            supplyTargetUtilization: targetOverrides.supplyTargetUtilization,
+            maxWithdrawalUtilization: targetOverrides.maxWithdrawalUtilization,
+            reallocatableVaults,
+          },
+        });
 
-    const populatedBundle = populateBundle(operations, startState, {
-      publicAllocatorOptions: {
-        enabled: true,
-        defaultSupplyTargetUtilization: DEFAULT_SUPPLY_TARGET_UTILIZATION,
-        supplyTargetUtilization: targetOverrides.supplyTargetUtilization,
-        maxWithdrawalUtilization: targetOverrides.maxWithdrawalUtilization,
-        reallocatableVaults,
-      },
-    });
-
-    const reallocatedAmountFromBundle = getReallocatedAmount(populatedBundle.operations);
-    const finalState = getLast(populatedBundle.steps);
-    const stateBeforeBorrow = getStateBeforeBorrow(
-      populatedBundle.operations,
-      startState,
-      marketId
+    const reallocatedAmount = getTotalReallocated(reallocations);
+    const marketBeforeBorrow = applySupply(
+      initialMarket,
+      reallocatedAmount,
+      reallocationTimestamp
     );
-
-    const marketBeforeBorrow = stateBeforeBorrow.getMarket(marketId);
-    const simulatedFinalMarket = finalState.getMarket(marketId);
-    const withdrawals = getWithdrawalsPerVault(populatedBundle.operations, startState);
+    const simulatedFinalMarket = applyBorrow(
+      marketBeforeBorrow,
+      scaledRequestedLiquidity,
+      reallocationTimestamp
+    );
+    const withdrawals = getWithdrawalsPerVault(reallocations, startState);
 
     const sourceMarkets: { [marketId: string]: MarketSimulationResult } = {};
-    for (const vaultWithdrawals of Object.values(withdrawals.withdrawalsPerVault)) {
-      for (const withdrawal of vaultWithdrawals) {
-        const sourceMarketInitial = startState.getMarket(withdrawal.marketId);
-        const sourceMarketAfterReallocation = stateBeforeBorrow.getMarket(withdrawal.marketId);
+    const sourceReallocatedAmounts = getSourceReallocatedAmounts(withdrawals);
+    for (const [sourceMarketId, sourceReallocatedAmount] of Object.entries(sourceReallocatedAmounts)) {
+      const sourceMarketInitial = startState.getMarket(sourceMarketId as MarketId);
+      const sourceMarketAfterReallocation = applyWithdraw(
+        sourceMarketInitial,
+        sourceReallocatedAmount,
+        reallocationTimestamp
+      );
 
-        sourceMarkets[withdrawal.marketId] = {
-          preReallocation: {
-            liquidity: sourceMarketInitial.liquidity,
-            borrowApy: toWadBigInt(sourceMarketInitial.borrowApy),
-            utilization: sourceMarketInitial.utilization,
-          },
-          postReallocation: {
-            liquidity: sourceMarketAfterReallocation.liquidity,
-            borrowApy: toWadBigInt(sourceMarketAfterReallocation.borrowApy),
-            reallocatedAmount: withdrawal.amount,
-            utilization: sourceMarketAfterReallocation.utilization,
-          },
-        };
-      }
+      sourceMarkets[sourceMarketId] = {
+        preReallocation: marketSnapshot(sourceMarketInitial),
+        postReallocation: {
+          ...marketSnapshot(sourceMarketAfterReallocation),
+          reallocatedAmount: sourceReallocatedAmount,
+        },
+      };
     }
 
     result.simulation = {
       targetMarket: {
-        preReallocation: {
-          liquidity: initialMarket.liquidity,
-          borrowApy: toWadBigInt(initialMarket.borrowApy),
-          utilization: initialMarket.utilization,
-        },
+        preReallocation: marketSnapshot(initialMarket),
         postReallocation: {
-          liquidity: marketBeforeBorrow.liquidity,
-          borrowApy: toWadBigInt(marketBeforeBorrow.borrowApy),
-          reallocatedAmount: reallocatedAmountFromBundle,
-          utilization: marketBeforeBorrow.utilization,
+          ...marketSnapshot(marketBeforeBorrow),
+          reallocatedAmount,
         },
         postBorrow: {
-          liquidity: simulatedFinalMarket.liquidity,
-          borrowApy: toWadBigInt(simulatedFinalMarket.borrowApy),
+          ...marketSnapshot(simulatedFinalMarket),
           borrowAmount: scaledRequestedLiquidity,
-          utilization: simulatedFinalMarket.utilization,
         },
       },
       sourceMarkets,
@@ -797,7 +611,7 @@ export async function fetchMarketSimulationBorrow(
       type: "success",
       message:
         withdrawals.totalReallocated > 0n
-          ? "Successfully simulated with SDK-populated public allocator reallocation"
+          ? "Successfully simulated with morpho-sdk public allocator reallocation"
           : "Successfully simulated without reallocation",
     };
 
@@ -827,9 +641,8 @@ export async function fetchMarketSimulationSeries(
   error?: string;
 }> {
   try {
-    const userAddress: Address = SIMULATION_USER_ADDRESS;
     const [
-      { loader },
+      { client, loader },
       {
         supplyTargetUtilization,
         maxWithdrawalUtilization,
@@ -841,8 +654,8 @@ export async function fetchMarketSimulationSeries(
       fetchMarketTargets(chainId),
       fetchMarketMetricsFromAPI(marketId, chainId),
     ]);
+    const block = await getBlock(client);
 
-    // First, check if we can fetch market data
     const { rpcData } = await fetchMarketData(loader, marketId);
 
     if (!rpcData || !rpcData.startState) {
@@ -856,10 +669,9 @@ export async function fetchMarketSimulationSeries(
       };
     }
 
-    const startState = seedPotentialBorrowState(rpcData.startState, userAddress);
+    const startState = rpcData.startState;
     const initialMarket = startState.getMarket(marketId);
 
-    // Validate that the market exists and has required data
     if (!initialMarket || !initialMarket.params) {
       return {
         percentages: [],
@@ -877,7 +689,6 @@ export async function fetchMarketSimulationSeries(
       supplyTargetUtilization,
       maxWithdrawalUtilization
     );
-    const vaultAddresses = [...new Set(rpcData.withdrawals.map((w) => w.vault))];
 
     // Define percentage steps with more granularity (every 5% instead of 1% to reduce RPC calls)
     const percentages = Array.from({ length: 21 }, (_, i) => i * 5); // 0, 5, 10, 15, ..., 100
@@ -887,24 +698,17 @@ export async function fetchMarketSimulationSeries(
         (sum, withdrawal) => sum + withdrawal.assets,
         0n
       );
-    // Store results
     const utilizationSeries: number[] = [];
     const apySeries: number[] = [];
     const borrowAmounts: bigint[] = [];
+    const reallocationTimestamp = block.timestamp + REALLOCATION_SIMULATION_DELAY;
 
-    // Track if we've already logged a simulation error (to avoid console noise)
     let hasLoggedSimulationError = false;
 
-    // Run simulations for each percentage. This is intentionally PA-aware: the
-    // graph shows the user's effective borrow APY after potential reallocation,
-    // so it stays near target until the allocator liquidity is exhausted, then
-    // follows the upper IRM curve.
     for (const percentage of percentages) {
       const borrowAmount = (maxLiquidity * BigInt(percentage)) / 100n;
       borrowAmounts.push(borrowAmount);
 
-      // Handle 0% case: use current market state without simulation
-      // (SDK throws "inconsistent input" error when borrowing 0 assets)
       if (borrowAmount === 0n) {
         utilizationSeries.push(
           Number(formatUnits(initialMarket.utilization, 16))
@@ -913,35 +717,15 @@ export async function fetchMarketSimulationSeries(
         continue;
       }
 
-      // Create operations for this borrowAmount
-      const operations: InputBundlerOperation[] = [
-        {
-          type: "Blue_SupplyCollateral",
-          sender: userAddress,
-          args: {
-            id: marketId,
-            assets: maxUint256 / 2n,
-            onBehalf: userAddress,
-          },
-        },
-        {
-          type: "Blue_Borrow",
-          sender: userAddress,
-          args: {
-            id: marketId,
-            assets: borrowAmount,
-            onBehalf: userAddress,
-            receiver: userAddress,
-            slippage: DEFAULT_SLIPPAGE_TOLERANCE,
-          },
-        },
-      ];
-
       try {
-        // Simulate operations with the fetched API targets.
-        const { steps } = populateBundle(operations, startState, {
-          publicAllocatorOptions: {
+        const reallocations = computeReallocations({
+          reallocationData: startState,
+          marketId,
+          operation: "borrow",
+          amount: borrowAmount,
+          options: {
             enabled: true,
+            timestamp: reallocationTimestamp,
             defaultSupplyTargetUtilization: DEFAULT_SUPPLY_TARGET_UTILIZATION,
             supplyTargetUtilization: targetOverrides.supplyTargetUtilization,
             maxWithdrawalUtilization: targetOverrides.maxWithdrawalUtilization,
@@ -949,11 +733,18 @@ export async function fetchMarketSimulationSeries(
           },
         });
 
-        // Get final state
-        const finalState = getLast(steps);
-        const simulatedMarket = finalState.getMarket(marketId);
+        const reallocatedAmount = getTotalReallocated(reallocations);
+        const marketBeforeBorrow = applySupply(
+          initialMarket,
+          reallocatedAmount,
+          reallocationTimestamp
+        );
+        const simulatedMarket = applyBorrow(
+          marketBeforeBorrow,
+          borrowAmount,
+          reallocationTimestamp
+        );
 
-        // Store utilization and APY values (as percentages)
         utilizationSeries.push(
           Number(formatUnits(simulatedMarket.utilization, 16))
         );
@@ -962,12 +753,10 @@ export async function fetchMarketSimulationSeries(
         const errorMessage = error instanceof Error ? error.message : String(error);
 
         if (!hasLoggedSimulationError) {
-          // Log the first simulation error with context, then suppress subsequent ones
           console.error(`❌ [SIMULATION ERROR] Error at ${percentage}%: ${errorMessage}`);
           console.error(`   Market: ${marketId}`);
           console.error(`   Borrow amount: ${borrowAmount.toString()}`);
           console.error(`   Market liquidity: ${initialMarket.liquidity.toString()}`);
-          console.error(`   Available vaults: ${vaultAddresses.length > 0 ? vaultAddresses.join(', ') : 'none'}`);
           hasLoggedSimulationError = true;
         }
 
