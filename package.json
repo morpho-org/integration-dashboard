@@ -42,7 +42,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
-    "organize-imports": "organize-imports-cli tsconfig.json"
+    "organize-imports": "organize-imports-cli tsconfig.json",
+    "test:target-utilization": "node --test scripts/target-utilization-alignment.test.mjs"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.20",

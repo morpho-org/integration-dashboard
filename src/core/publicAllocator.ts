@@ -32,12 +32,13 @@ import {
     parseEther
 } from "viem";
 import { getChainConfig } from "../config/chains";
+import { TARGET_UTILIZATION } from "../config/constants";
 import { fetchMarketTargets } from "../fetchers/fetchApiTargets";
 import { createProxyTransport } from "../utils/client";
 /**
  * The default target utilization above which the shared liquidity algorithm is triggered (scaled by WAD).
  */
-export const DEFAULT_SUPPLY_TARGET_UTILIZATION = 905000000000000000n;
+export const DEFAULT_SUPPLY_TARGET_UTILIZATION = TARGET_UTILIZATION;
 
 /**
  * Helper function to convert a number (decimal APY) to WAD-scaled bigint.
