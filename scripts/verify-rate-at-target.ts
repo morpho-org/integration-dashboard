@@ -7,7 +7,7 @@
  * TL;DR: Both are correct — they measure different things.
  * - Morpho FE: APY at exactly 90% utilization (rateAtTarget compounded)
  * - Dashboard: APY after borrowing 90% of total available liquidity
- *   (market + public allocator), which results in ~90.43% utilization
+ *   (market + public allocator), targeting the SDK supply target utilization
  *
  * Run: npx tsx scripts/verify-rate-at-target.ts
  */
@@ -16,13 +16,13 @@ import { Market, type MarketId } from "@morpho-org/blue-sdk";
 import "@morpho-org/blue-sdk-viem/lib/augment";
 import { createPublicClient, formatUnits, http } from "viem";
 import { mainnet } from "viem/chains";
+import { DEFAULT_SUPPLY_TARGET_UTILIZATION } from "@morpho-org/morpho-sdk/constants";
 
 // ─── Constants (replicated from src/config/constants.ts) ───
 
 const WAD = 1_000_000_000_000_000_000n;
 const YEAR = 365n * 24n * 60n * 60n;
 const TARGET_UTILIZATION = 900_000_000_000_000_000n; // 0.9 WAD = 90%
-const DEFAULT_SUPPLY_TARGET_UTILIZATION = 90_5000000000000000n; // 0.905 WAD = 90.5%
 
 // ─── Math helpers (replicated from src/utils/maths.ts) ───
 
@@ -215,18 +215,18 @@ async function main() {
 
   // 4. Compute what utilization you'd get borrowing 90% of total available liquidity
   // When you borrow 90% of total available liquidity, the PA supplies enough
-  // to target DEFAULT_SUPPLY_TARGET_UTILIZATION (90.5%).
+  // to target DEFAULT_SUPPLY_TARGET_UTILIZATION (SDK single source of truth).
   // The new supply = current supply + PA supply, new borrow = current borrow + borrow amount.
-  // The resulting utilization ends up around 90.43% (above target).
+  // The result lands at that target when enough PA liquidity is available.
 
   // Simulate: borrow 90% of totalAvailableLiquidity
   const borrowAmount90Pct = (totalAvailableLiquidity * 90n) / 100n;
 
-  // After PA reallocation, the PA aims for 90.5% utilization
+  // After PA reallocation, the PA aims for the SDK supply target utilization
   // New borrow = apiBorrow + borrowAmount90Pct
   // The PA will supply enough to get close to its target utilization
   const newBorrow = apiBorrow + borrowAmount90Pct;
-  // PA targets 90.5% utilization: newSupply = newBorrow / 0.905
+  // newSupply = newBorrow / supplyTargetUtilization
   const paTargetSupply = wDivDown(newBorrow, DEFAULT_SUPPLY_TARGET_UTILIZATION);
   const paSupplyNeeded = paTargetSupply > apiSupply ? paTargetSupply - apiSupply : 0n;
   // Cap PA supply by reallocatable amount
@@ -247,15 +247,7 @@ async function main() {
     `  APY at ${(Number(simulatedUtilization) / 1e16).toFixed(2)}% utilization (Dashboard): ${apyAtSimulatedPct.toFixed(4)}%`
   );
 
-  // 5. Also compute at exactly 90.5% for reference
-  const util905 = 905_000_000_000_000_000n;
-  const apyAt905 = computeBorrowAPY(util905, rateAtTarget);
-  const apyAt905Pct = wadToPercent(apyAt905);
-  console.log(
-    `  APY at exactly 90.50% utilization (PA target):   ${apyAt905Pct.toFixed(4)}%`
-  );
-
-  // 6. Show the math
+  // 5. Show the math
   console.log("\n─── 4. IRM Curve Math (above target) ───\n");
   console.log("  For utilization > 90% (target), the IRM formula is:");
   console.log("    rate = rateAtTarget + 3 * rateAtTarget * (u - 0.9) / (1 - 0.9)");

@@ -8,6 +8,10 @@ import {
 import "@morpho-org/blue-sdk-viem/lib/augment";
 import { LiquidityLoader } from "@morpho-org/liquidity-sdk-viem";
 import { computeReallocations, type VaultReallocation } from "@morpho-org/morpho-sdk";
+import {
+    DEFAULT_SUPPLY_TARGET_UTILIZATION as SDK_DEFAULT_SUPPLY_TARGET_UTILIZATION,
+    DEFAULT_WITHDRAWAL_TARGET_UTILIZATION as SDK_DEFAULT_WITHDRAWAL_TARGET_UTILIZATION
+} from "@morpho-org/morpho-sdk/constants";
 import type { ReallocationData } from "@morpho-org/morpho-sdk/entities";
 import {
     createClient,
@@ -21,8 +25,19 @@ import { createProxyTransport } from "../utils/client";
 
 /**
  * The default target utilization above which the shared liquidity algorithm is triggered (scaled by WAD).
+ *
+ * Re-exported from the SDK so the dashboard tracks the single source of truth instead of
+ * pinning its own copy.
  */
-export const DEFAULT_SUPPLY_TARGET_UTILIZATION = 905000000000000000n;
+export const DEFAULT_SUPPLY_TARGET_UTILIZATION =
+  SDK_DEFAULT_SUPPLY_TARGET_UTILIZATION;
+
+/**
+ * The default maximum utilization a source market may reach when the shared liquidity
+ * algorithm withdraws from it (scaled by WAD). Also sourced from the SDK.
+ */
+export const DEFAULT_MAX_WITHDRAWAL_UTILIZATION =
+  SDK_DEFAULT_WITHDRAWAL_TARGET_UTILIZATION;
 
 const REALLOCATION_SIMULATION_DELAY = 3600n;
 
@@ -530,6 +545,7 @@ export async function fetchMarketSimulationBorrow(
             enabled: true,
             timestamp: reallocationTimestamp,
             defaultSupplyTargetUtilization: DEFAULT_SUPPLY_TARGET_UTILIZATION,
+            defaultMaxWithdrawalUtilization: DEFAULT_MAX_WITHDRAWAL_UTILIZATION,
             supplyTargetUtilization: targetOverrides.supplyTargetUtilization,
             maxWithdrawalUtilization: targetOverrides.maxWithdrawalUtilization,
             reallocatableVaults,
@@ -727,6 +743,7 @@ export async function fetchMarketSimulationSeries(
             enabled: true,
             timestamp: reallocationTimestamp,
             defaultSupplyTargetUtilization: DEFAULT_SUPPLY_TARGET_UTILIZATION,
+            defaultMaxWithdrawalUtilization: DEFAULT_MAX_WITHDRAWAL_UTILIZATION,
             supplyTargetUtilization: targetOverrides.supplyTargetUtilization,
             maxWithdrawalUtilization: targetOverrides.maxWithdrawalUtilization,
             reallocatableVaults,
