@@ -32,12 +32,23 @@ import {
     parseEther
 } from "viem";
 import { getChainConfig } from "../config/chains";
+import { TARGET_UTILIZATION } from "../config/constants";
 import { fetchMarketTargets } from "../fetchers/fetchApiTargets";
 import { createProxyTransport } from "../utils/client";
 /**
  * The default target utilization above which the shared liquidity algorithm is triggered (scaled by WAD).
  */
-export const DEFAULT_SUPPLY_TARGET_UTILIZATION = 905000000000000000n;
+export const DEFAULT_SUPPLY_TARGET_UTILIZATION = TARGET_UTILIZATION;
+
+/**
+ * The default maximum utilization a source market may reach when the shared liquidity
+ * algorithm withdraws from it (scaled by WAD).
+ *
+ * Pinned to the canonical IRM target so source markets are never drained past it when the
+ * API omits a per-market `targetWithdrawUtilization`; the bundler SDK would otherwise fall
+ * back to its own 92% default.
+ */
+export const DEFAULT_MAX_WITHDRAWAL_UTILIZATION = TARGET_UTILIZATION;
 
 /**
  * Helper function to convert a number (decimal APY) to WAD-scaled bigint.
@@ -707,6 +718,7 @@ export async function fetchMarketSimulationBorrow(
         enabled: true,
         defaultSupplyTargetUtilization: DEFAULT_SUPPLY_TARGET_UTILIZATION,
         supplyTargetUtilization: targetOverrides.supplyTargetUtilization,
+        defaultMaxWithdrawalUtilization: DEFAULT_MAX_WITHDRAWAL_UTILIZATION,
         maxWithdrawalUtilization: targetOverrides.maxWithdrawalUtilization,
         reallocatableVaults,
       },
@@ -944,6 +956,7 @@ export async function fetchMarketSimulationSeries(
             enabled: true,
             defaultSupplyTargetUtilization: DEFAULT_SUPPLY_TARGET_UTILIZATION,
             supplyTargetUtilization: targetOverrides.supplyTargetUtilization,
+            defaultMaxWithdrawalUtilization: DEFAULT_MAX_WITHDRAWAL_UTILIZATION,
             maxWithdrawalUtilization: targetOverrides.maxWithdrawalUtilization,
             reallocatableVaults,
           },
