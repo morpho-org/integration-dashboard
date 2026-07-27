@@ -18,7 +18,7 @@ import { createPublicClient, formatUnits, http } from "viem";
 import { mainnet } from "viem/chains";
 import { DEFAULT_SUPPLY_TARGET_UTILIZATION } from "@morpho-org/morpho-sdk/constants";
 
-// ─── Constants (replicated from src/config/constants.ts) ───
+// ─── Constants ───
 
 const WAD = 1_000_000_000_000_000_000n;
 const YEAR = 365n * 24n * 60n * 60n;
