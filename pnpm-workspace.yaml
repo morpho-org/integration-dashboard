@@ -1,16 +1,18 @@
 minimumReleaseAge: 10080
 # TEMPORARY quarantine bypass for PR #74 lockfile regeneration.
-# Both packages are legitimate morpho-org releases (verified via GitHub
+# All three packages are legitimate morpho-org releases (verified via GitHub
 # Releases API, published by github-actions[bot] release automation):
-#   @morpho-org/morpho-sdk@5.4.1         published 2026-07-24T08:13:02Z
-#   @morpho-org/liquidity-sdk-viem@4.1.0 published 2026-07-23T16:31:45Z
+#   @morpho-org/morpho-sdk@5.4.1          published 2026-07-24T08:13:02Z
+#   @morpho-org/liquidity-sdk-viem@4.1.0  published 2026-07-23T16:31:45Z
+#   @morpho-org/midnight-sdk@1.3.0        published 2026-07-24T08:13:01Z (transitive dep of morpho-sdk@5.4.1)
 # minimumReleaseAge quarantine clears naturally at:
 #   liquidity-sdk-viem@4.1.0 -> 2026-07-30 16:31 UTC
-#   morpho-sdk@5.4.1         -> 2026-07-31 08:12 UTC
+#   morpho-sdk@5.4.1 / midnight-sdk@1.3.0 -> 2026-07-31 08:12 UTC
 # REVERT this exclude list after 2026-07-31 08:12 UTC once quarantine lapses.
 minimumReleaseAgeExclude:
   - "@morpho-org/morpho-sdk"
   - "@morpho-org/liquidity-sdk-viem"
+  - "@morpho-org/midnight-sdk"
 allowBuilds:
   "bufferutil": true
   "keccak": true
@@ -22,3 +24,4 @@ overrides:
   "axios-retry>axios": "1.15.2"
   "immer": "11.1.6"
   "next>postcss": "8.5.14"
+resolutionMode: highest
