@@ -24,4 +24,3 @@ overrides:
   "axios-retry>axios": "1.15.2"
   "immer": "11.1.6"
   "next>postcss": "8.5.14"
-resolutionMode: highest
