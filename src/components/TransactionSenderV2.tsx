@@ -3,16 +3,12 @@ import {
     MarketId,
     MarketParams
 } from "@morpho-org/blue-sdk";
-import {
-    BundlerOperation,
-    encodeBundle
-} from "@morpho-org/bundler-sdk-viem";
 import { LiquidityLoader } from "@morpho-org/liquidity-sdk-viem";
-import { produceImmutable } from "@morpho-org/simulation-sdk";
 import { useState } from "react";
 import { Address, parseEther } from "viem";
 import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
 import { WithdrawalDetails } from "../core/publicAllocator";
+import { encodePublicAllocatorReallocationBundle } from "../core/publicAllocatorTx";
 import { initializeClient } from "../utils/client";
 
 type TransactionSenderV2Props = {
@@ -20,53 +16,6 @@ type TransactionSenderV2Props = {
   marketId: MarketId;
   withdrawalsPerVault: { [vaultAddress: string]: WithdrawalDetails[] };
 };
-
-/**
- * Helper function to create reallocation operations for transaction
- * (Same as in TransactionSimulatorV2 to ensure consistency)
- */
-function createReallocationOperations(
-  userAddress: Address,
-  withdrawalsPerVault: { [vaultAddress: string]: WithdrawalDetails[] },
-  supplyMarketParams: MarketParams
-): BundlerOperation[] {
-  const operations: BundlerOperation[] = [];
-
-  // Filter vaults with non-zero withdrawals
-  const filteredVaults = Object.keys(withdrawalsPerVault).filter(
-    (vaultAddress) =>
-      withdrawalsPerVault[vaultAddress].length > 0 &&
-      withdrawalsPerVault[vaultAddress].some((withdrawal) => withdrawal.amount > 0n)
-  );
-
-  for (const vaultAddress of filteredVaults) {
-    const vaultWithdrawals = withdrawalsPerVault[vaultAddress];
-    // Sort withdrawals within each vault
-    vaultWithdrawals.sort((a, b) => (a.marketId > b.marketId ? 1 : -1));
-
-    // Create reduced withdrawals (0.1% less for safety)
-    const reducedWithdrawals = vaultWithdrawals
-      .filter(withdrawal => withdrawal.amount > 0n)
-      .map(withdrawal => ({
-        id: withdrawal.marketId,
-        assets: (withdrawal.amount * 999n) / 1000n, // Reduce by 0.1%
-      }));
-
-    if (reducedWithdrawals.length > 0) {
-      operations.push({
-        type: "MetaMorpho_PublicReallocate",
-        sender: userAddress,
-        address: vaultAddress as Address,
-        args: {
-          withdrawals: reducedWithdrawals,
-          supplyMarketId: supplyMarketParams.id,
-        },
-      });
-    }
-  }
-
-  return operations;
-}
 
 export default function TransactionSenderV2({
   networkId,
@@ -102,68 +51,30 @@ export default function TransactionSenderV2({
     setIsPreparingTx(true);
 
     try {
-      // 1. Create reallocation operations using the same logic as simulator
-      const reallocationOperations = createReallocationOperations(
-        userAddress,
-        withdrawalsPerVault,
-        supplyMarketParams
-      );
-
-      if (reallocationOperations.length === 0) {
-        throw new Error("No reallocation operations to execute");
-      }
-
-      // 2. Fetch real simulation state using LiquidityLoader
       const { client } = await initializeClient(networkId);
       const loader = new LiquidityLoader(client as ConstructorParameters<typeof LiquidityLoader>[0], {
         maxWithdrawalUtilization: {},
         defaultMaxWithdrawalUtilization: parseEther("1"),
       });
+      const { startState } = await loader.fetch(marketId);
 
-      // Fetch all markets involved
-      const allMarketIds = [
-        marketId,
-        ...reallocationOperations.flatMap(op => 
-          op.type === "MetaMorpho_PublicReallocate" 
-            ? op.args.withdrawals.map(w => w.id) 
-            : []
-        )
-      ];
-      
-      // Fetch the state (fetch primary market)
-      const fetchResult = await loader.fetch(allMarketIds[0]);
-      const { startState } = fetchResult;
-
-      // 3. Prepare the state with user data
-      const preparedState = produceImmutable(startState, (draft) => {
-        // Ensure user exists
-        if (!draft.users[userAddress]) {
-          draft.users[userAddress] = {
-            address: userAddress,
-            isBundlerAuthorized: true,
-            morphoNonce: 0n,
-          };
+      const tx = encodePublicAllocatorReallocationBundle(
+        networkId,
+        withdrawalsPerVault,
+        supplyMarketParams,
+        (vault: Address) => {
+          const publicAllocatorConfig = startState.getVault(vault).publicAllocatorConfig;
+          if (!publicAllocatorConfig) {
+            throw new Error(`Missing public allocator config for vault ${vault}`);
+          }
+          return publicAllocatorConfig.fee;
         }
-        
-        // Ensure holdings exist (user should have actual holdings from wallet)
-        if (!draft.holdings[userAddress]) {
-          draft.holdings[userAddress] = {};
-        }
-      });
-
-      // 4. Encode the bundle with real state
-      const bundle = encodeBundle(
-        reallocationOperations,
-        preparedState,
-        false
       );
-      const tx = bundle.tx();
 
-      // 5. Send the transaction using wagmi
       const result = await sendTransactionAsync({
         to: tx.to as Address,
         data: tx.data,
-        value: tx.value || 0n,
+        value: tx.value,
       });
 
       setTxHash(result);
@@ -196,10 +107,10 @@ export default function TransactionSenderV2({
         onClick={handleSendTransaction}
         disabled={isPreparingTx || isTransactionPending || isTransactionSent}
       >
-        {isPreparingTx 
-          ? "Preparing..." 
-          : isTransactionPending 
-          ? "Sending..." 
+        {isPreparingTx
+          ? "Preparing..."
+          : isTransactionPending
+          ? "Sending..."
           : "Send Transaction"}
       </button>
       {isTransactionSuccessful && (

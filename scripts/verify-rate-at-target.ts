@@ -7,7 +7,7 @@
  * TL;DR: Both are correct — they measure different things.
  * - Morpho FE: APY at exactly 90% utilization (rateAtTarget compounded)
  * - Dashboard: APY after borrowing 90% of total available liquidity
- *   (market + public allocator), targeting 90% utilization
+ *   (market + public allocator), targeting the SDK supply target utilization
  *
  * Run: npx tsx scripts/verify-rate-at-target.ts
  */
@@ -16,13 +16,13 @@ import { Market, type MarketId } from "@morpho-org/blue-sdk";
 import "@morpho-org/blue-sdk-viem/lib/augment";
 import { createPublicClient, formatUnits, http } from "viem";
 import { mainnet } from "viem/chains";
-import { TARGET_UTILIZATION } from "../src/config/constants";
+import { DEFAULT_SUPPLY_TARGET_UTILIZATION } from "@morpho-org/morpho-sdk/constants";
 
 // ─── Constants ───
 
 const WAD = 1_000_000_000_000_000_000n;
 const YEAR = 365n * 24n * 60n * 60n;
-const DEFAULT_SUPPLY_TARGET_UTILIZATION = TARGET_UTILIZATION;
+const TARGET_UTILIZATION = 900_000_000_000_000_000n; // 0.9 WAD = 90%
 
 // ─── Math helpers (replicated from src/utils/maths.ts) ───
 
@@ -215,18 +215,18 @@ async function main() {
 
   // 4. Compute what utilization you'd get borrowing 90% of total available liquidity
   // When you borrow 90% of total available liquidity, the PA supplies enough
-  // to target DEFAULT_SUPPLY_TARGET_UTILIZATION (90%).
+  // to target DEFAULT_SUPPLY_TARGET_UTILIZATION (SDK single source of truth).
   // The new supply = current supply + PA supply, new borrow = current borrow + borrow amount.
-  // The result reaches 90% when enough PA liquidity is available.
+  // The result lands at that target when enough PA liquidity is available.
 
   // Simulate: borrow 90% of totalAvailableLiquidity
   const borrowAmount90Pct = (totalAvailableLiquidity * 90n) / 100n;
 
-  // After PA reallocation, the PA aims for 90% utilization
+  // After PA reallocation, the PA aims for the SDK supply target utilization
   // New borrow = apiBorrow + borrowAmount90Pct
   // The PA will supply enough to get close to its target utilization
   const newBorrow = apiBorrow + borrowAmount90Pct;
-  // PA targets 90% utilization: newSupply = newBorrow / 0.9
+  // newSupply = newBorrow / supplyTargetUtilization
   const paTargetSupply = wDivDown(newBorrow, DEFAULT_SUPPLY_TARGET_UTILIZATION);
   const paSupplyNeeded = paTargetSupply > apiSupply ? paTargetSupply - apiSupply : 0n;
   // Cap PA supply by reallocatable amount
