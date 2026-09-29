@@ -12,11 +12,11 @@
  * Run: npx tsx scripts/verify-rate-at-target.ts
  */
 
-import { Market, type MarketId } from "@morpho-org/blue-sdk";
-import "@morpho-org/blue-sdk-viem/lib/augment";
+import { type MarketId } from "@morpho-org/blue-sdk";
+import { fetchMarket } from "@morpho-org/blue-sdk-viem";
 import { createPublicClient, formatUnits, http } from "viem";
 import { mainnet } from "viem/chains";
-import { DEFAULT_SUPPLY_TARGET_UTILIZATION } from "@morpho-org/morpho-sdk/constants";
+import { DEFAULT_SUPPLY_TARGET_UTILIZATION } from "@morpho-org/morpho-sdk";
 
 // ─── Constants ───
 
@@ -30,7 +30,6 @@ const mulDivDown = (x: bigint, y: bigint, d: bigint): bigint => (x * y) / d;
 const mulDivUp = (x: bigint, y: bigint, d: bigint): bigint =>
   (x * y + (d - 1n)) / d;
 const wDivDown = (x: bigint, y: bigint): bigint => mulDivDown(x, WAD, y);
-const wMulDown = (x: bigint, y: bigint): bigint => mulDivDown(x, y, WAD);
 
 const wTaylorCompounded = (x: bigint, n: bigint): bigint => {
   const firstTerm = x * n;
@@ -110,7 +109,24 @@ query MarketByUniqueKeyReallocatable($uniqueKey: String!, $chainId: Int!) {
 }
 `;
 
-async function fetchMarketFromAPI(marketId: string) {
+interface MarketApiData {
+  reallocatableLiquidityAssets: string;
+  publicAllocatorSharedLiquidity?: {
+    assets: string;
+    vault: { address: string; name?: string };
+  }[];
+  loanAsset: { decimals: number; priceUsd: number; symbol: string };
+  state: {
+    liquidityAssets: string;
+    supplyAssets: string;
+    borrowAssets: string;
+    utilization: number;
+  };
+}
+
+async function fetchMarketFromAPI(
+  marketId: string,
+): Promise<MarketApiData | undefined> {
   const res = await fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -119,7 +135,11 @@ async function fetchMarketFromAPI(marketId: string) {
       variables: { uniqueKey: marketId, chainId: 1 },
     }),
   });
-  const json = (await res.json()) as { data?: { marketByUniqueKey?: any } };
+  const json = (await res.json()) as {
+    data?: {
+      marketByUniqueKey?: MarketApiData;
+    };
+  };
   return json?.data?.marketByUniqueKey;
 }
 
@@ -146,7 +166,7 @@ async function main() {
     transport: http(rpcUrl),
   });
 
-  const market = await Market.fetch(MARKET_ID, client as any);
+  const market = await fetchMarket(MARKET_ID, client);
 
   const rateAtTarget = market.rateAtTarget ?? 0n;
   const totalSupply = market.totalSupplyAssets;
@@ -193,7 +213,10 @@ async function main() {
     `  PA % of total:           ${((Number(reallocatableLiquidity) / Number(totalAvailableLiquidity)) * 100).toFixed(1)}%`
   );
 
-  if (apiData.publicAllocatorSharedLiquidity?.length > 0) {
+  if (
+    apiData.publicAllocatorSharedLiquidity &&
+    apiData.publicAllocatorSharedLiquidity.length > 0
+  ) {
     console.log("\n  PA sources:");
     for (const item of apiData.publicAllocatorSharedLiquidity) {
       const vaultName = item.vault.name || item.vault.address.slice(0, 10);
