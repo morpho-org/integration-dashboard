@@ -1,7 +1,11 @@
-import { AccrualPosition, Market, MarketId } from "@morpho-org/blue-sdk";
-import { metaMorphoAbi, publicAllocatorAbi } from "@morpho-org/blue-sdk-viem";
-import "@morpho-org/blue-sdk-viem/lib/augment";
+import { MarketId } from "@morpho-org/blue-sdk";
+import {
+  fetchAccrualPosition,
+  fetchMarket,
+  metaMorphoAbi,
+} from "@morpho-org/blue-sdk-viem";
 import { Abi, PublicClient, zeroAddress } from "viem";
+import publicAllocatorAbi from "../abis/publicAllocatorAbi.json";
 import safeAbi from "../abis/safeAbi.json";
 import { publicAllocatorAddress } from "../config/constants";
 import { getReallocationData } from "../utils/maths";
@@ -18,7 +22,7 @@ export const fetchMarketParamsAndData = async (
   client: PublicClient,
   marketId: string
 ) => {
-  const config = await Market.fetch(marketId as MarketId, client);
+  const config = await fetchMarket(marketId as MarketId, client);
   const marketParams = config.params;
 
   const marketState = {
@@ -50,7 +54,7 @@ export const fetchMarketParams = async (
   id: string
 ): Promise<MarketParams> => {
   try {
-    const config = await Market.fetch(id as MarketId, client);
+    const config = await fetchMarket(id as MarketId, client);
     return config.params;
   } catch (error) {
     console.error("Error fetching market params", error);
@@ -87,7 +91,7 @@ export const fetchVaultMarketPositionAndCap = async (
   vaultAdress: string
 ) => {
   const [position, supplyCap] = await Promise.all([
-    AccrualPosition.fetch(
+    fetchAccrualPosition(
       vaultAdress as `0x${string}`,
       marketId as MarketId,
       client

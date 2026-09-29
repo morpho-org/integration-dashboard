@@ -1,109 +1,126 @@
-import {
-    getChainAddresses,
-    MarketId,
-    MarketParams
-} from "@morpho-org/blue-sdk";
-import { LiquidityLoader } from "@morpho-org/liquidity-sdk-viem";
-import { useState } from "react";
-import { Address, parseEther } from "viem";
-import { WithdrawalDetails } from "../core/publicAllocator";
-import { encodePublicAllocatorReallocationBundle } from "../core/publicAllocatorTx";
+import type { MarketParams } from "@morpho-org/morpho-sdk/blue/entities";
+import type { VaultV2BlueReallocation } from "@morpho-org/morpho-sdk";
+import { encodeFunctionData, erc20Abi, formatUnits, type Address } from "viem";
+import { simulateCalls } from "viem/actions";
+import { useMemo, useState } from "react";
+import { useAccount } from "wagmi";
+import { buildDirectAllocationTx } from "../core/publicAllocatorTx";
 import { initializeClient } from "../utils/client";
 
-type TransactionSimulatorV2Props = {
+interface TransactionSimulatorV2Props {
   networkId: number;
-  marketId: MarketId;
-  withdrawalsPerVault: { [vaultAddress: string]: WithdrawalDetails[] };
-};
+  targetMarketParams: MarketParams;
+  reallocations: readonly VaultV2BlueReallocation[];
+}
 
-const simulationUserAddress: Address = "0x7f7A70b5B584C4033CAfD52219a496Df9AFb1af7";
+const disconnectedSimulationAccount =
+  "0x000000000000000000000000000000000000dEaD" as Address;
 
 export default function TransactionSimulatorV2({
   networkId,
-  marketId,
-  withdrawalsPerVault,
+  targetMarketParams,
+  reallocations,
 }: TransactionSimulatorV2Props) {
+  const { address } = useAccount();
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationStatus, setSimulationStatus] = useState<
     "none" | "success" | "error"
   >("none");
   const [showErrorModal, setShowErrorModal] = useState(false);
-
-  const config = getChainAddresses(networkId);
-  if (!config) throw new Error(`Unsupported chain ID: ${networkId}`);
-
-  const supplyMarketParams = MarketParams.get(marketId);
-  const [error, setError] = useState<Error | null>(null);
-
-  const simulateTransaction = async () => {
-    setSimulationStatus("none");
-    setError(null);
-
+  const [error, setError] = useState("");
+  const allocation = useMemo(() => {
     try {
-      const { client } = await initializeClient(networkId);
-      const loader = new LiquidityLoader(client as ConstructorParameters<typeof LiquidityLoader>[0], {
-        maxWithdrawalUtilization: {},
-        defaultMaxWithdrawalUtilization: parseEther("1"),
-      });
-      const { startState } = await loader.fetch(marketId);
-
-      const tx = encodePublicAllocatorReallocationBundle(
-        networkId,
-        withdrawalsPerVault,
-        supplyMarketParams,
-        (vault: Address) => {
-          const publicAllocatorConfig = startState.getVault(vault).publicAllocatorConfig;
-          if (!publicAllocatorConfig) {
-            throw new Error(`Missing public allocator config for vault ${vault}`);
-          }
-          return publicAllocatorConfig.fee;
-        }
-      );
-
-      // Fund the simulation account with ETH if needed (for Anvil/Hardhat)
-      try {
-        await (client.request as (args: { method: string; params: unknown[] }) => Promise<unknown>)({
-          method: "anvil_setBalance",
-          params: [simulationUserAddress, `0x${parseEther("1000").toString(16)}`],
-        });
-        console.log(`💰 Funded simulation account ${simulationUserAddress} with 1000 ETH`);
-      } catch (fundError) {
-        console.warn(
-          "⚠️ Could not fund account (might not be using Anvil):",
-          fundError
-        );
-      }
-
-      console.log("🚀 Simulating public allocator reallocation bundle...");
-      await client.call({
-        to: tx.to as Address,
-        data: tx.data,
-        value: tx.value,
-        account: simulationUserAddress,
-      });
-
-      console.log("✅ Simulation successful:", {
-        to: tx.to,
-        data: tx.data,
-        value: tx.value.toString(),
-      });
-      setSimulationStatus("success");
-    } catch (err) {
-      console.error("❌ Simulation failed:", err);
-      setError(err instanceof Error ? err : new Error(String(err)));
-      setSimulationStatus("error");
+      return {
+        value: buildDirectAllocationTx(
+          networkId,
+          targetMarketParams,
+          reallocations,
+        ),
+      };
+    } catch (cause) {
+      return {
+        error: cause instanceof Error ? cause.message : String(cause),
+      };
     }
-  };
+  }, [networkId, targetMarketParams, reallocations]);
 
-  const handleSimulate = async () => {
+  const simulate = async () => {
     setIsSimulating(true);
-    await simulateTransaction();
-    setIsSimulating(false);
-  };
+    setSimulationStatus("none");
+    setError("");
+    try {
+      if (!allocation.value) throw new Error(allocation.error);
+      const { client } = await initializeClient(networkId);
+      if (allocation.value.penaltyAssets === 0n) {
+        await client.call({
+          to: allocation.value.tx.to,
+          data: allocation.value.tx.data,
+          value: 0n,
+          account: address ?? disconnectedSimulationAccount,
+        });
+      } else {
+        const [symbol, decimals] = await Promise.all([
+          client.readContract({
+            address: allocation.value.loanToken,
+            abi: erc20Abi,
+            functionName: "symbol",
+          }),
+          client.readContract({
+            address: allocation.value.loanToken,
+            abi: erc20Abi,
+            functionName: "decimals",
+          }),
+        ]);
+        const penalty = formatUnits(allocation.value.penaltyAssets, decimals);
+        if (!address)
+          throw new Error(
+            `Connect a wallet holding ≥ ${penalty} ${symbol} to simulate penalty-bearing reallocations.`,
+          );
+        const balance = await client.readContract({
+          address: allocation.value.loanToken,
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [address],
+        });
+        if (balance < allocation.value.penaltyAssets)
+          throw new Error(
+            `Connect a wallet holding ≥ ${penalty} ${symbol} to simulate penalty-bearing reallocations.`,
+          );
 
-  const handleErrorClick = () => {
-    if (simulationStatus === 'error') {
+        await simulateCalls(client, {
+          account: address,
+          calls: [
+            {
+              to: allocation.value.loanToken,
+              data: encodeFunctionData({
+                abi: erc20Abi,
+                functionName: "approve",
+                args: [
+                  allocation.value.allocator,
+                  allocation.value.penaltyAssets,
+                ],
+              }),
+            },
+            {
+              to: allocation.value.tx.to,
+              data: allocation.value.tx.data,
+              value: 0n,
+            },
+          ],
+        });
+      }
+      setSimulationStatus("success");
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      setError(
+        message.includes("eth_simulateV1")
+          ? "RPC does not support eth_simulateV1; cannot simulate penalty flow."
+          : message,
+      );
+      setSimulationStatus("error");
       setShowErrorModal(true);
+    } finally {
+      setIsSimulating(false);
     }
   };
 
@@ -111,41 +128,42 @@ export default function TransactionSimulatorV2({
     <>
       <div className="flex items-center gap-2">
         <button
-          onClick={handleSimulate}
-          disabled={isSimulating}
-          className="px-4 py-2 rounded transition-colors bg-[#5792FF] text-white hover:bg-blue-500/30 disabled:opacity-50"
+          className="rounded bg-blue-500 px-4 py-2 text-white disabled:opacity-50"
+          disabled={
+            isSimulating || !allocation.value || reallocations.length === 0
+          }
+          onClick={simulate}
+          type="button"
         >
-          {isSimulating ? "Simulating..." : "Simulate Changes"}
+          {isSimulating ? "Simulating…" : "Simulate"}
         </button>
-
         {simulationStatus === "success" && (
-          <span className="text-green-400">✓ Simulation validated</span>
+          <span className="text-green-700">Simulation successful</span>
         )}
-
         {simulationStatus === "error" && (
-          <span
-            className="text-red-400 cursor-pointer hover:underline"
-            onClick={handleErrorClick}
+          <button
+            className="text-red-600 underline"
+            onClick={() => setShowErrorModal(true)}
+            type="button"
           >
-            ✗ Simulation failed
-          </span>
+            Simulation failed
+          </button>
         )}
       </div>
-
+      {allocation.error && (
+        <p className="mt-2 text-sm text-red-600">{allocation.error}</p>
+      )}
       {showErrorModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-4">
-          <div className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
-            <h2 className="text-lg font-bold mb-4 text-white">
-              Simulation Error
-            </h2>
-            <div className="overflow-y-auto flex-1">
-              <pre className="text-red-400 text-sm break-all whitespace-pre-wrap">
-                {error?.message || "Unknown error occurred"}
-              </pre>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-lg bg-gray-800 p-6 text-white">
+            <h2 className="mb-4 text-lg font-bold">Simulation Error</h2>
+            <pre className="flex-1 overflow-y-auto whitespace-pre-wrap break-all text-sm text-red-300">
+              {error || "Unknown error occurred"}
+            </pre>
             <button
+              className="mt-4 rounded bg-blue-500 px-4 py-2"
               onClick={() => setShowErrorModal(false)}
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              type="button"
             >
               Close
             </button>

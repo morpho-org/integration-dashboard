@@ -1,121 +1,174 @@
-import {
-    getChainAddresses,
-    MarketId,
-    MarketParams
-} from "@morpho-org/blue-sdk";
-import { LiquidityLoader } from "@morpho-org/liquidity-sdk-viem";
-import { useState } from "react";
-import { Address, parseEther } from "viem";
-import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
-import { WithdrawalDetails } from "../core/publicAllocator";
-import { encodePublicAllocatorReallocationBundle } from "../core/publicAllocatorTx";
+import type { MarketParams } from "@morpho-org/morpho-sdk/blue/entities";
+import type { VaultV2BlueReallocation } from "@morpho-org/morpho-sdk";
+import { encodeFunctionData, erc20Abi, formatUnits } from "viem";
+import { useMemo, useState } from "react";
+import { useAccount, useSendTransaction, useSwitchChain } from "wagmi";
+import { buildDirectAllocationTx } from "../core/publicAllocatorTx";
 import { initializeClient } from "../utils/client";
 
-type TransactionSenderV2Props = {
+interface TransactionSenderV2Props {
   networkId: number;
-  marketId: MarketId;
-  withdrawalsPerVault: { [vaultAddress: string]: WithdrawalDetails[] };
-};
+  targetMarketParams: MarketParams;
+  reallocations: readonly VaultV2BlueReallocation[];
+}
 
 export default function TransactionSenderV2({
   networkId,
-  marketId,
-  withdrawalsPerVault,
+  targetMarketParams,
+  reallocations,
 }: TransactionSenderV2Props) {
-  const [isTransactionSent, setIsTransactionSent] = useState(false);
-  const [isPreparingTx, setIsPreparingTx] = useState(false);
+  const { address, isConnected, chainId: walletChainId } = useAccount();
+  const { switchChainAsync } = useSwitchChain();
   const { sendTransactionAsync } = useSendTransaction();
-  const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
-  const { isConnected, address: userAddress } = useAccount();
-
-  const config = getChainAddresses(networkId);
-  if (!config) throw new Error(`Unsupported chain ID: ${networkId}`);
-
-  const supplyMarketParams = MarketParams.get(marketId);
-
-  const {
-    isLoading: isTransactionPending,
-    isSuccess: isTransactionSuccessful,
-  } = useWaitForTransactionReceipt({
-    hash: txHash,
-  });
-
-  const handleSendTransaction = async (event: React.MouseEvent) => {
-    event.stopPropagation();
-
-    if (!userAddress) {
-      console.error("User address not available");
-      return;
-    }
-
-    setIsPreparingTx(true);
-
+  const [progress, setProgress] = useState("");
+  const [error, setError] = useState("");
+  const [transactionHash, setTransactionHash] = useState<`0x${string}`>();
+  const [isSending, setIsSending] = useState(false);
+  const allocation = useMemo(() => {
     try {
-      const { client } = await initializeClient(networkId);
-      const loader = new LiquidityLoader(client as ConstructorParameters<typeof LiquidityLoader>[0], {
-        maxWithdrawalUtilization: {},
-        defaultMaxWithdrawalUtilization: parseEther("1"),
-      });
-      const { startState } = await loader.fetch(marketId);
+      return {
+        value: buildDirectAllocationTx(
+          networkId,
+          targetMarketParams,
+          reallocations,
+        ),
+      };
+    } catch (cause) {
+      return {
+        error: cause instanceof Error ? cause.message : String(cause),
+      };
+    }
+  }, [networkId, targetMarketParams, reallocations]);
 
-      const tx = encodePublicAllocatorReallocationBundle(
-        networkId,
-        withdrawalsPerVault,
-        supplyMarketParams,
-        (vault: Address) => {
-          const publicAllocatorConfig = startState.getVault(vault).publicAllocatorConfig;
-          if (!publicAllocatorConfig) {
-            throw new Error(`Missing public allocator config for vault ${vault}`);
-          }
-          return publicAllocatorConfig.fee;
-        }
-      );
-
-      const result = await sendTransactionAsync({
-        to: tx.to as Address,
-        data: tx.data,
-        value: tx.value,
-      });
-
-      setTxHash(result);
-      setIsTransactionSent(true);
-      console.log("✅ Transaction sent:", result);
-    } catch (error) {
-      console.error("❌ Transaction failed:", error);
-    } finally {
-      setIsPreparingTx(false);
+  const switchNetwork = async () => {
+    setError("");
+    try {
+      await switchChainAsync({ chainId: networkId });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
     }
   };
 
-  if (!isConnected) {
+  const send = async () => {
+    if (!address || !allocation.value) return;
+    setError("");
+    setProgress("");
+    setTransactionHash(undefined);
+    setIsSending(true);
+    try {
+      const { client } = await initializeClient(networkId);
+      if (allocation.value.penaltyAssets > 0n) {
+        const [balance, allowance, symbol, decimals] = await Promise.all([
+          client.readContract({
+            address: allocation.value.loanToken,
+            abi: erc20Abi,
+            functionName: "balanceOf",
+            args: [address],
+          }),
+          client.readContract({
+            address: allocation.value.loanToken,
+            abi: erc20Abi,
+            functionName: "allowance",
+            args: [address, allocation.value.allocator],
+          }),
+          client.readContract({
+            address: allocation.value.loanToken,
+            abi: erc20Abi,
+            functionName: "symbol",
+          }),
+          client.readContract({
+            address: allocation.value.loanToken,
+            abi: erc20Abi,
+            functionName: "decimals",
+          }),
+        ]);
+        const penalty = formatUnits(allocation.value.penaltyAssets, decimals);
+        if (balance < allocation.value.penaltyAssets)
+          throw new Error(
+            `Insufficient ${symbol} balance for the ${penalty} ${symbol} penalty.`,
+          );
+
+        if (allowance < allocation.value.penaltyAssets) {
+          setProgress(`Approving ${penalty} ${symbol} penalty…`);
+          const approvalHash = await sendTransactionAsync({
+            to: allocation.value.loanToken,
+            data: encodeFunctionData({
+              abi: erc20Abi,
+              functionName: "approve",
+              args: [allocation.value.allocator, allocation.value.penaltyAssets],
+            }),
+            value: 0n,
+            chainId: networkId,
+          });
+          const receipt = await client.waitForTransactionReceipt({
+            hash: approvalHash,
+          });
+          if (receipt.status !== "success")
+            throw new Error("Penalty-token approval failed.");
+        }
+      }
+
+      setProgress("Sending reallocation…");
+      const hash = await sendTransactionAsync({
+        to: allocation.value.tx.to,
+        data: allocation.value.tx.data,
+        value: 0n,
+        chainId: networkId,
+      });
+      setTransactionHash(hash);
+      const receipt = await client.waitForTransactionReceipt({ hash });
+      if (receipt.status !== "success")
+        throw new Error("The reallocation transaction failed.");
+      setProgress("Reallocation completed.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+      setProgress("");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  if (!isConnected)
     return (
-      <div>
+      <button className="rounded bg-gray-500 px-4 py-2 text-white" disabled>
+        Connect wallet
+      </button>
+    );
+
+  if (walletChainId !== networkId)
+    return (
+      <div className="space-y-2">
         <button
-          className="px-4 py-2 rounded bg-orange-500 text-white hover:bg-orange-600 transition-colors"
-          disabled
+          className="rounded bg-blue-500 px-4 py-2 text-white"
+          onClick={switchNetwork}
+          type="button"
         >
-          Connect Wallet to Send Transaction
+          Switch network
         </button>
+        {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
     );
-  }
 
   return (
-    <div>
+    <div className="space-y-2">
       <button
-        className="px-4 py-2 rounded transition-colors bg-[#5792FF] text-white hover:bg-blue-600 disabled:bg-gray-400"
-        onClick={handleSendTransaction}
-        disabled={isPreparingTx || isTransactionPending || isTransactionSent}
+        className="rounded bg-blue-500 px-4 py-2 text-white disabled:opacity-50"
+        disabled={isSending || !allocation.value || reallocations.length === 0}
+        onClick={send}
+        type="button"
       >
-        {isPreparingTx
-          ? "Preparing..."
-          : isTransactionPending
-          ? "Sending..."
-          : "Send Transaction"}
+        {isSending ? "Sending…" : "Send"}
       </button>
-      {isTransactionSuccessful && (
-        <div className="mt-2 text-green-500">Transaction successful!</div>
+      {allocation.error && (
+        <p className="text-sm text-red-600">{allocation.error}</p>
       )}
+      {progress && <p className="text-sm text-blue-700">{progress}</p>}
+      {transactionHash && (
+        <p className="break-all text-sm text-green-700">
+          Transaction: {transactionHash}
+        </p>
+      )}
+      {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   );
 }

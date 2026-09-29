@@ -6,8 +6,8 @@ A Next.js dashboard for Morpho integration and manual reallocation operations.
 
 ### Prerequisites
 
-- Node.js 18+
-- Yarn
+- Node.js >=22.13 <23
+- pnpm 11.0.9 (the commands below use `npx`)
 
 ### Installation
 
@@ -34,6 +34,13 @@ npx -y pnpm@11.0.9 run start
 
 ```bash
 npx -y pnpm@11.0.9 run lint
+```
+
+### Tests
+
+```bash
+npx -y pnpm@11.0.9 run test
+npx -y pnpm@11.0.9 run test:public-allocator
 ```
 
 ## Tech Stack

@@ -3,11 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@morpho-org/blue-sdk": "6.4.0",
-    "@morpho-org/blue-sdk-viem": "5.2.1",
-    "@morpho-org/liquidity-sdk-viem": "4.1.0",
-    "@morpho-org/morpho-sdk": "5.4.1",
-    "@morpho-org/morpho-ts": "^2.8.0",
+    "@morpho-org/blue-sdk": "7.0.0",
+    "@morpho-org/blue-sdk-viem": "6.0.0",
+    "@morpho-org/morpho-sdk": "6.0.0",
+    "@morpho-org/morpho-ts": "3.0.0",
     "@rainbow-me/rainbowkit": "^2.1.6",
     "@tanstack/react-query": "5.100.9",
     "@types/node": "^22.10.7",
@@ -39,8 +38,9 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
+    "test": "vitest run",
     "organize-imports": "organize-imports-cli tsconfig.json",
-    "test:target-utilization": "node --test scripts/target-utilization-alignment.test.mjs"
+    "test:public-allocator": "node --test scripts/public-allocator-v2-guard.test.mjs"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.20",
@@ -49,7 +49,8 @@
     "organize-imports-cli": "^0.10.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",
-    "typescript": "^5.5.2"
+    "typescript": "^5.5.2",
+    "vitest": "4.1.11"
   },
   "packageManager": "pnpm@11.0.9",
   "engines": {
