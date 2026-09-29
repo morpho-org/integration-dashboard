@@ -89,6 +89,24 @@ export default function TransactionSenderV2({
           );
 
         if (allowance < allocation.value.penaltyAssets) {
+          if (allowance > 0n) {
+            setProgress("Resetting existing penalty allowance…");
+            const resetHash = await sendTransactionAsync({
+              to: allocation.value.loanToken,
+              data: encodeFunctionData({
+                abi: erc20Abi,
+                functionName: "approve",
+                args: [allocation.value.allocator, 0n],
+              }),
+              value: 0n,
+              chainId: networkId,
+            });
+            const resetReceipt = await client.waitForTransactionReceipt({
+              hash: resetHash,
+            });
+            if (resetReceipt.status !== "success")
+              throw new Error("Resetting the penalty-token allowance failed.");
+          }
           setProgress(`Approving ${penalty} ${symbol} penalty…`);
           const approvalHash = await sendTransactionAsync({
             to: allocation.value.loanToken,

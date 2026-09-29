@@ -5,6 +5,7 @@ import { simulateCalls } from "viem/actions";
 import { useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 import { buildDirectAllocationTx } from "../core/publicAllocatorTx";
+import { assertSimulationCallResults } from "../core/publicAllocatorSimulation";
 import { initializeClient } from "../utils/client";
 
 interface TransactionSimulatorV2Props {
@@ -87,27 +88,42 @@ export default function TransactionSimulatorV2({
             `Connect a wallet holding ≥ ${penalty} ${symbol} to simulate penalty-bearing reallocations.`,
           );
 
-        await simulateCalls(client, {
-          account: address,
-          calls: [
-            {
-              to: allocation.value.loanToken,
-              data: encodeFunctionData({
-                abi: erc20Abi,
-                functionName: "approve",
-                args: [
-                  allocation.value.allocator,
-                  allocation.value.penaltyAssets,
-                ],
-              }),
-            },
-            {
-              to: allocation.value.tx.to,
-              data: allocation.value.tx.data,
-              value: 0n,
-            },
-          ],
+        const allowance = await client.readContract({
+          address: allocation.value.loanToken,
+          abi: erc20Abi,
+          functionName: "allowance",
+          args: [address, allocation.value.allocator],
         });
+        const approval = (amount: bigint) => ({
+          to: allocation.value!.loanToken,
+          data: encodeFunctionData({
+            abi: erc20Abi,
+            functionName: "approve",
+            args: [allocation.value!.allocator, amount],
+          }),
+        });
+        const approvalCalls =
+          allowance >= allocation.value.penaltyAssets
+            ? []
+            : allowance > 0n
+              ? [approval(0n), approval(allocation.value.penaltyAssets)]
+              : [approval(allocation.value.penaltyAssets)];
+        const calls = [
+          ...approvalCalls,
+          {
+            to: allocation.value.tx.to,
+            data: allocation.value.tx.data,
+            value: 0n,
+          },
+        ] as const;
+        const simulation = await simulateCalls(client, {
+          account: address,
+          calls,
+        });
+        assertSimulationCallResults(simulation.results, [
+          ...approvalCalls.map(() => "Penalty approval"),
+          "Reallocation",
+        ]);
       }
       setSimulationStatus("success");
     } catch (cause) {

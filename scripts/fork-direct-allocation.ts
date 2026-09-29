@@ -15,13 +15,16 @@ import { morphoViemExtension } from "@morpho-org/morpho-sdk";
 import {
   createPublicClient,
   createWalletClient,
+  encodeFunctionData,
   erc20Abi,
   formatUnits,
   http,
   type Address,
 } from "viem";
+import { simulateCalls } from "viem/actions";
 import { base } from "viem/chains";
 import { fetchPublicAllocatorVaults } from "../src/fetchers/fetchPublicAllocatorVaults";
+import { assertSimulationCallResults } from "../src/core/publicAllocatorSimulation";
 import {
   getLiquidityBreakdown,
   planBorrow,
@@ -205,6 +208,90 @@ function selectReallocations(
   throw new Error(
     "No planned positive-penalty reallocation or eligible idle/market source was found.",
   );
+}
+
+function selectMulticallReallocations(
+  data: VaultV2BlueReallocationData,
+  timestamp: bigint,
+  candidates: Awaited<ReturnType<typeof fetchPublicAllocatorVaults>>["items"],
+): readonly VaultV2BlueReallocation[] {
+  const testAssets = 1_000_000n;
+  const reallocations: VaultV2BlueReallocation[] = [];
+  const usedCap = new Map<string, bigint>();
+
+  for (const candidate of candidates) {
+    if (
+      candidate.penalty === 0n ||
+      (!candidate.canPullFromIdle && !candidate.canPullFromMarket)
+    )
+      continue;
+
+    const capKey = `${candidate.vault.toLowerCase()}-${candidate.capId}`;
+    const capRemaining =
+      candidate.absoluteCap -
+      data.getAllocation(candidate.vault, candidate.capId).allocation -
+      (usedCap.get(capKey) ?? 0n);
+    if (capRemaining < testAssets) continue;
+
+    const vault = data.getVault(candidate.vault);
+    if (candidate.canPullFromIdle && vault.assetBalance >= testAssets) {
+      reallocations.push({
+        vault: candidate.vault,
+        from: { type: "idle" },
+        to: { adapter: candidate.adapter },
+        assets: testAssets,
+        penalty: candidate.penalty,
+      });
+      usedCap.set(capKey, (usedCap.get(capKey) ?? 0n) + testAssets);
+      if (reallocations.length === 2) return reallocations;
+    }
+
+    if (!candidate.canPullFromMarket) continue;
+    for (const adapter of vault.accrualAdapters) {
+      if (!(adapter instanceof AccrualVaultV2MorphoMarketV1AdapterV2))
+        continue;
+      for (const sourceMarket of adapter.markets) {
+        const shares = adapter.supplyShares[sourceMarket.id] ?? 0n;
+        if (
+          sourceMarket.id === marketId ||
+          sourceMarket.params.loanToken.toLowerCase() !==
+            data.getMarket(marketId).params.loanToken.toLowerCase() ||
+          shares === 0n
+        )
+          continue;
+        const sourceAssets = sourceMarket.supply(
+          0n,
+          shares,
+          timestamp,
+        ).assets;
+        if (
+          sourceAssets < testAssets ||
+          sourceMarket.liquidity < testAssets ||
+          candidate.absoluteCap -
+            data.getAllocation(candidate.vault, candidate.capId).allocation -
+            (usedCap.get(capKey) ?? 0n) <
+            testAssets
+        )
+          continue;
+
+        reallocations.push({
+          vault: candidate.vault,
+          from: {
+            type: "market",
+            adapter: adapter.address,
+            marketParams: sourceMarket.params,
+          },
+          to: { adapter: candidate.adapter },
+          assets: testAssets,
+          penalty: candidate.penalty,
+        });
+        usedCap.set(capKey, (usedCap.get(capKey) ?? 0n) + testAssets);
+        if (reallocations.length === 2) return reallocations;
+      }
+    }
+  }
+
+  throw new Error("Could not construct two positive-penalty fork reallocations.");
 }
 
 async function run() {
@@ -427,6 +514,246 @@ async function run() {
   console.log(`targetSupplyIncrease=${supplyIncrease}`);
   console.log(`penaltyBalances=increased by configured per-vault totals`);
   console.log(`receipt=${allocationReceipt.status} ${allocationHash}`);
+
+  const multicallBlock = await client.getBlock();
+  const multicallData = await market.getVaultV2BlueReallocationData({
+    vaultAddresses,
+    block: {
+      number: multicallBlock.number,
+      timestamp: multicallBlock.timestamp,
+    },
+  });
+  const multicallReallocations = selectMulticallReallocations(
+    multicallData,
+    multicallBlock.timestamp,
+    allocatorData.items,
+  );
+  const multicallAllocation = buildDirectAllocationTx(
+    chainId,
+    marketParams,
+    multicallReallocations,
+  );
+  if (multicallAllocation.penaltyAssets === 0n)
+    throw new Error("Multicall fork proof requires a positive penalty.");
+
+  const userBalance = await client.readContract({
+    address: multicallAllocation.loanToken,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [user],
+  });
+  if (userBalance < multicallAllocation.penaltyAssets) {
+    const extraFunding =
+      multicallAllocation.penaltyAssets - userBalance + 1n;
+    const fundHash = await createWalletClient({
+      account: blue,
+      chain: base,
+      transport: http(localRpcUrl),
+    }).writeContract({
+      address: multicallAllocation.loanToken,
+      abi: erc20Abi,
+      functionName: "transfer",
+      args: [user, extraFunding],
+    });
+    const fundReceipt = await client.waitForTransactionReceipt({
+      hash: fundHash,
+    });
+    if (fundReceipt.status !== "success")
+      throw new Error("Failed to fund the multicall penalty.");
+  }
+
+  const penaltyApproval = {
+    to: multicallAllocation.loanToken,
+    data: encodeFunctionData({
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [
+        multicallAllocation.allocator,
+        multicallAllocation.penaltyAssets,
+      ],
+    }),
+  };
+  const allocationCall = {
+    to: multicallAllocation.tx.to,
+    data: multicallAllocation.tx.data,
+    value: 0n,
+  } as const;
+  const simulation = await simulateCalls(client, {
+    account: user,
+    calls: [penaltyApproval, allocationCall],
+  });
+  assertSimulationCallResults(simulation.results, [
+    "Penalty approval",
+    "Reallocation",
+  ]);
+  if (simulation.results.some((result) => result.status !== "success"))
+    throw new Error("Correct multicall simulation did not fully succeed.");
+
+  const wrongPenaltyReallocations = multicallReallocations.map(
+    (reallocation, index) =>
+      index === 1
+        ? { ...reallocation, penalty: reallocation.penalty + 1n }
+        : reallocation,
+  ) as readonly VaultV2BlueReallocation[];
+  const wrongPenaltyAllocation = buildDirectAllocationTx(
+    chainId,
+    marketParams,
+    wrongPenaltyReallocations,
+  );
+  const wrongPenaltySimulation = await simulateCalls(client, {
+    account: user,
+    calls: [
+      penaltyApproval,
+      {
+        to: wrongPenaltyAllocation.tx.to,
+        data: wrongPenaltyAllocation.tx.data,
+        value: 0n,
+      },
+    ],
+  });
+  if (wrongPenaltySimulation.results[0].status !== "success")
+    throw new Error("Penalty approval failed in wrong-penalty simulation.");
+  if (wrongPenaltySimulation.results[1].status !== "failure")
+    throw new Error("Wrong-penalty multicall simulation did not report failure.");
+  let simulatorFailureMessage = "";
+  try {
+    assertSimulationCallResults(wrongPenaltySimulation.results, [
+      "Penalty approval",
+      "Reallocation",
+    ]);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.startsWith("Reallocation failed:")
+    )
+      simulatorFailureMessage = error.message;
+  }
+  if (!simulatorFailureMessage)
+    throw new Error("Simulator did not identify the failed reallocation step.");
+
+  for (let index = 0; index < multicallReallocations.length; index += 1) {
+    const incorrect = multicallReallocations.map((reallocation, entryIndex) =>
+      entryIndex === index
+        ? { ...reallocation, penalty: reallocation.penalty + 1n }
+        : reallocation,
+    ) as readonly VaultV2BlueReallocation[];
+    const incorrectTx = buildDirectAllocationTx(
+      chainId,
+      marketParams,
+      incorrect,
+    );
+    let reverted = false;
+    try {
+      await client.call({
+        account: user,
+        to: incorrectTx.tx.to,
+        data: incorrectTx.tx.data,
+        value: 0n,
+      });
+    } catch {
+      reverted = true;
+    }
+    if (!reverted)
+      throw new Error(`Wrong penalty in multicall entry ${index} did not revert.`);
+  }
+  if (multicallAllocation.tx.value !== 0n)
+    throw new Error("Multicall allocation unexpectedly requires native value.");
+
+  const multicallApprovalHash = await wallet.writeContract({
+    address: multicallAllocation.loanToken,
+    abi: erc20Abi,
+    functionName: "approve",
+    args: [multicallAllocation.allocator, multicallAllocation.penaltyAssets],
+  });
+  const multicallApprovalReceipt = await client.waitForTransactionReceipt({
+    hash: multicallApprovalHash,
+  });
+  if (multicallApprovalReceipt.status !== "success")
+    throw new Error("Failed to approve the multicall penalty.");
+  await client.call({
+    account: user,
+    to: multicallAllocation.tx.to,
+    data: multicallAllocation.tx.data,
+    value: 0n,
+  });
+
+  const multicallMarketBefore = await fetchMarket(marketId, client);
+  const multicallVaults = [
+    ...new Set(multicallReallocations.map((item) => item.vault.toLowerCase())),
+  ] as Address[];
+  const multicallPenaltyBefore = new Map<string, bigint>();
+  for (const vaultAddress of multicallVaults)
+    multicallPenaltyBefore.set(
+      vaultAddress.toLowerCase(),
+      await client.readContract({
+        address: multicallAllocation.loanToken,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [vaultAddress],
+      }),
+    );
+  const multicallExpectedSupply = multicallReallocations.reduce(
+    (sum, reallocation) => sum + reallocation.assets,
+    0n,
+  );
+  const multicallHash = await wallet.sendTransaction({
+    to: multicallAllocation.tx.to,
+    data: multicallAllocation.tx.data,
+    value: 0n,
+  });
+  const multicallReceipt = await client.waitForTransactionReceipt({
+    hash: multicallHash,
+  });
+  if (multicallReceipt.status !== "success")
+    throw new Error("Direct multicall allocation transaction failed.");
+
+  const multicallReceiptBlock = await client.getBlock({
+    blockNumber: multicallReceipt.blockNumber,
+  });
+  const multicallMarketAfter = await fetchMarket(marketId, client);
+  const multicallSupplyIncrease =
+    multicallMarketAfter.totalSupplyAssets -
+    multicallMarketBefore
+      .accrueInterest(multicallReceiptBlock.timestamp)
+      .totalSupplyAssets;
+  if (multicallSupplyIncrease !== multicallExpectedSupply)
+    throw new Error(
+      `Multicall target supply changed by ${multicallSupplyIncrease}, expected ${multicallExpectedSupply}.`,
+    );
+
+  const multicallExpectedPenalties = new Map<string, bigint>();
+  for (const reallocation of multicallReallocations) {
+    const vaultKey = reallocation.vault.toLowerCase();
+    multicallExpectedPenalties.set(
+      vaultKey,
+      (multicallExpectedPenalties.get(vaultKey) ?? 0n) +
+        getPenaltyAssets(reallocation),
+    );
+  }
+  for (const [vaultKey, expectedPenalty] of multicallExpectedPenalties) {
+    const actualBalance = await client.readContract({
+      address: multicallAllocation.loanToken,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [vaultKey as Address],
+    });
+    const previousBalance = multicallPenaltyBefore.get(vaultKey) ?? 0n;
+    if (actualBalance - previousBalance !== expectedPenalty)
+      throw new Error(
+        `Multicall vault ${vaultKey} penalty balance changed by ${actualBalance - previousBalance}, expected ${expectedPenalty}.`,
+      );
+  }
+  console.log(`entries=${multicallReallocations.length}`);
+  console.log("multicall=true");
+  console.log(`multicallAssets=${multicallExpectedSupply}`);
+  console.log(`multicallPenaltyAssets=${multicallAllocation.penaltyAssets}`);
+  console.log(`multicallTransactionValue=${multicallAllocation.tx.value}`);
+  console.log("multicallWrongPenalty=reverted for entries=0,1");
+  console.log("simulateCalls=all-success");
+  console.log(`simulateCallsWrongPenalty=${simulatorFailureMessage}`);
+  console.log(`multicallTargetSupplyIncrease=${multicallSupplyIncrease}`);
+  console.log("multicallPenaltyBalances=increased by per-vault totals");
+  console.log(`multicallReceipt=${multicallReceipt.status} ${multicallHash}`);
 }
 
 run()
